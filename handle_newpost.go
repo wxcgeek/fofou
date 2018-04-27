@@ -10,8 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/kjk/u"
 )
 
 // ModelNewPost represents a new post
@@ -63,9 +61,9 @@ func isMsgValid(msg string, topic *Topic) bool {
 	}
 	// prevent duplicate posts within the topic
 	if topic != nil {
-		sha1 := u.Sha1OfBytes([]byte(msg))
+		buf := plane0StringToBytes(msg)
 		for _, p := range topic.Posts {
-			if bytes.Compare(p.MessageSha1[:], sha1) == 0 {
+			if bytes.Equal(p.Message, buf) {
 				return false
 			}
 		}
@@ -184,10 +182,7 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	}
 
 	ok := true
-	if !isCaptchaValid(num1Str, num2Str, captchaStr) {
-		model.CaptchaClass = errorClass
-		ok = false
-	} else if (model.TopicID == 0) && !isSubjectValid(subject) {
+	if (model.TopicID == 0) && !isSubjectValid(subject) {
 		model.SubjectClass = errorClass
 		ok = false
 	} else if !isMsgValid(msg, topic) {
@@ -207,7 +202,7 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	cookie.AnonUser = name
 	setSecureCookie(w, cookie)
 
-	userName := cookie.TwitterUser
+	userName := cookie.GithubUser
 	twitterUser := true
 	if userName == "" {
 		userName = cookie.AnonUser
@@ -223,10 +218,10 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 			http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", model.ForumUrl, topicID), 302)
 		}
 	} else {
-		if err := store.AddPostToTopic(topic.Id, msg, userName, ipAddr); err != nil {
+		if err := store.AddPostToTopic(topic.ID, msg, userName, ipAddr); err != nil {
 			logger.Errorf("createNewPost(): store.AddPostToTopic() failed with %s", err)
 		}
-		http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", model.ForumUrl, topic.Id), 302)
+		http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", model.ForumUrl, topic.ID), 302)
 	}
 }
 
@@ -260,12 +255,11 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	model := &ModelNewPost{
 		Forum:           *forum,
 		SidebarHtml:     template.HTML(sidebar),
-		AnalyticsCode:   config.AnalyticsCode,
 		Num1:            rand.Intn(9) + 1,
 		Num2:            rand.Intn(9) + 1,
 		TopicID:         topicID,
 		LogInOut:        getLogInOut(r, getSecureCookie(r)),
-		TwitterUserName: cookie.TwitterUser,
+		TwitterUserName: cookie.GithubUser,
 		PrevName:        cookie.AnonUser,
 	}
 	model.Num3 = model.Num1 + model.Num2

@@ -72,7 +72,6 @@ func handlePostsBy(w http.ResponseWriter, r *http.Request) {
 		IpAddr:         ipAddr,
 		IpAddrInternal: ipAddrInternal,
 		IpBlocked:      ipBlocked,
-		AnalyticsCode:  config.AnalyticsCode,
 		LogInOut:       getLogInOut(r, getSecureCookie(r)),
 	}
 	ExecTemplate(w, tmplPosts, model)

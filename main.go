@@ -15,6 +15,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -32,31 +33,23 @@ var (
 	configPath   = flag.String("config", "config.json", "Path to configuration file")
 	httpAddr     = flag.String("addr", ":5010", "HTTP server address")
 	inProduction = flag.Bool("production", false, "are we running in production")
-	noS3Backup   = flag.Bool("no-backup", false, "did we disable s3 backup")
 	cookieName   = "ckie"
 )
 
 var (
 	oauthClient = oauth.Client{
-		TemporaryCredentialRequestURI: "https://api.twitter.com/oauth/request_token",
-		ResourceOwnerAuthorizationURI: "https://api.twitter.com/oauth/authenticate",
-		TokenRequestURI:               "https://api.twitter.com/oauth/access_token",
+		ResourceOwnerAuthorizationURI: "https://github.com/login/oauth/authorize",
+		TokenRequestURI:               "https://github.com/login/oauth/access_token",
+		Credentials: oauth.Credentials{
+			Token:  os.Getenv("CYVBACK_TOKEN"),
+			Secret: os.Getenv("CYVBACK_SECRET"),
+		},
 	}
 
 	config = struct {
-		TwitterOAuthCredentials *oauth.Credentials
-		CookieAuthKeyHexStr     *string
-		CookieEncrKeyHexStr     *string
-		AnalyticsCode           *string
-		AwsAccess               *string
-		AwsSecret               *string
-		S3BackupBucket          *string
-		S3BackupDir             *string
+		CookieAuthKeyHexStr *string
+		CookieEncrKeyHexStr *string
 	}{
-		&oauthClient.Credentials,
-		nil, nil,
-		nil,
-		nil, nil,
 		nil, nil,
 	}
 
@@ -116,53 +109,10 @@ func StringEmpty(s *string) bool {
 	return s == nil || 0 == len(*s)
 }
 
-// S3BackupEnabled returns true if backup to s3 is enabled
-func S3BackupEnabled() bool {
-	if *noS3Backup {
-		return false
-	}
-	if !*inProduction {
-		logger.Notice("s3 backups disabled because not in production")
-		return false
-	}
-	if StringEmpty(config.AwsAccess) {
-		logger.Notice("s3 backups disabled because AwsAccess not defined in config.json\n")
-		return false
-	}
-	if StringEmpty(config.AwsSecret) {
-		logger.Notice("s3 backups disabled because AwsSecret not defined in config.json\n")
-		return false
-	}
-	if StringEmpty(config.S3BackupBucket) {
-		logger.Notice("s3 backups disabled because S3BackupBucket not defined in config.json\n")
-		return false
-	}
-	if StringEmpty(config.S3BackupDir) {
-		logger.Notice("s3 backups disabled because S3BackupDir not defined in config.json\n")
-		return false
-	}
-	return true
-}
-
 func getDataDir() string {
-	if dataDir != "" {
-		return dataDir
-	}
-
-	dirsToCheck := []string{
-		"/data",
-		filepath.Join("..", "..", "data"),   // old on the server
-		u.ExpandTildeInPath("~/data/fofou"), // locally
-	}
-
-	for _, dir := range dirsToCheck {
-		if u.PathExists(dir) {
-			dataDir = dir
-			return dataDir
-		}
-	}
-	log.Fatalf("data directory (%q) doesn't exist\n", dirsToCheck)
-	return ""
+	u.CreateDirIfNotExists("data/forum")
+	dataDir = "data"
+	return dataDir
 }
 
 // NewForum creates new forum
@@ -267,7 +217,7 @@ func isTopLevelURL(url string) bool {
 }
 
 func userIsAdmin(f *Forum, cookie *SecureCookieValue) bool {
-	return cookie.TwitterUser == f.AdminTwitterUser
+	return cookie.GithubUser == "coyove"
 }
 
 // reads forums/*_config.json files
@@ -349,7 +299,7 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 		duration := time.Now().Sub(startTime)
 		// log urls that take long time to generate i.e. over 1 sec in production
 		// or over 0.1 sec in dev
-		shouldLog := duration.Seconds() > 1.0
+		shouldLog := true //duration.Seconds() > 1.0
 		if alwaysLogTime && duration.Seconds() > 0.1 {
 			shouldLog = true
 		}
@@ -409,18 +359,6 @@ func main() {
 
 	if len(appState.Forums) == 0 {
 		log.Fatalf("No forums defined in config.json")
-	}
-
-	backupConfig := &BackupConfig{
-		AwsAccess: *config.AwsAccess,
-		AwsSecret: *config.AwsSecret,
-		Bucket:    *config.S3BackupBucket,
-		S3Dir:     *config.S3BackupDir,
-		LocalDir:  getDataDir(),
-	}
-
-	if S3BackupEnabled() {
-		go BackupLoop(backupConfig)
 	}
 
 	if *inProduction {

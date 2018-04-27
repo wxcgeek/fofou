@@ -2,7 +2,15 @@
 package main
 
 import (
+	"math/rand"
+	"net/http"
+	"net/url"
+	"os"
+	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func testIPConvOne(t *testing.T, s string) {
@@ -78,4 +86,62 @@ func TestUnCaps(t *testing.T) {
 	for i := 0; i < len(d)/2; i++ {
 		testUnCaps(t, d[i*2], d[i*2+1])
 	}
+}
+
+func TestPost(t *testing.T) {
+	var count int64
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns: 1000,
+		},
+	}
+
+	post := func(wg *sync.WaitGroup) {
+
+		v := url.Values{}
+		v.Add("Name", "zzz")
+		v.Add("Message", time.Now().Format(time.RFC1123))
+		v.Add("Subject", time.Now().Format(time.RFC1123))
+		v.Add("Cancel", "")
+		req, _ := http.NewRequest("POST", "http://127.0.0.1:5010/sumatrapdf/newpost?"+v.Encode(), nil)
+		req.Header.Set("Content-Type", "application/www-x-form-urlencoded")
+		resp, err := client.Do(req)
+		if err == nil {
+			if resp.StatusCode == 200 {
+				atomic.AddInt64(&count, 1)
+			}
+			resp.Body.Close()
+		} else {
+			os.Stderr.WriteString(err.Error() + "\n")
+		}
+		wg.Done()
+	}
+
+	get := func(wg *sync.WaitGroup) {
+		req, _ := http.NewRequest("GET", "http://127.0.0.1:5010/sumatrapdf/newpost?from="+strconv.Itoa(rand.Intn(10000)), nil)
+		resp, err := client.Do(req)
+		if err == nil {
+			if resp.StatusCode == 200 {
+				atomic.AddInt64(&count, 1)
+			}
+			resp.Body.Close()
+		} else {
+			os.Stderr.WriteString(err.Error() + "\n")
+		}
+		wg.Done()
+	}
+
+	_, _ = post, get
+	for i := 0; i < 1000; i++ {
+		wg := &sync.WaitGroup{}
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go get(wg)
+		}
+
+		wg.Wait()
+		os.Stderr.WriteString(strconv.Itoa(i) + " " + strconv.FormatInt(count, 10) + "\n")
+	}
+	t.Error(1)
 }

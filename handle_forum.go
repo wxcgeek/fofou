@@ -99,9 +99,9 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 			d.TopicLinkClass = "deleted"
 		}
 		if 0 == nComments {
-			d.TopicURL = fmt.Sprintf("/%s/topic?id=%d", forum.ForumUrl, t.Id)
+			d.TopicURL = fmt.Sprintf("/%s/topic?id=%d", forum.ForumUrl, t.ID)
 		} else {
-			d.TopicURL = fmt.Sprintf("/%s/topic?id=%d&comments=%d", forum.ForumUrl, t.Id, nComments)
+			d.TopicURL = fmt.Sprintf("/%s/topic?id=%d&comments=%d", forum.ForumUrl, t.ID, nComments)
 		}
 		topicsDisplay = append(topicsDisplay, d)
 	}
@@ -118,13 +118,12 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		AnalyticsCode *string
 		LogInOut      template.HTML
 	}{
-		Forum:         *forum,
-		Topics:        topicsDisplay,
-		SidebarHtml:   template.HTML(sidebar),
-		ForumFullUrl:  buildForumURL(r, forum),
-		NewFrom:       newFrom,
-		AnalyticsCode: config.AnalyticsCode,
-		LogInOut:      getLogInOut(r, getSecureCookie(r)),
+		Forum:        *forum,
+		Topics:       topicsDisplay,
+		SidebarHtml:  template.HTML(sidebar),
+		ForumFullUrl: buildForumURL(r, forum),
+		NewFrom:      newFrom,
+		LogInOut:     getLogInOut(r, getSecureCookie(r)),
 	}
 
 	ExecTemplate(w, tmplForum, model)

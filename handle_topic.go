@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -41,19 +40,11 @@ func NewPostDisplay(p *Post, forum *Forum, isAdmin bool) *PostDisplay {
 	if p.IsDeleted {
 		pd.CssClass = "post deleted"
 	}
-	sha1 := p.MessageSha1
-	msgFilePath := forum.Store.MessageFilePath(sha1)
-	msg, err := ioutil.ReadFile(msgFilePath)
-	msgHtml := ""
-	if err != nil {
-		msgHtml = fmt.Sprintf("Error: failed to fetch a message with sha1 %x, file: %s", sha1[:], msgFilePath)
-	} else {
-		msgHtml = msgToHtml(string(msg))
-	}
+	msgHtml := msgToHtml(bytesToPlane0String(p.Message))
 	pd.MessageHtml = template.HTML(msgHtml)
 
-	if p.IsTwitterUser() {
-		pd.UserHomepage = "http://twitter.com/" + p.UserName()
+	if p.IsGithubUser() {
+		pd.UserHomepage = "https://github.com/" + p.UserName()
 	}
 
 	if forum.ForumUrl == "sumatrapdf" {
@@ -122,12 +113,12 @@ func msgToHtml(s string) string {
 func getLogInOut(r *http.Request, c *SecureCookieValue) template.HTML {
 	redirectUrl := template.HTMLEscapeString(r.URL.String())
 	s := ""
-	if c.TwitterUser == "" {
+	if c.GithubUser == "" {
 		s = `<span style="float: right;">Not logged in. <a href="/login?redirect=%s">Log in with Twitter</a></span>`
 		s = fmt.Sprintf(s, redirectUrl)
 	} else {
 		s = `<span style="float:right;">Logged in as %s (<a href="/logout?redirect=%s">logout</a>)</span>`
-		s = fmt.Sprintf(s, c.TwitterUser, redirectUrl)
+		s = fmt.Sprintf(s, c.GithubUser, redirectUrl)
 	}
 	return template.HTML(s)
 }
@@ -177,13 +168,12 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 		AnalyticsCode *string
 		LogInOut      template.HTML
 	}{
-		Forum:         *forum,
-		Topic:         *topic,
-		SidebarHtml:   template.HTML(sidebar),
-		Posts:         posts,
-		IsAdmin:       isAdmin,
-		AnalyticsCode: config.AnalyticsCode,
-		LogInOut:      getLogInOut(r, getSecureCookie(r)),
+		Forum:       *forum,
+		Topic:       *topic,
+		SidebarHtml: template.HTML(sidebar),
+		Posts:       posts,
+		IsAdmin:     isAdmin,
+		LogInOut:    getLogInOut(r, getSecureCookie(r)),
 	}
 	ExecTemplate(w, tmplTopic, model)
 }

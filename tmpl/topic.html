@@ -45,10 +45,10 @@
 				<div class="signature">
 					{{ if $isAdmin }}
 						{{ if .IsDeleted }}
-							<a href="/{{$forumUrl}}/postundel?topicId={{.Topic.Id}}&postId={{.Id}}" title="Undelete Post" onmouseover="rolloverOn('undo', {{ .Id }});" onmouseout="rolloverOff();">
+							<a href="/{{$forumUrl}}/postundel?topicId={{.Topic.ID}}&postId={{.Id}}" title="Undelete Post" onmouseover="rolloverOn('undo', {{ .Id }});" onmouseout="rolloverOff();">
 							<img align="right" id="undo{{ .Id }}" src="/img/undo.jpg" width="16" height="16" border="0" /></a>
 						{{ else }}
-							<a href="/{{$forumUrl}}/postdel?topicId={{.Topic.Id}}&postId={{.Id}}" title="Delete Post" onmouseover="rolloverOn('delete', {{.Id}});" onmouseout="rolloverOff();">
+							<a href="/{{$forumUrl}}/postdel?topicId={{.Topic.ID}}&postId={{.Id}}" title="Delete Post" onmouseover="rolloverOn('delete', {{.Id}});" onmouseout="rolloverOff();">
 							<img align="right" id="delete{{.Id}}" src="/img/delete.jpg" width="16" height="16" border="0" /></a>
 						{{ end }}
 					{{ end }}
@@ -66,7 +66,7 @@
 					{{ if $isAdmin }}
 						<br/>From ip:
 						<a href="/{{$forumUrl}}/postsby?ip={{.IpAddrInternal}}">{{ .IpAddress }}</a>
-						<a href="/{{$forumUrl}}/viewraw?topicId={{.Topic.Id}}&postId={{.Id}}">view raw</a>
+						<a href="/{{$forumUrl}}/viewraw?topicId={{.Topic.ID}}&postId={{.Id}}">view raw</a>
 					{{ end }}
 				</div>
 			</div>
@@ -78,7 +78,7 @@
 					Other recent <u>t</u>opics
 				</a>
 
-				<a accesskey="r" href="/{{ .ForumUrl }}/newpost?topicId={{.Topic.Id}}">
+				<a accesskey="r" href="/{{ .ForumUrl }}/newpost?topicId={{.Topic.ID}}">
 					<img src="/img/edit.gif" alt="Reply to this topic" border="0" height="14" width="13">
 					<u>R</u>eply to this topic
 				</a>

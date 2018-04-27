@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/kjk/u"
@@ -27,14 +25,12 @@ func handleViewRaw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	post := topic.Posts[postID-1]
+	msg := bytesToPlane0String(post.Message)
 	w.Header().Set("Content-Type", "text/plain")
-	sha1 := post.MessageSha1
-	msgFilePath := forum.Store.MessageFilePath(sha1)
-	msg, _ := ioutil.ReadFile(msgFilePath)
 	w.Write([]byte("****** Raw:\n"))
-	w.Write(msg)
+	w.Write([]byte(msg))
 	w.Write([]byte("\n\n****** Converted:\n"))
-	w.Write([]byte(msgToHtml(string(msg))))
+	w.Write([]byte(msgToHtml(msg)))
 }
 
 func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName string) {
@@ -146,8 +142,7 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 		Forums        *[]*Forum
 		AnalyticsCode string
 	}{
-		Forums:        &appState.Forums,
-		AnalyticsCode: *config.AnalyticsCode,
+		Forums: &appState.Forums,
 	}
 	ExecTemplate(w, tmplMain, model)
 }
@@ -170,7 +165,7 @@ func initHTTPServer() *http.Server {
 	r.HandleFunc("/{forum}/unblockip", makeTimingHandler(handleUnblockIP))
 
 	smux := &http.ServeMux{}
-	smux.HandleFunc("/oauthtwittercb", handleOauthTwitterCallback)
+	smux.HandleFunc("/oauthgithubcb", handleOauthGithubCallback)
 	smux.HandleFunc("/login", handleLogin)
 	smux.HandleFunc("/logout", handleLogout)
 	smux.HandleFunc("/favicon.ico", http.NotFound)
@@ -181,8 +176,6 @@ func initHTTPServer() *http.Server {
 	smux.Handle("/", r)
 
 	srv := &http.Server{
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
 		// TODO: 1.8 only
 		// IdleTimeout:  120 * time.Second,
 		Handler: smux,

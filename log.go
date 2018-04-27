@@ -140,7 +140,7 @@ func (l *ServerLogger) GetNotices() []*TimestampedMsg {
 // url: /logs
 func handleLogs(w http.ResponseWriter, r *http.Request) {
 	cookie := getSecureCookie(r)
-	isAdmin := cookie.TwitterUser == "kjk" // only I can see the logs
+	isAdmin := cookie.GithubUser == "coyove" // only I can see the logs
 	model := struct {
 		UserIsAdmin bool
 		Errors      []*TimestampedMsg
