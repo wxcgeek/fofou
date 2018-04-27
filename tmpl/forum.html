@@ -9,24 +9,8 @@
   {{ template "analytics.html" . }}
 </head>
 <body>
-
-<table>
-<tbody>
-<tr>
-  <td colspan="2" >
     {{ .LogInOut }}
-    <div class="header">
-      <h1><a href="/{{ .ForumUrl }}" class="green">{{ .Title }}</a>
-        &nbsp;&nbsp;<a href="/{{ .ForumUrl }}/rss" title="RSS feed">
-        <img src="/img/rss.gif" alt="RSS feed" valign="middle" border="0" height="14" width="36"></a>
-      </h1>
-      <p>{{ .Tagline }}</p>
-    </div>
-  </td>
-</tr>
-<tr>
-  <td class="sidebar">{{ .SidebarHtml }}</td>
-  <td class="contents">
+  <div class="contents">
 
     <form method="get" action="http://google.com/search">
       <input type="hidden" name="IncludeBlogs" value="1">
@@ -40,10 +24,10 @@
 
     <div class="topics">
       {{ if len .Topics }}
-        {{ range .Topics }}
+        {{ range $i, $v := .Topics }}
           <div class="topic">
-            <a class="{{.TopicLinkClass}}" href="{{.TopicURL}}">{{ .Subject }} </a>
-            <em>{{ .CreatedBy }}</em> <span>({{ .CommentsCountMsg }})</span>
+            <a class="{{$v.TopicLinkClass}}" href="{{$v.TopicURL}}">{{ $v.Subject }} </a>
+            <em>{{ $v.CreatedBy }}</em> <span>({{ $v.CommentsCountMsg }}{{if eq $i 0}} 留言{{end}})</span> <span>{{$v.CreatedOnStr}}</span>
           </div>
         {{ end }}
       {{ else }}
@@ -52,14 +36,14 @@
     </div>
 
     <div class="buttons">
-      <a accesskey="n" href="/{{ .ForumUrl }}/newpost"><img src="/img/new.gif" alt="New topic" border="0" height="14" width="13"> <u>N</u>ew topic</a>
+      <a href="/{{ .ForumUrl }}/newpost"><img src="data:image/gif;base64,R0lGODdhDQAOALMAAAAAAABmM2NNIm5KIKZ+Ts+SBuyYAPnLAKmpbf3+bZmZmf3Kiv///wAAAAAAAAAAACH5BAEAAAEALAAAAAANAA4AAAQ3MMhJKz0SB12xt9cEjORhAuYBMGzLcqsiK8xRb8Hq2vcWzzQGQORyDSW/IOuYK7aYpCgJRA1EAAA7" alt="New topic" border="0" height="14" width="13"> 新主题</a>
+      {{ if ne .PrevTo -1 }}
+        <a href="/{{ .ForumUrl }}/?from={{ .PrevTo }}"><img src="data:image/gif;base64,R0lGODlhDQAOAKIAAAAAAH9/fzPMZpmZmf//zOXl5f///wAAACH5BAkAAAIALAAAAAANAA4AAAhRAAUIHEiwoMGCABIqXDgQgIGHEB8CaGhggEWLEilGhDhRoMMBAUKK7CjAoYEADwsUCEDyYwCVKwm0fPgypkyKIG3e9EgzAIGfO0suHHqwqICAAA==" alt="Older topics" border="0" height="14" width="13"> 上一页</a>
+      {{ end }}
       {{ if .NewFrom }}
-        <a accesskey="t" href="/{{ .ForumUrl }}/?from={{ .NewFrom }}"><img src="/img/archive.gif" alt="Older topics" border="0" height="14" width="13">Older <u>t</u>opics</a>
+        <a href="/{{ .ForumUrl }}/?from={{ .NewFrom }}"><img src="data:image/gif;base64,R0lGODlhDQAOAKIAAAAAAH9/fzPMZpmZmf//zOXl5f///wAAACH5BAkAAAIALAAAAAANAA4AAAhRAAUIHEiwoMGCABIqXDgQgIGHEB8CaGhggEWLEilGhDhRoMMBAUKK7CjAoYEADwsUCEDyYwCVKwm0fPgypkyKIG3e9EgzAIGfO0suHHqwqICAAA==" alt="Older topics" border="0" height="14" width="13"> 下一页</a>
       {{ end }}
     </div>
-  </td>
-</tr>
-</tbody>
-</table>
+  </div>
 
 {{ template "footer.html" }}

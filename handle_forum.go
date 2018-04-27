@@ -27,6 +27,10 @@ func plural(n int, s string) string {
 	return fmt.Sprintf("%d %ss", n, s)
 }
 
+func (p *TopicDisplay) CreatedOnStr() string {
+	return prettySec(p.CreatedOn)
+}
+
 // those happen often so exclude them in order to not overwhelm the logs
 var skipForums = []string{"fofou", "topic.php", "post", "newpost",
 	"crossdomain.xml", "azenv.php", "index.php"}
@@ -79,9 +83,13 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 	isAdmin := userIsAdmin(forum, cookie)
 	withDeleted := isAdmin
 	topics, newFrom := forum.Store.GetTopics(nTopicsMax, from, withDeleted)
+	prevTo := from - nTopicsMax
+	if prevTo < 0 {
+		prevTo = -1
+	}
 	topicsDisplay := make([]*TopicDisplay, 0)
 
-	for i, t := range topics {
+	for _, t := range topics {
 		if t.IsDeleted() && !isAdmin {
 			continue
 		}
@@ -90,11 +98,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 			CreatedBy: t.Posts[0].UserName(),
 		}
 		nComments := len(t.Posts) - 1
-		if 0 == i {
-			d.CommentsCountMsg = plural(nComments, "comment")
-		} else {
-			d.CommentsCountMsg = fmt.Sprintf("%d", nComments)
-		}
+		d.CommentsCountMsg = fmt.Sprintf("%d", nComments)
 		if t.IsDeleted() {
 			d.TopicLinkClass = "deleted"
 		}
@@ -114,6 +118,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		SidebarHtml   template.HTML
 		ForumFullUrl  string
 		NewFrom       int
+		PrevTo        int
 		Topics        []*TopicDisplay
 		AnalyticsCode *string
 		LogInOut      template.HTML
@@ -123,6 +128,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		SidebarHtml:  template.HTML(sidebar),
 		ForumFullUrl: buildForumURL(r, forum),
 		NewFrom:      newFrom,
+		PrevTo:       prevTo,
 		LogInOut:     getLogInOut(r, getSecureCookie(r)),
 	}
 

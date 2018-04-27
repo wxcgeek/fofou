@@ -154,7 +154,12 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 
 	if r.FormValue("Cancel") != "" {
 		logger.Notice("Pressed cancel")
-		http.Redirect(w, r, fmt.Sprintf("/%s/", model.Forum.ForumUrl), 302)
+
+		if tid := r.FormValue("topicId"); tid != "" {
+			http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%s", model.Forum.ForumUrl, tid), 302)
+		} else {
+			http.Redirect(w, r, fmt.Sprintf("/%s/", model.Forum.ForumUrl), 302)
+		}
 		return
 	}
 
@@ -194,7 +199,7 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	githubUser := true
 	if userName == "" {
 		if cookie.AnonUser == "" {
-			cookie.AnonUser = fmt.Sprintf("user%x", sha1.Sum(randG.Fetch(16)))[:8]
+			cookie.AnonUser = fmt.Sprintf("user%X", sha1.Sum(randG.Fetch(16)))[:12]
 		}
 
 		userName = cookie.AnonUser

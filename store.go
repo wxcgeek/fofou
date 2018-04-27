@@ -20,10 +20,10 @@ import (
 
 type Post struct {
 	Id               int
-	CreatedOn        time.Time
 	Message          []byte
 	UserNameInternal string
 	IpAddrInternal   string
+	CreatedOn        uint32
 	IsDeleted        bool
 	Topic            *Topic // for convenience, we link to the topic this post belongs to
 }
@@ -71,12 +71,13 @@ func MakeInternalUserName(userName string, github bool) string {
 
 // Topic describes topic
 type Topic struct {
-	ID      int
-	Sage    bool
-	Subject string
-	Next    *Topic
-	Prev    *Topic
-	Posts   []Post
+	ID        int
+	Sage      bool
+	CreatedOn uint32
+	Subject   string
+	Next      *Topic
+	Prev      *Topic
+	Posts     []Post
 }
 
 // Store describes store
@@ -232,7 +233,6 @@ func parsePost(line []byte, topicIDToTopic map[int]*Topic) Post {
 	if err != nil {
 		panic("createdOnSeconds not a number")
 	}
-	createdOn := time.Unix(int64(createdOnSeconds), 0)
 
 	readNextSep()
 	ipAddrInternal := string(s[:idx])
@@ -265,7 +265,7 @@ func parsePost(line []byte, topicIDToTopic map[int]*Topic) Post {
 
 	post := Post{
 		Id:               realPostID,
-		CreatedOn:        createdOn,
+		CreatedOn:        uint32(createdOnSeconds),
 		UserNameInternal: userName,
 		IpAddrInternal:   ipAddrInternal,
 		IsDeleted:        false,
@@ -310,6 +310,7 @@ func (store *Store) readExistingData(fileDataPath string) error {
 		// D - delete post
 		// U - undelete post
 		// B - block/unblock ipaddr
+		// S - sage/unsage topic
 		switch c {
 		case 'T':
 			t := parseTopic(line)
@@ -326,6 +327,7 @@ func (store *Store) readExistingData(fileDataPath string) error {
 			post := parsePost(line, topicIDToTopic)
 			t := post.Topic
 			t.Posts = append(t.Posts, post)
+			t.CreatedOn = post.CreatedOn
 			if !t.Sage {
 				store.moveTopicToFront(t)
 			}
@@ -590,7 +592,7 @@ func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic 
 
 	p := &Post{
 		Id:               len(topic.Posts) + 1,
-		CreatedOn:        time.Now(),
+		CreatedOn:        uint32(time.Now().Unix()),
 		UserNameInternal: remSep(user),
 		IpAddrInternal:   remSep(ipAddrToInternal(ipAddr)),
 		IsDeleted:        false,
@@ -606,7 +608,7 @@ func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic 
 	messageBuf := make([]byte, ascii85.MaxEncodedLen(len(msgBytes)))
 	n := ascii85.Encode(messageBuf, msgBytes)
 
-	s1 := fmt.Sprintf("%d", p.CreatedOn.Unix())
+	s1 := fmt.Sprintf("%d", p.CreatedOn)
 	postStr := fmt.Sprintf("P%d|%d|%s|%s|%s|%s\n",
 		topic.ID, p.Id, s1, p.IpAddrInternal, p.UserNameInternal, string(messageBuf[:n]))
 
@@ -628,6 +630,7 @@ func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic 
 		store.moveTopicToFront(topic)
 	}
 
+	topic.CreatedOn = p.CreatedOn
 	return nil
 }
 

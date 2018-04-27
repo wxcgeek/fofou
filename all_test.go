@@ -137,7 +137,7 @@ func TestPost(t *testing.T) {
 		wg := &sync.WaitGroup{}
 		for i := 0; i < 100; i++ {
 			wg.Add(1)
-			go get(wg)
+			go post(wg)
 		}
 
 		wg.Wait()

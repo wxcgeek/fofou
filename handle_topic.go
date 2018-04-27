@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+var stdTimeFormat = "2006-01-02 15:04:05"
+
 type PostDisplay struct {
 	Post
 	UserHomepage string
@@ -19,13 +21,23 @@ type PostDisplay struct {
 	CssClass     string
 }
 
-func formatPostCreatedOnTime(t time.Time) string {
-	s := t.Format("January 2, 2006")
-	return s
+func prettySec(sec uint32) string {
+	t := time.Unix(int64(sec), 0)
+	d := time.Now().Sub(t)
+	if sec := d.Seconds(); sec < 60 {
+		return fmt.Sprintf("~ %.0f s", sec)
+	} else if sec < 3600 {
+		return fmt.Sprintf("~ %.0f mins", sec/60)
+	} else if sec < 86400 {
+		return fmt.Sprintf("~ %.1f hrs", sec/3600)
+	} else if sec < 86400*3 {
+		return fmt.Sprintf("~ %.1f days", sec/86400)
+	}
+	return t.Format(stdTimeFormat)
 }
 
 func (p *PostDisplay) CreatedOnStr() string {
-	return formatPostCreatedOnTime(p.CreatedOn)
+	return prettySec(p.CreatedOn)
 }
 
 func NewPostDisplay(p *Post, forum *Forum, isAdmin bool) *PostDisplay {

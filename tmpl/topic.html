@@ -9,26 +9,12 @@
 </head>
 
 <body>
-<table>
-<tbody>
-  <tr>
-    <td colspan="2">
       {{ .LogInOut }}
-
-      <div class="header">
-        <h1><a href="/{{ .ForumUrl }}" class="green">{{ .Title }}</a></h1>
-        <p>{{ .Tagline }}</p>
-      </div>
-    </td>
-  </tr>
 
   {{ $isAdmin := .IsAdmin }}
   {{ $forumUrl := .Forum.ForumUrl }}
 
-  <tr>
-    <td class="sidebar">{{ .SidebarHtml }}</td>
-
-	<td class="contents">
+	<div class="contents">
 		<script type="text/javascript">
 			rolloverInit('link', '/img/link_over.jpg');
 			rolloverInit('email', '/img/email_over.jpg');
@@ -73,20 +59,14 @@
 			{{ end }}
 
 			<div class="buttons">
-				<a accesskey="t" href="/{{ .ForumUrl }}">
-					<img src="/img/topics.gif" alt="Other recent topics" border="0" height="14" width="13">
-					Other recent <u>t</u>opics
-				</a>
-
 				<a accesskey="r" href="/{{ .ForumUrl }}/newpost?topicId={{.Topic.ID}}">
-					<img src="/img/edit.gif" alt="Reply to this topic" border="0" height="14" width="13">
-					<u>R</u>eply to this topic
+					<img src="data:image/gif;base64,R0lGODdhDQAOALMAAAAAAABmM2NNIm5KIKZ+Ts+SBuyYAPnLAKmpbf3+bZmZmf3Kiv///wAAAAAAAAAAACH5BAEAAAEALAAAAAANAA4AAAQ7MMhJawXpnAJswIfRWQCicR+grgtxjAAjywBBCDCj7Io6jJ8ZbTWJ8XoxYEw4U+p2QieTVlxZVZ5sIAIAOw==" border="0" height="14" width="13"> 回复
+				</a>
+				<a accesskey="t" href="/{{ .ForumUrl }}">
+					<img src="data:image/gif;base64,R0lGODlhDQAOAJEAAAAAADPMZpmZmf///yH5BAkAAAEALAAAAAANAA4AAAhCAAMIHEiwoMGCABIqXDgQwICHEB8CaDhAgEWLEilGhDhRoMOLAjhq3DigY4CPIDN6JKnyZEWMIleyNLmwpsmDBgMCADs=" border="0" height="14" width="13"> 返回主题列表
 				</a>
 			</div>
 		</div>
-	</td>
-</tr>
-</tbody>
-</table>
+	</div>
 
 {{ template "footer.html" }}

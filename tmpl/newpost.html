@@ -8,22 +8,7 @@
 </head>
 
 <body>
-<table>
-<tbody>
-<tr>
-  <td colspan="2">
     {{ .LogInOut }}
-    <div class="header">
-      <h1><a href="/{{ .ForumUrl }}" class="green">{{ .Title }}</a></h1>
-        <p>{{ .Tagline }}</p>
-        <br/>
-    </div>
-  </td>
-</tr>
-<tr>
-	<td class="sidebar">{{ .SidebarHtml }}
-	</td>
-	<td class="contents">
 	<div class="form">
 		<form action="newpost" method="post">
 		<input name="num1" value="{{ .Num1 }}" type="hidden">
@@ -31,36 +16,34 @@
 
 		{{ if .TopicID }}
 			<input name="topicId" value="{{ .TopicID }}" type="hidden">
-			<h2>Reply to "{{ .PrevSubject }}"</h2>
+			<h2>回复 "{{ .PrevSubject }}"</h2>
 		{{ else }}
-			<h2>New topic</h2>
+			<h2>新主题</h2>
 		{{ end }}
 
 		<table class="form" cellspacing="0">
 			<tbody>
 			{{ if not .TopicID }}
 			<tr>
-				<th><label for="Subject">Subject:</label></th>
+				<th><label for="Subject">主题:</label></th>
 				<td colspan="2">
-					<input class="{{ .SubjectClass }}" size="60" maxlength="64" name="Subject" id="Subject" style="width: 39em;" value="{{ .PrevSubject }}" type="edit">
+					<input class="{{ .SubjectClass }}" size="60" maxlength="64" name="Subject" id="Subject" value="{{ .PrevSubject }}" type="edit">
 					&nbsp;
 				</td>
 			</tr>
 			{{ end }}
 
 			<tr>
-				<th><label for="Message">Message:</label></th>
+				<th><label for="Message">正文:</label></th>
 				<td colspan="2">
-					<textarea class="{{ .MessageClass }}" name="Message" id="Message" style="width: 39em;" rows="16" cols="60" wrap="virtual">{{ .PrevMessage }}</textarea>
-					<div style="width: 300px;">Don't use HTML.</div>
-					&nbsp;
+					<textarea class="{{ .MessageClass }}" name="Message" id="Message" rows="16" wrap="virtual">{{ .PrevMessage }}</textarea>
 				</td>
 			</tr>
 			<tr>
 				<td>&nbsp;</td>
 				<td class="buttons" colspan="2">
-					<a><input accesskey="o" name="Ok" value="Ok" type="submit"></a>
-					<a><input accesskey="c" name="Cancel" value="Cancel" type="submit"></a>
+					<input name="Ok" value="发布" type="submit">
+					<input name="Cancel" value="返回" type="submit">
 				</td>
 			</tr>
 			</tbody>
@@ -68,11 +51,6 @@
 
 		</form>
 	</div>
-
-	</td>
-</tr>
-</tbody>
-</table>
 
 {{ template "footer.html" }}
 
