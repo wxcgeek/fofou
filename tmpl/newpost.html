@@ -38,16 +38,6 @@
 
 		<table class="form" cellspacing="0">
 			<tbody>
-			<tr>
-			<th><label for="Captcha">{{ .Num1 }} + {{ .Num2 }} is? (hint: {{ .Num3 }})</label>
-			</th>
-			<td colspan="2">
-				<input class="{{ .CaptchaClass }}" size="60" maxlength="64" name="Captcha" id="Captcha" style="width: 39em;" value="{{ .PrevCaptcha }}" type="edit">
-					<div>Are you human? (sorry we have to ask). Tell us how much
-					is {{ .Num1 }} + {{ .Num2 }} by entering <b>{{ .Num3 }}</b> above.</div>
-					&nbsp;
-			</td>
-			</tr>
 			{{ if not .TopicID }}
 			<tr>
 				<th><label for="Subject">Subject:</label></th>
@@ -67,22 +57,10 @@
 				</td>
 			</tr>
 			<tr>
-				<th><label for="Name">Your name:</label></th>
-				{{ if .TwitterUserName }}
-					<td style="width: 29em;"><input name="Name" id="Name" value="{{ .TwitterUserName }}" type="hidden">
-					  {{ .TwitterUserName }}
-					</td>
-				{{ else }}
-					<td style="width: 29em;">
-						<input class="{{ .NameClass }}" size="60" maxlength="32" name="Name" id="Name" style="width: 29em;" value="{{ .PrevName }}" type="edit">
-					</td>
-				{{ end }}
-			</tr>
-			<tr>
 				<td>&nbsp;</td>
 				<td class="buttons" colspan="2">
-					<input accesskey="o" name="Ok" value="Ok" type="submit">
-					<input accesskey="c" name="Cancel" value="Cancel" type="submit">
+					<a><input accesskey="o" name="Ok" value="Ok" type="submit"></a>
+					<a><input accesskey="c" name="Cancel" value="Cancel" type="submit"></a>
 				</td>
 			</tr>
 			</tbody>

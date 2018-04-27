@@ -3,13 +3,15 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"fmt"
 	"html/template"
-	"math/rand"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/coyove/goflyway/pkg/rand"
 )
 
 // ModelNewPost represents a new post
@@ -34,6 +36,7 @@ type ModelNewPost struct {
 }
 
 var errorClass = "error"
+var randG = rand.New()
 
 func isCaptchaValid(n1Str, n2Str, captchaStr string) bool {
 	if n1, err := strconv.Atoi(n1Str); err != nil {
@@ -156,12 +159,8 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	}
 
 	// validate the fields
-	num1Str := strings.TrimSpace(r.FormValue("num1"))
-	num2Str := strings.TrimSpace(r.FormValue("num2"))
-	captchaStr := strings.TrimSpace(r.FormValue("Captcha"))
 	subject := strings.TrimSpace(r.FormValue("Subject"))
 	msg := strings.TrimSpace(r.FormValue("Message"))
-	name := strings.TrimSpace(r.FormValue("Name"))
 
 	if isMessageBlocked(model.Forum, msg) {
 		logger.Notice("blocked a post because has a banned word in it")
@@ -169,13 +168,8 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 		return
 	}
 
-	model.Num1, _ = strconv.Atoi(num1Str)
-	model.Num2, _ = strconv.Atoi(num2Str)
-	model.Num3 = model.Num1 + model.Num2
-	model.PrevCaptcha = captchaStr
 	model.PrevSubject = subject
 	model.PrevMessage = msg
-	model.PrevName = name
 
 	if model.TopicID != 0 {
 		model.PrevSubject = topic.Subject
@@ -188,9 +182,6 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	} else if !isMsgValid(msg, topic) {
 		model.MessageClass = errorClass
 		ok = false
-	} else if !isNameValid(name) {
-		model.NameClass = errorClass
-		ok = false
 	}
 
 	if !ok {
@@ -199,16 +190,18 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	}
 
 	cookie := getSecureCookie(r)
-	cookie.AnonUser = name
-	setSecureCookie(w, cookie)
-
 	userName := cookie.GithubUser
-	twitterUser := true
+	githubUser := true
 	if userName == "" {
+		if cookie.AnonUser == "" {
+			cookie.AnonUser = fmt.Sprintf("user%x", sha1.Sum(randG.Fetch(16)))[:8]
+		}
+
 		userName = cookie.AnonUser
-		twitterUser = false
+		githubUser = false
 	}
-	userName = MakeInternalUserName(userName, twitterUser)
+	userName = MakeInternalUserName(userName, githubUser)
+	setSecureCookie(w, cookie)
 
 	store := model.Forum.Store
 	if topic == nil {
@@ -255,14 +248,11 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	model := &ModelNewPost{
 		Forum:           *forum,
 		SidebarHtml:     template.HTML(sidebar),
-		Num1:            rand.Intn(9) + 1,
-		Num2:            rand.Intn(9) + 1,
 		TopicID:         topicID,
 		LogInOut:        getLogInOut(r, getSecureCookie(r)),
 		TwitterUserName: cookie.GithubUser,
 		PrevName:        cookie.AnonUser,
 	}
-	model.Num3 = model.Num1 + model.Num2
 
 	if r.Method == "POST" {
 		createNewPost(w, r, model, topic)
