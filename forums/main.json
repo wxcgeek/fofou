@@ -1,0 +1,10 @@
+{
+        "Title":"Basic forum",
+        "ForumUrl":"main",
+        "DataDir":"SumatraPDF",
+        "AdminLoginName":"coyove",
+        "Disabled":false,
+        "BannedIps":[],
+        "BannedWords": ["ebookconverter.com", "epubconverter.com"]
+}
+

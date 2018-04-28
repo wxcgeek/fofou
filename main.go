@@ -2,7 +2,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/hex"
@@ -10,7 +9,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -22,11 +20,9 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/acme/autocert"
-
-	"github.com/garyburd/go-oauth/oauth"
 	"github.com/gorilla/securecookie"
 	"github.com/kjk/u"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 var (
@@ -37,20 +33,13 @@ var (
 )
 
 var (
-	oauthClient = oauth.Client{
-		ResourceOwnerAuthorizationURI: "https://github.com/login/oauth/authorize",
-		TokenRequestURI:               "https://github.com/login/oauth/access_token",
-		Credentials: oauth.Credentials{
-			Token:  os.Getenv("CYVBACK_TOKEN"),
-			Secret: os.Getenv("CYVBACK_SECRET"),
-		},
-	}
+	githubToken  = os.Getenv("CYVBACK_TOKEN")
+	githubSecret = os.Getenv("CYVBACK_SECRET")
 
-	config = struct {
-		CookieAuthKeyHexStr *string
-		CookieEncrKeyHexStr *string
-	}{
-		nil, nil,
+	config struct {
+		MainTitle           string
+		CookieAuthKeyHexStr string
+		CookieEncrKeyHexStr string
 	}
 
 	forums = make([]*ForumConfig, 0)
@@ -72,19 +61,14 @@ var (
 
 // ForumConfig is a static configuration of a single forum
 type ForumConfig struct {
-	Title      string
-	ForumUrl   string
-	WebsiteUrl string
-	Tagline    string
-	DataDir    string
-	// we authenticate only with Twitter, this is the twitter user name
-	// of the admin user
-	AdminTwitterUser string
-	Disabled         bool
-	BannedIps        *[]string
-	BannedWords      *[]string
-
-	SidebarTmpl *template.Template
+	Title          string
+	TopbarHTML     string
+	ForumUrl       string
+	DataDir        string
+	AdminLoginName string
+	Disabled       bool
+	BannedIps      *[]string
+	BannedWords    *[]string
 }
 
 // User describes a user
@@ -111,6 +95,7 @@ func StringEmpty(s *string) bool {
 
 func getDataDir() string {
 	u.CreateDirIfNotExists("data/forum")
+	u.CreateDirIfNotExists("data/archive")
 	dataDir = "data"
 	return dataDir
 }
@@ -118,12 +103,13 @@ func getDataDir() string {
 // NewForum creates new forum
 func NewForum(config *ForumConfig) *Forum {
 	forum := &Forum{ForumConfig: *config}
-	sidebarTmplPath := filepath.Join("forums", fmt.Sprintf("%s_sidebar.html", forum.ForumUrl))
+	sidebarTmplPath := filepath.Join("forums", fmt.Sprintf("%s_topbar.html", forum.ForumUrl))
 	if !u.PathExists(sidebarTmplPath) {
-		panic(fmt.Sprintf("sidebar template %s for forum %s doesn't exist", sidebarTmplPath, forum.ForumUrl))
+		panic(fmt.Sprintf("topbar template %s for forum %s doesn't exist", sidebarTmplPath, forum.ForumUrl))
 	}
 
-	forum.SidebarTmpl = template.Must(template.ParseFiles(sidebarTmplPath))
+	topbarBuf, _ := ioutil.ReadFile(sidebarTmplPath)
+	forum.TopbarHTML = string(topbarBuf)
 
 	store, err := NewStore(getDataDir(), config.DataDir)
 	if err != nil {
@@ -156,14 +142,11 @@ func forumInvalidField(forum *Forum) string {
 	if forum.ForumUrl == "" {
 		return "ForumUrl"
 	}
-	if forum.WebsiteUrl == "" {
-		return "WebsiteUrl"
-	}
 	if forum.DataDir == "" {
 		return "DataDir"
 	}
-	if forum.AdminTwitterUser == "" {
-		return "AdminTwitterUser"
+	if forum.AdminLoginName == "" {
+		return "AdminLoginName"
 	}
 	return ""
 }
@@ -189,46 +172,23 @@ func addForum(forum *Forum) error {
 	return nil
 }
 
-// DoSidebarTemplate renders sidebar template
-func DoSidebarTemplate(forum *Forum, isAdmin bool) string {
-	n := forum.Store.GetBlockedIpsCount()
-	model := struct {
-		IsAdmin         bool
-		BlockedIpsCount int
-	}{
-		IsAdmin:         isAdmin,
-		BlockedIpsCount: n,
-	}
-
-	var buf bytes.Buffer
-	tmpl := forum.SidebarTmpl
-
-	s := ""
-	if err := tmpl.Execute(&buf, model); err != nil {
-		logger.Errorf("Failed to execute sidebar template for forum %q error: %s", forum.ForumUrl, err)
-	} else {
-		s = string(buf.Bytes())
-	}
-	return s
-}
-
 func isTopLevelURL(url string) bool {
 	return 0 == len(url) || "/" == url
 }
 
 func userIsAdmin(f *Forum, cookie *SecureCookieValue) bool {
-	return cookie.GithubUser == "coyove"
+	return cookie.GithubUser == f.AdminLoginName
 }
 
 // reads forums/*_config.json files
 func readForumConfigs(configDir string) error {
-	pat := filepath.Join(configDir, "*_config.json")
+	pat := filepath.Join(configDir, "*.json")
 	files, err := filepath.Glob(pat)
 	if err != nil {
 		return err
 	}
 	if files == nil {
-		return errors.New("No forums configured!")
+		return errors.New("no forums configured")
 	}
 	for _, configFile := range files {
 		var forum ForumConfig
@@ -245,7 +205,7 @@ func readForumConfigs(configDir string) error {
 		}
 	}
 	if len(forums) == 0 {
-		return errors.New("All forums are disabled!")
+		return errors.New("all forums are disabled")
 	}
 	return nil
 }
@@ -261,11 +221,11 @@ func readConfig(configFile string) error {
 	if err != nil {
 		return err
 	}
-	cookieAuthKey, err = hex.DecodeString(*config.CookieAuthKeyHexStr)
+	cookieAuthKey, err = hex.DecodeString(config.CookieAuthKeyHexStr)
 	if err != nil {
 		return err
 	}
-	cookieEncrKey, err = hex.DecodeString(*config.CookieEncrKeyHexStr)
+	cookieEncrKey, err = hex.DecodeString(config.CookieEncrKeyHexStr)
 	if err != nil {
 		return err
 	}
@@ -299,7 +259,7 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 		duration := time.Now().Sub(startTime)
 		// log urls that take long time to generate i.e. over 1 sec in production
 		// or over 0.1 sec in dev
-		shouldLog := true //duration.Seconds() > 1.0
+		shouldLog := duration.Seconds() > 1.0
 		if alwaysLogTime && duration.Seconds() > 0.1 {
 			shouldLog = true
 		}

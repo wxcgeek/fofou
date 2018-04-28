@@ -16,10 +16,7 @@ body {
 	background-color:	white;
 	color:				black;
 	padding:			0; /* needed for Opera */
-	margin-left:		1em;
-	margin-top:			1em;
-	margin-right:		1em;	
-	margin-bottom:		0em;
+	margin: 0 0.5em;
 }
 
 form { margin: 0px; padding: 0px; }
@@ -33,38 +30,28 @@ a:visited {	color: purple; }
  * Header, footer, and body table
  ******************************************************************************/
 
-.header div {
-	color: #ffe;
-	margin: 0 0 10 0;
-	border: 0;
-	height: 60px;
-	padding: 0px 5px 0px 5px;
-}
-
-.header h1 {
-	color: #189337;
-	font: small tahoma, "Bitstream Vera Sans", "Trebuchet MS", "Lucida Grande", lucida, helvetica, sans-serif;
-	font-size: 32px;
-	font-weight: bold;
-	text-align: left;
-	margin: 0;
-}
-
-.header p {
-	color: #AAAAAA;
-	font-family: "Lucida Grande", "Lucida Sans Unicode", sans-serif;	
-	font-size: 90%;
-	font-weight: bold;
-	text-align: left;
-	padding: 0px 0px 0px 20px;
-	margin: 0;
-	line-height:140%;
-	margin-bottom: 12px;
-}
-
-.header a {
-	color: #101060 !important;
+ .header .item,.footer .item{
+	color:white;
+	display:inline-block;
+	zoom:1;
+	*display:inline;
+	margin:-4px 0;
+	padding:4px 8px;
+	border-left:solid 1px #889;
 	text-decoration: none;
+}
+
+.header a.item:hover, .footer a.item:hover {
+	text-decoration: underline;
+}
+
+.header,.footer{background:#676677;padding:4px 0;color:white;margin:2px 0}
+.header *,.footer *{color:white !important;}
+
+#container {
+	width: 100%;
+	margin: 0 auto;
+	max-width: 800px;
 }
 
 td.contents {
@@ -73,12 +60,9 @@ td.contents {
 	width: 600px;
 }
 
-td.sidebar {
-	width: 125px;
-	vertical-align: top;
-	font-size: 10px;
-	font-family: "Lucida Grande", "Lucida Sans Unicode", sans-serif;	
-	color: rgb(102, 102, 102);
+code {
+	white-space: pre-wrap;
+	font-family: "Lucida Console", Monaco, monospace;
 }
 
 div.footer {
@@ -95,13 +79,11 @@ div.footer {
 table.form {
 	font-weight:		normal;
 	width: 100%;
-	max-width: 360px;
 	x-height:			1%;
 } 
 
-table.form td div {
-	font-size:			11px;
-	color:				#666666;
+table.form td {
+	padding: 2px;
 }
 
 table.form th {
@@ -110,35 +92,12 @@ table.form th {
 	padding-right:		1.5em;
 	text-align:			left;
 	vertical-align:		top;
-	padding-top:		0.3em;
 	white-space: 		nowrap;
 	width: 1px;
 }
 
-table.form td.text, table.form textarea {
-	font-size:			11px;
+table.form #Subject, table.form textarea {
 	width: 100%;
-}
-
-table.form input.error, textarea.error {
-	font-size:			11px;
-	border:				1px solid #FF0000;
-	padding-right:		1px;
-	padding-left:		1px;
-	padding-bottom:		1px;
-	padding-top:		1px;
-}
-
-span.formCheckBoxPair {	float: left;  }
-span.formCheckBoxPair input { float: left; }
-span.formCheckBoxPair label { float: left; margin-top: 3px;	_margin-top: 4px; color: #000000; }
-
-.errorLabel {
-	font-size:			11px;
-	font-family:		Tahoma,Arial,Helvetica,sans-serif;
-	font-weight:		bold;
-	color:				#FF0000;
-	vertical-align:		top;
 }
 
 /*******************************************************************************
@@ -147,12 +106,11 @@ span.formCheckBoxPair label { float: left; margin-top: 3px;	_margin-top: 4px; co
 
 div.topics {
 	font-weight:		normal;
-	margin-left:		7px;
 	x-height:			1%;
 }
 
 div.topic {
-	padding-bottom: 3px;
+	padding: 4px 0;
 }
 
 div.topic em { 
@@ -185,30 +143,38 @@ div.topics .date {
 
 div.posts {
 	font-weight:		normal;
-	margin-left:		7px; 
 }
 
 div.posts div.post {
-	width: 30em;
-	padding-top: 1em;
+	width: 100%;
+	padding-top: 0.5em;
+	word-break: break-word;
+    word-wrap: break-word;
+}
+
+div.posts div.post image {
+	border: none;
+	max-height: 600px;
+}
+
+div.posts div.post-container {
+	border-bottom: dashed 1px #ccc;
+	padding: 4px 0;
 }
 
 div.posts div.deleted {
 	text-decoration: line-through;
 }
 
-
 div.posts div.signature {
 	padding-top: 1em;
 	text-align: right;
 	font-style: italic;
-	width: 30em;
+	width: 100%;
 }
 
-div.posts div.signature img {
-	padding: 0px;
-	margin: 0px;
-	padding-top: 2px;
+div.posts div.signature .no {
+	margin-right: 6px;
 }
 
 div.posts div.info {
@@ -225,20 +191,28 @@ div.posts div.info {
 h2 {
 	font-size:			18px;
 	font-weight:		bold;
-	color:				#189337;
+	color:				#676677;
 	width:				100%;
-	margin-top:			0px;
+	margin:			4px 0px;
 }
 
 h3 {
 	font-size:			18px;
 	font-weight:		bold;
-	margin:				0px;
-	padding:			0px 0px 0px 0px;
-	width:				400px;
+	margin:			4px 0px;
+	padding: 0;
 }
 
-.buttons { margin: 1em 0 2px 0; clear: all; }
+hr {
+	border: none;
+	margin: 0;
+	border-bottom: dashed 1px #ccc;
+}
+
+.buttons { 
+	clear: all;
+	margin: 4px 0;
+}
 .buttons a, .buttons input {
     text-decoration: none;
 	color: black;
@@ -252,7 +226,8 @@ h3 {
 	background: -moz-linear-gradient(#DBDBDB, #CCC);
 	background: -o-linear-gradient(#DBDBDB, #CCC);
 	background-color: #DBDBDB;
-    position: relative;
+	position: relative;
+	line-height: 1.5em;
 }
 .buttons a:hover, .buttons input:hover {
 	background: linear-gradient(#DFDFDF, #DBDBDB);
@@ -268,7 +243,9 @@ h3 {
 	background: -o-linear-gradient(#CCC, #DBDBDB);
 	background-color: #CCC;
 } 
-
+.buttons a img, .buttons input img {
+	vertical-align: text-top;
+}
 
 /*******************************************************************************
  * Search box

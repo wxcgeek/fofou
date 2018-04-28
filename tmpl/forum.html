@@ -1,49 +1,31 @@
-<!DOCTYPE html>
-<html>
-<head>
-	<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
-	<title>{{.Title}}</title>
-	<link href="/s/default.css" rel="stylesheet" type="text/css">
-	<script src="/s/default.js" type="text/javascript"></script>
-	<link type="application/rss+xml" rel="alternate" title="Discussion Group" href="/{{.ForumUrl}}/rss">
-  {{ template "analytics.html" . }}
-</head>
-<body>
-    {{ .LogInOut }}
-  <div class="contents">
-
-    <form method="get" action="http://google.com/search">
-      <input type="hidden" name="IncludeBlogs" value="1">
-      <input type="hidden" name="as_sitesearch" value="{{.ForumFullUrl}}">
-      <div class="searchBox">
-      	<label for="search">Search this forum:</label><br/>
-        <input name="q" id="search" value="" type="text">
-        <input class="button" value="Go" type="submit">&nbsp;
-      </div>
-    </form>
-
+{{ template "header.html" . }}
+  <div class="contents"> 
+    {{ $forumUrl := .Forum.ForumUrl }}
+    {{template "forumnav.html" .}}
+    <hr>
+    <div class="topbar">
+        {{.Forum.TopbarHTML}}
+    </div>
     <div class="topics">
       {{ if len .Topics }}
         {{ range $i, $v := .Topics }}
           <div class="topic">
+            {{if $v.Sticky}}<b>[置顶]</b>{{end}}
+            {{if $v.Locked}}<b>[锁定]</b>{{end}}
             <a class="{{$v.TopicLinkClass}}" href="{{$v.TopicURL}}">{{ $v.Subject }} </a>
-            <em>{{ $v.CreatedBy }}</em> <span>({{ $v.CommentsCountMsg }}{{if eq $i 0}} 留言{{end}})</span> <span>{{$v.CreatedOnStr}}</span>
+            <em>{{ $v.CreatedBy }}</em> <span>({{ $v.CommentsCountMsg }}{{if eq $i 0}} 回复{{end}})</span> <span>{{$v.CreatedOnStr}}</span>
+            {{if $.IsAdmin}}
+              <a href="/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=s">S</a>
+              <a href="/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=l">L</a>
+            {{end}}
           </div>
         {{ end }}
       {{ else }}
-          There are no topics. You better create one.
+        无任何主题可显示
       {{ end }}
     </div>
-
-    <div class="buttons">
-      <a href="/{{ .ForumUrl }}/newpost"><img src="data:image/gif;base64,R0lGODdhDQAOALMAAAAAAABmM2NNIm5KIKZ+Ts+SBuyYAPnLAKmpbf3+bZmZmf3Kiv///wAAAAAAAAAAACH5BAEAAAEALAAAAAANAA4AAAQ3MMhJKz0SB12xt9cEjORhAuYBMGzLcqsiK8xRb8Hq2vcWzzQGQORyDSW/IOuYK7aYpCgJRA1EAAA7" alt="New topic" border="0" height="14" width="13"> 新主题</a>
-      {{ if ne .PrevTo -1 }}
-        <a href="/{{ .ForumUrl }}/?from={{ .PrevTo }}"><img src="data:image/gif;base64,R0lGODlhDQAOAKIAAAAAAH9/fzPMZpmZmf//zOXl5f///wAAACH5BAkAAAIALAAAAAANAA4AAAhRAAUIHEiwoMGCABIqXDgQgIGHEB8CaGhggEWLEilGhDhRoMMBAUKK7CjAoYEADwsUCEDyYwCVKwm0fPgypkyKIG3e9EgzAIGfO0suHHqwqICAAA==" alt="Older topics" border="0" height="14" width="13"> 上一页</a>
-      {{ end }}
-      {{ if .NewFrom }}
-        <a href="/{{ .ForumUrl }}/?from={{ .NewFrom }}"><img src="data:image/gif;base64,R0lGODlhDQAOAKIAAAAAAH9/fzPMZpmZmf//zOXl5f///wAAACH5BAkAAAIALAAAAAANAA4AAAhRAAUIHEiwoMGCABIqXDgQgIGHEB8CaGhggEWLEilGhDhRoMMBAUKK7CjAoYEADwsUCEDyYwCVKwm0fPgypkyKIG3e9EgzAIGfO0suHHqwqICAAA==" alt="Older topics" border="0" height="14" width="13"> 下一页</a>
-      {{ end }}
-    </div>
+    <hr>
+    {{template "forumnav.html" .}}
   </div>
 
 {{ template "footer.html" }}

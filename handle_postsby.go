@@ -16,7 +16,7 @@ func handlePostsBy(w http.ResponseWriter, r *http.Request) {
 	}
 	store := forum.Store
 
-	var posts []*Post
+	var posts []Post
 	userInternal := strings.TrimSpace(r.FormValue("user"))
 	ipAddrInternal := strings.TrimSpace(r.FormValue("ip"))
 	if userInternal == "" && ipAddrInternal == "" {
@@ -48,11 +48,8 @@ func handlePostsBy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sidebar := DoSidebarTemplate(forum, isAdmin)
-
 	model := struct {
 		Forum
-		SidebarHtml    template.HTML
 		Posts          []*PostDisplay
 		TotalCount     int
 		IsAdmin        bool
@@ -60,11 +57,9 @@ func handlePostsBy(w http.ResponseWriter, r *http.Request) {
 		IpAddr         string
 		IpAddrInternal string
 		IpBlocked      bool
-		AnalyticsCode  *string
 		LogInOut       template.HTML
 	}{
 		Forum:          *forum,
-		SidebarHtml:    template.HTML(sidebar),
 		Posts:          displayPosts,
 		TotalCount:     total,
 		IsAdmin:        isAdmin,

@@ -110,26 +110,20 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		topicsDisplay = append(topicsDisplay, d)
 	}
 
-	sidebar := DoSidebarTemplate(forum, isAdmin)
 	model := struct {
 		Forum
-		ErrorMsg      string
-		RedirectUrl   string
-		SidebarHtml   template.HTML
-		ForumFullUrl  string
-		NewFrom       int
-		PrevTo        int
-		Topics        []*TopicDisplay
-		AnalyticsCode *string
-		LogInOut      template.HTML
+		NewFrom  int
+		PrevTo   int
+		IsAdmin  bool
+		Topics   []*TopicDisplay
+		LogInOut template.HTML
 	}{
-		Forum:        *forum,
-		Topics:       topicsDisplay,
-		SidebarHtml:  template.HTML(sidebar),
-		ForumFullUrl: buildForumURL(r, forum),
-		NewFrom:      newFrom,
-		PrevTo:       prevTo,
-		LogInOut:     getLogInOut(r, getSecureCookie(r)),
+		Forum:    *forum,
+		Topics:   topicsDisplay,
+		NewFrom:  newFrom,
+		PrevTo:   prevTo,
+		LogInOut: getLogInOut(r, getSecureCookie(r)),
+		IsAdmin:  isAdmin,
 	}
 
 	ExecTemplate(w, tmplForum, model)

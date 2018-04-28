@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -10,6 +11,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kjk/u"
 )
+
+type ForumInfo struct {
+	ForumFullURL string
+	ForumTitle   string
+}
 
 // url: /{forum}/viewraw?topicId=${topicId}&postId=${postId}
 func handleViewRaw(w http.ResponseWriter, r *http.Request) {
@@ -84,9 +90,13 @@ func handlePostDelete(w http.ResponseWriter, r *http.Request) {
 	if forum, topicID, postID := getTopicAndPostID(w, r); forum != nil {
 		//fmt.Printf("handlePostDelete(): forum: %q, topicId: %d, postId: %d\n", forum.ForumUrl, topicId, postId)
 		// TODO: handle error?
-		forum.Store.DeletePost(topicID, postID)
-		http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", forum.ForumUrl, topicID), 302)
+		if userIsAdmin(forum, getSecureCookie(r)) {
+			forum.Store.DeletePost(topicID, postID)
+			http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", forum.ForumUrl, topicID), 302)
+			return
+		}
 	}
+	w.WriteHeader(403)
 }
 
 // url: /{forum}/postundel?topicId=${topicId}&postId=${postId}
@@ -94,9 +104,13 @@ func handlePostUndelete(w http.ResponseWriter, r *http.Request) {
 	if forum, topicID, postID := getTopicAndPostID(w, r); forum != nil {
 		//fmt.Printf("handlePostUndelete(): forum: %q, topicId: %d, postId: %d\n", forum.ForumUrl, topicId, postId)
 		// TODO: handle error?
-		forum.Store.UndeletePost(topicID, postID)
-		http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", forum.ForumUrl, topicID), 302)
+		if userIsAdmin(forum, getSecureCookie(r)) {
+			forum.Store.UndeletePost(topicID, postID)
+			http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", forum.ForumUrl, topicID), 302)
+			return
+		}
 	}
+	w.WriteHeader(403)
 }
 
 func getIPAddr(w http.ResponseWriter, r *http.Request) (*Forum, string) {
@@ -116,19 +130,45 @@ func getIPAddr(w http.ResponseWriter, r *http.Request) (*Forum, string) {
 // url: /{forum}/blockip?ip=${ip}
 func handleBlockIP(w http.ResponseWriter, r *http.Request) {
 	if forum, ip := getIPAddr(w, r); forum != nil {
-		//fmt.Printf("handleBlockIP(): forum: %q, ip: %s\n", forum.ForumUrl, ip)
-		forum.Store.BlockIP(ip)
-		http.Redirect(w, r, fmt.Sprintf("/%s/postsby?ip=%s", forum.ForumUrl, ip), 302)
+		if userIsAdmin(forum, getSecureCookie(r)) {
+			forum.Store.BlockIP(ip)
+			http.Redirect(w, r, fmt.Sprintf("/%s/postsby?ip=%s", forum.ForumUrl, ip), 302)
+			return
+		}
 	}
+	w.WriteHeader(403)
 }
 
 // url: /{forum}/unblockip?ip=${ip}
 func handleUnblockIP(w http.ResponseWriter, r *http.Request) {
 	if forum, ip := getIPAddr(w, r); forum != nil {
-		//fmt.Printf("handleUnblockIP(): forum: %q, ip: %s\n", forum.ForumUrl, ip)
-		forum.Store.UnblockIP(ip)
-		http.Redirect(w, r, fmt.Sprintf("/%s/postsby?ip=%s", forum.ForumUrl, ip), 302)
+		if userIsAdmin(forum, getSecureCookie(r)) {
+			forum.Store.UnblockIP(ip)
+			http.Redirect(w, r, fmt.Sprintf("/%s/postsby?ip=%s", forum.ForumUrl, ip), 302)
+			return
+		}
 	}
+	w.WriteHeader(403)
+}
+
+// url: /{forum}/taction?topicId=${topicId}&action=[sl]
+func handleActionTopic(w http.ResponseWriter, r *http.Request) {
+	topicID, err := strconv.Atoi(r.FormValue("topicId"))
+	action := r.FormValue("action")
+	forum := mustGetForum(w, r)
+	if forum != nil && err == nil {
+		if userIsAdmin(forum, getSecureCookie(r)) {
+			if action == "s" {
+				forum.Store.Stick(topicID)
+			}
+			if action == "l" {
+				forum.Store.LockTopic(topicID)
+			}
+			http.Redirect(w, r, "/"+forum.ForumUrl, 302)
+			return
+		}
+	}
+	w.WriteHeader(403)
 }
 
 // url: /
@@ -139,10 +179,14 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 	}
 
 	model := struct {
-		Forums        *[]*Forum
-		AnalyticsCode string
+		Forums *[]*Forum
+		Title  string
+		Forum
+		LogInOut template.HTML
 	}{
-		Forums: &appState.Forums,
+		Forums:   &appState.Forums,
+		Title:    config.MainTitle,
+		LogInOut: getLogInOut(r, getSecureCookie(r)),
 	}
 	ExecTemplate(w, tmplMain, model)
 }
@@ -163,6 +207,7 @@ func initHTTPServer() *http.Server {
 	r.HandleFunc("/{forum}/newpost", makeTimingHandler(handleNewPost))
 	r.HandleFunc("/{forum}/blockip", makeTimingHandler(handleBlockIP))
 	r.HandleFunc("/{forum}/unblockip", makeTimingHandler(handleUnblockIP))
+	r.HandleFunc("/{forum}/taction", makeTimingHandler(handleActionTopic))
 
 	smux := &http.ServeMux{}
 	smux.HandleFunc("/oauthgithubcb", handleOauthGithubCallback)

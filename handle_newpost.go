@@ -3,7 +3,7 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha1"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -17,49 +17,26 @@ import (
 // ModelNewPost represents a new post
 type ModelNewPost struct {
 	Forum
-	SidebarHtml     template.HTML
-	AnalyticsCode   *string
-	Num1            int
-	Num2            int
-	Num3            int
-	TopicID         int
-	CaptchaClass    string
-	PrevCaptcha     string
-	SubjectClass    string
-	PrevSubject     string
-	MessageClass    string
-	PrevMessage     string
-	NameClass       string
-	PrevName        string
-	LogInOut        template.HTML
-	TwitterUserName string
+	TopicID      int
+	PrevCaptcha  string
+	PrevSubject  string
+	SubjectError bool
+	MessageError bool
+	TopicLocked  bool
+	PrevMessage  string
+	NameClass    string
+	PrevName     string
+	LogInOut     template.HTML
 }
 
-var errorClass = "error"
 var randG = rand.New()
 
-func isCaptchaValid(n1Str, n2Str, captchaStr string) bool {
-	if n1, err := strconv.Atoi(n1Str); err != nil {
-		return false
-	} else if n2, err := strconv.Atoi(n2Str); err != nil {
-		return false
-	} else if captcha, err := strconv.Atoi(captchaStr); err != nil {
-		return false
-	} else {
-		return captcha == n1+n2
-	}
-}
-
 func isSubjectValid(subject string) bool {
-	return subject != ""
-}
-
-func isNameValid(name string) bool {
-	return name != ""
+	return len(subject) >= 6 && len(subject) <= 96
 }
 
 func isMsgValid(msg string, topic *Topic) bool {
-	if msg == "" {
+	if len(msg) < 6 || len(msg) > 16*1024 {
 		return false
 	}
 	// prevent duplicate posts within the topic
@@ -153,8 +130,6 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	}
 
 	if r.FormValue("Cancel") != "" {
-		logger.Notice("Pressed cancel")
-
 		if tid := r.FormValue("topicId"); tid != "" {
 			http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%s", model.Forum.ForumUrl, tid), 302)
 		} else {
@@ -165,6 +140,7 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 
 	// validate the fields
 	subject := strings.TrimSpace(r.FormValue("Subject"))
+	subject = strings.Replace(template.HTMLEscapeString(subject), "\n", "", -1)
 	msg := strings.TrimSpace(r.FormValue("Message"))
 
 	if isMessageBlocked(model.Forum, msg) {
@@ -182,10 +158,13 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 
 	ok := true
 	if (model.TopicID == 0) && !isSubjectValid(subject) {
-		model.SubjectClass = errorClass
+		model.SubjectError = true
 		ok = false
 	} else if !isMsgValid(msg, topic) {
-		model.MessageClass = errorClass
+		model.MessageError = true
+		ok = false
+	} else if topic != nil && topic.Locked {
+		model.TopicLocked = true
 		ok = false
 	}
 
@@ -199,7 +178,8 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	githubUser := true
 	if userName == "" {
 		if cookie.AnonUser == "" {
-			cookie.AnonUser = fmt.Sprintf("user%X", sha1.Sum(randG.Fetch(16)))[:12]
+			x := randG.Fetch(6)
+			cookie.AnonUser = base64.URLEncoding.EncodeToString(x)
 		}
 
 		userName = cookie.AnonUser
@@ -245,18 +225,18 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	isAdmin := userIsAdmin(forum, getSecureCookie(r))
-	sidebar := DoSidebarTemplate(forum, isAdmin)
 
 	//fmt.Printf("handleNewPost(): forum: %q, topicId: %d\n", forum.ForumUrl, topicId)
 	cookie := getSecureCookie(r)
 	model := &ModelNewPost{
-		Forum:           *forum,
-		SidebarHtml:     template.HTML(sidebar),
-		TopicID:         topicID,
-		LogInOut:        getLogInOut(r, getSecureCookie(r)),
-		TwitterUserName: cookie.GithubUser,
-		PrevName:        cookie.AnonUser,
+		Forum:    *forum,
+		TopicID:  topicID,
+		LogInOut: getLogInOut(r, getSecureCookie(r)),
+		PrevName: cookie.AnonUser,
+	}
+
+	if topic != nil {
+		model.TopicLocked = topic.Locked
 	}
 
 	if r.Method == "POST" {

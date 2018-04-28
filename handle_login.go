@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 )
@@ -111,8 +110,8 @@ func handleOauthGithubCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := url.Values{
-		"client_id":     {os.Getenv("CYVBACK_TOKEN")},
-		"client_secret": {os.Getenv("CYVBACK_SECRET")},
+		"client_id":     {githubToken},
+		"client_secret": {githubSecret},
 		"code":          {code},
 	}
 
@@ -183,7 +182,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	q2 := url.Values{
 		"redirect_uri": {cb},
-		"client_id":    {os.Getenv("CYVBACK_TOKEN")},
+		"client_id":    {githubToken},
 	}.Encode()
 
 	http.Redirect(w, r, "https://github.com/login/oauth/authorize?"+q2, 302)

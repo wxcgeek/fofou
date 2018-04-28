@@ -1,40 +1,9 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
-  <title>{{ .Title }}</title>
-  <link href="/s/default.css" rel="stylesheet" type="text/css">
-  <script src="/s/default.js" type="text/javascript"></script>
-</head>
-
-<body>
-<table>
-<tbody>
-  <tr>
-    <td colspan="2">
-      {{ .LogInOut }}
-
-      <div class="header">
-        <h1><a href="/{{ .ForumUrl }}" class="green">{{ .Title }}</a></h1>
-        <p>{{ .Tagline }}</p>
-      </div>
-    </td>
-  </tr>
+{{ template "header.html" . }}
 
   {{ $isAdmin := .IsAdmin }}
   {{ $forumUrl := .ForumUrl }}
 
-  <tr>
-    <td class="sidebar">{{ .SidebarHtml }}</td>
-
-	<td class="contents">
-		<script type="text/javascript">
-			rolloverInit('link', '/img/link_over.jpg');
-			rolloverInit('email', '/img/email_over.jpg');
-			rolloverInit('web', '/img/web_over.jpg');
-			rolloverInit('delete', '/img/delete_over.jpg');
-			rolloverInit('undo', '/img/undo_over.jpg');
-		</script>
+	<div class="contents">
 		<div class="posts">
 			{{ if .IpAddr }}
 				<div>Total <b>{{ .TotalCount }}</b> posts from ip address {{ .IpAddr }} 
@@ -51,35 +20,28 @@
 			{{ end }}
 
 			{{ range .Posts }}
-			<div>
+			<div class="post-container">
 				<h3>{{ .Topic.Subject }}</h3>
 				<div class="{{.CssClass}}">{{ .MessageHtml }}</div>
 				<div class="signature">
-					{{ if $isAdmin }}
-						{{ if .IsDeleted }}
-							<a href="/{{$forumUrl}}/postundel?topicId={{.Topic.ID}}&postId={{.Id}}" title="Undelete Post" onmouseover="rolloverOn('undo', {{ .Id }});" onmouseout="rolloverOff();">
-							<img align="right" id="undo{{ .Id }}" src="/img/undo.jpg" width="16" height="16" border="0" /></a>
-						{{ else }}
-							<a href="/{{$forumUrl}}/postdel?topicId={{.Topic.ID}}&postId={{.Id}}" title="Delete Post" onmouseover="rolloverOn('delete', {{.Id}});" onmouseout="rolloverOff();">
-							<img align="right" id="delete{{.Id}}" src="/img/delete.jpg" width="16" height="16" border="0" /></a>
-						{{ end }}
-					{{ end }}
 					{{ if .UserHomepage }}
-						<a href="{{ .UserHomepage }}">{{ .UserName }}</a> on {{ .CreatedOnStr }}
+						<a href="{{ .UserHomepage }}">{{ .UserName }}</a> {{ .CreatedOnStr }}
 					{{ else }}
-						{{ .UserName}} on {{ .CreatedOnStr }}
+						{{ .UserName}} {{ .CreatedOnStr }}
 					{{ end }}
 
 					{{ if $isAdmin }}
-						<br/> From ip: {{ .IpAddress }}
+						<br/> From: {{ .IpAddress }}
+						{{ if .IsDeleted }}
+							<a href="/{{$forumUrl}}/postundel?topicId={{.Topic.ID}}&postId={{.Id}}">restore</a>
+						{{ else }}
+							<a href="/{{$forumUrl}}/postdel?topicId={{.Topic.ID}}&postId={{.Id}}">delete</a>
+						{{ end }}
 					{{ end }}
 				</div>
 			</div>
 			{{ end }}
 		</div>
-	</td>
-</tr>
-</tbody>
-</table>
+	</div>
 
 {{ template "footer.html" }}

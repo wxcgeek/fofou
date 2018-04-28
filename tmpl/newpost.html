@@ -1,56 +1,57 @@
-<!DOCTYPE html>
-<html>
-<head>
-	<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
-	<title>{{ .Title }}</title>
-	<link href="/s/default.css" rel="stylesheet" type="text/css">
-	<script src="/s/default.js" type="text/javascript"></script>
-</head>
+{{ template "header.html" . }}
+<div class="form">
+	<form action="newpost" method="post">
 
-<body>
-    {{ .LogInOut }}
-	<div class="form">
-		<form action="newpost" method="post">
-		<input name="num1" value="{{ .Num1 }}" type="hidden">
-		<input name="num2" value="{{ .Num2 }}" type="hidden">
-
+	{{if .TopicLocked}}
+		<h2>主题已被锁定，无法回复</h2>
+	{{else}}
 		{{ if .TopicID }}
 			<input name="topicId" value="{{ .TopicID }}" type="hidden">
 			<h2>回复 "{{ .PrevSubject }}"</h2>
 		{{ else }}
 			<h2>新主题</h2>
 		{{ end }}
+	{{end}}
 
-		<table class="form" cellspacing="0">
-			<tbody>
-			{{ if not .TopicID }}
-			<tr>
-				<th><label for="Subject">主题:</label></th>
-				<td colspan="2">
-					<input class="{{ .SubjectClass }}" size="60" maxlength="64" name="Subject" id="Subject" value="{{ .PrevSubject }}" type="edit">
-					&nbsp;
-				</td>
-			</tr>
-			{{ end }}
+	<table class="form" cellspacing="0">
+		<tbody>
+		{{ if not .TopicID }}
+		<tr>
+			<th><label for="Subject">标题:</label></th>
+			<td colspan="2">
+				<input maxlength="64" name="Subject" id="Subject" value="{{ .PrevSubject }}" type="edit">
+			</td>
+		</tr>
+		{{ end }}
 
-			<tr>
-				<th><label for="Message">正文:</label></th>
-				<td colspan="2">
-					<textarea class="{{ .MessageClass }}" name="Message" id="Message" rows="16" wrap="virtual">{{ .PrevMessage }}</textarea>
-				</td>
-			</tr>
-			<tr>
-				<td>&nbsp;</td>
-				<td class="buttons" colspan="2">
-					<input name="Ok" value="发布" type="submit">
-					<input name="Cancel" value="返回" type="submit">
-				</td>
-			</tr>
-			</tbody>
-		</table>
+		{{if .SubjectError}}
+		<tr><th>&nbsp;</th><td colspan="2" style="color:red">无效标题 (6 至 96 字节)</td></tr>
+		{{end}}
 
-		</form>
-	</div>
+		<tr>
+			<th><label for="Message">正文:</label></th>
+			<td colspan="2">
+				<textarea name="Message" id="Message" rows="16" wrap="virtual">{{ .PrevMessage }}</textarea>
+			</td>
+		</tr>
+
+		{{if .MessageError}}
+		<tr><th>&nbsp;</th><td colspan="2" style="color:red">无效正文 (6 至 16384 字节)</td></tr>
+		{{end}}
+
+
+		<tr>
+			<td>&nbsp;</td>
+			<td class="buttons" colspan="2">
+				<input name="Ok" value="发布" type="submit">
+				<input name="Cancel" value="返回" type="submit">
+			</td>
+		</tr>
+		</tbody>
+	</table>
+
+	</form>
+</div>
 
 {{ template "footer.html" }}
 

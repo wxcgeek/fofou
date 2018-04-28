@@ -2,7 +2,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -10,12 +9,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kjk/u"
 )
 
 var stdTimeFormat = "2006-01-02 15:04:05"
 
 type PostDisplay struct {
 	Post
+	ActualNo     int
 	UserHomepage string
 	MessageHtml  template.HTML
 	CssClass     string
@@ -30,23 +32,23 @@ func prettySec(sec uint32) string {
 		return fmt.Sprintf("~ %.0f mins", sec/60)
 	} else if sec < 86400 {
 		return fmt.Sprintf("~ %.1f hrs", sec/3600)
-	} else if sec < 86400*3 {
+	} else if sec < 86400*7 {
 		return fmt.Sprintf("~ %.1f days", sec/86400)
 	}
-	return t.Format(stdTimeFormat)
+	return "@ " + t.Format(stdTimeFormat)
 }
 
 func (p *PostDisplay) CreatedOnStr() string {
 	return prettySec(p.CreatedOn)
 }
 
-func NewPostDisplay(p *Post, forum *Forum, isAdmin bool) *PostDisplay {
+func NewPostDisplay(p Post, forum *Forum, isAdmin bool) *PostDisplay {
 	if p.IsDeleted && !isAdmin {
 		return nil
 	}
 
 	pd := &PostDisplay{
-		Post:     *p,
+		Post:     p,
 		CssClass: "post",
 	}
 	if p.IsDeleted {
@@ -71,68 +73,31 @@ func NewPostDisplay(p *Post, forum *Forum, isAdmin bool) *PostDisplay {
 
 // TODO: this is simplistic but work for me, http://net.tutsplus.com/tutorials/other/8-regular-expressions-you-should-know/
 // has more elaborate regex for extracting urls
-var urlRx = regexp.MustCompile(`https?://[[:^space:]]+`)
-var notUrlEndChars = []byte(".),")
-
-func notUrlEndChar(c byte) bool {
-	return -1 != bytes.IndexByte(notUrlEndChars, c)
-}
-
-var disableUrlization = false
+var urlRx = regexp.MustCompile(`(https?://[[:^space:]]+|<|\n| |` + "```[\\s\\S]+```" + `)`)
 
 func msgToHtml(s string) string {
-	matches := urlRx.FindAllStringIndex(s, -1)
-	if nil == matches || disableUrlization {
-		s = template.HTMLEscapeString(s)
-		s = strings.Replace(s, "\n", "<br>", -1)
-		return s
-	}
-
-	urlMap := make(map[string]string)
-	ns := ""
-	prevEnd := 0
-	for n, match := range matches {
-		start, end := match[0], match[1]
-		for end > start && notUrlEndChar(s[end-1]) {
-			end -= 1
+	return urlRx.ReplaceAllStringFunc(s, func(in string) string {
+		switch in {
+		case " ":
+			return "&nbsp;"
+		case "\n":
+			return "<br>"
+		case "<":
+			return "&lt;"
+		default:
+			if strings.HasPrefix(in, "```") {
+				return "<code>" + strings.Replace(in[3:len(in)-3], "<", "&lt;", -1) + "</code>"
+			} else if strings.HasSuffix(in, ".png") || strings.HasSuffix(in, ".jpg") || strings.HasSuffix(in, ".gif") {
+				return "<img class=image alt='" + in + "' src='" + in + "'/>"
+			} else {
+				return "<a href='" + in + "' target=_blank>" + in + "</a>"
+			}
 		}
-		url := s[start:end]
-		ns += s[prevEnd:start]
-
-		// placeHolder is meant to be an unlikely string that doesn't exist in
-		// the message, so that we can replace the string with it and then
-		// revert the replacement. A more robust approach would be to remember
-		// offsets
-		placeHolder, ok := urlMap[url]
-		if !ok {
-			placeHolder = fmt.Sprintf("a;dfsl;a__lkasjdfh1234098;lajksdf_%d", n)
-			urlMap[url] = placeHolder
-		}
-		ns += placeHolder
-		prevEnd = end
-	}
-	ns += s[prevEnd:len(s)]
-
-	ns = template.HTMLEscapeString(ns)
-	for url, placeHolder := range urlMap {
-		url = fmt.Sprintf(`<a href="%s" rel="nofollow">%s</a>`, url, url)
-		ns = strings.Replace(ns, placeHolder, url, -1)
-	}
-	ns = strings.Replace(ns, "\n", "<br>", -1)
-	return ns
+	})
 }
 
 func getLogInOut(r *http.Request, c *SecureCookieValue) template.HTML {
-	redirectUrl := template.HTMLEscapeString(r.URL.String())
-	s := ""
-	if c.GithubUser == "" {
-		s = `<span style="float: right;">Not logged in. <a href="/login?redirect=%s">Log in with Twitter</a></span>`
-		s = fmt.Sprintf(s, redirectUrl)
-	} else {
-		s = `<span style="float:right;">Logged in as %s (<a href="/logout?redirect=%s">logout</a>)</span>`
-		s = fmt.Sprintf(s, c.GithubUser, redirectUrl)
-	}
-	return template.HTML(s)
+	return template.HTML(c.GithubUser)
 }
 
 // url: /{forum}/topic?id=${id}
@@ -151,10 +116,20 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("handleTopic(): forum: %q, topicId: %d\n", forum.ForumUrl, topicId)
 	topic := forum.Store.TopicByID(topicID)
 	if nil == topic {
+		path := forum.Store.BuildArchivePath(topicID)
+		if u.PathExists(path) {
+			topic, err = LoadSingleTopicInStore(path)
+			if err == nil {
+				topic.Archived = true
+				goto NEXT
+			}
+		}
+
 		logger.Noticef("handleTopic(): didn't find topic with id %d, referer: %q", topicID, getReferer(r))
 		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
 		return
 	}
+NEXT:
 
 	isAdmin := userIsAdmin(forum, getSecureCookie(r))
 	if topic.IsDeleted() && !isAdmin {
@@ -162,30 +137,28 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	posts := make([]*PostDisplay, 0)
-	for _, p := range topic.Posts {
-		pd := NewPostDisplay(&p, forum, isAdmin)
+	posts := make([]*PostDisplay, 0, len(topic.Posts))
+	for no, p := range topic.Posts {
+		pd := NewPostDisplay(p, forum, isAdmin)
 		if pd != nil {
+			pd.ActualNo = no + 1
 			posts = append(posts, pd)
 		}
 	}
 
-	sidebar := DoSidebarTemplate(forum, isAdmin)
 	model := struct {
 		Forum
 		Topic
-		SidebarHtml   template.HTML
 		Posts         []*PostDisplay
 		IsAdmin       bool
 		AnalyticsCode *string
 		LogInOut      template.HTML
 	}{
-		Forum:       *forum,
-		Topic:       *topic,
-		SidebarHtml: template.HTML(sidebar),
-		Posts:       posts,
-		IsAdmin:     isAdmin,
-		LogInOut:    getLogInOut(r, getSecureCookie(r)),
+		Forum:    *forum,
+		Topic:    *topic,
+		Posts:    posts,
+		IsAdmin:  isAdmin,
+		LogInOut: getLogInOut(r, getSecureCookie(r)),
 	}
 	ExecTemplate(w, tmplTopic, model)
 }
