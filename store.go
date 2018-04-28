@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/ascii85"
 	"encoding/hex"
@@ -294,24 +295,24 @@ func (store *Store) markIPBlockedOrUnblocked(ipAddrInternal string, blocked bool
 }
 
 func (store *Store) readExistingData(fileDataPath string) error {
-	d, err := ioutil.ReadFile(fileDataPath)
+	fh, err := os.Open(fileDataPath)
 	if err != nil {
 		return err
 	}
 
 	topicIDToTopic := make(map[int]*Topic)
-
-	for len(d) > 0 {
-		idx := bytes.IndexByte(d, '\n')
-		var line []byte
-		if -1 != idx {
-			line = d[:idx]
-			d = d[idx+1:]
-		} else {
-			line = d
-			d = nil
+	r := bufio.NewReader(fh)
+	for {
+		line, err := r.ReadBytes('\n')
+		if err != nil && len(line) == 0 {
+			break
 		}
-		//fmt.Printf("%q len(topics)=%d\n", string(line), len(topics))
+
+		line = line[:len(line)-1]
+		if len(line) == 0 {
+			continue
+		}
+
 		c := line[0]
 		// T - topic
 		// P - post
@@ -345,7 +346,7 @@ func (store *Store) readExistingData(fileDataPath string) error {
 			}
 			if post.IsDeleted {
 				//Note: sadly, it happens
-				//panic("post already deleted")
+				logger.Error("post already deleted")
 			}
 			post.IsDeleted = true
 		case 'U':
@@ -356,7 +357,7 @@ func (store *Store) readExistingData(fileDataPath string) error {
 				break
 			}
 			if !post.IsDeleted {
-				panic("post already undeleted")
+				logger.Error("post already undeleted")
 			}
 			post.IsDeleted = false
 		case 'B':
@@ -392,6 +393,7 @@ func (store *Store) readExistingData(fileDataPath string) error {
 		}
 	}
 
+	fh.Close()
 	return nil
 }
 
