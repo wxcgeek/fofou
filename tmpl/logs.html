@@ -10,6 +10,13 @@
 
 {{if not .UserIsAdmin}}No logs for you!!!{{end}}
 
+<div>
+	Alloc: {{.MemStats.Alloc}} b,
+	Total Alloc: {{.MemStats.TotalAlloc}} b,
+	Heap Alloc: {{.MemStats.HeapAlloc}} b,
+	Heap Sys: {{.MemStats.HeapSys}} b
+</div>
+
 {{ if .Header }}
 <pre style="font-size: 80%">
 <table>

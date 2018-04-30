@@ -1,8 +1,13 @@
 
+<hr><div style="padding: 6px 0; text-align: center; line-height:1.5em">
+    {{if .Forum.ForumConfig.ForumUrl}}
+    <a href="/{{.Forum.ForumConfig.ForumUrl}}/rss.xml">RSS</a>
+    {{end}}
+    {{if .IsAdmin}}
+    | <a href="/logs">Logs</a><br>
+    {{end}}
+    Powered by <a href="https://github.com/coyove/fofou">fofou</a>
 </div>
-
-<div style="padding-bottom:12px; padding-top:6px; text-align: center;">
-Powered by <a href="https://github.com/coyove/fofou">fofou</a>
 </div>
 
 </body>

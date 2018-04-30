@@ -116,7 +116,8 @@ func NewForum(config *ForumConfig) *Forum {
 		logger.Errorf("NewStore('%s', '%s') failed with '%s'\n", getDataDir(), config.DataDir, err)
 		panic("failed to create store for a forum")
 	}
-	logger.Noticef("%d topics, %d posts in forum %q", store.TopicsCount(), store.PostsCount(), config.ForumUrl)
+	a, b := store.PostsCount()
+	logger.Noticef("%d topics, %d visible topics, %d posts in forum %q", store.TopicsCount(), a, b, config.ForumUrl)
 	forum.Store = store
 	return forum
 }

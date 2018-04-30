@@ -24,13 +24,9 @@
 
 					{{ if $isAdmin }}
 						<br/>From:
-						<a href="/{{$forumUrl}}/postsby?ip={{.IpAddrInternal}}">{{ .IpAddress }}</a>
-						<a href="/{{$forumUrl}}/viewraw?topicId={{.Topic.ID}}&postId={{.Id}}">raw</a>
-						{{ if .IsDeleted }}
-							<a href="/{{$forumUrl}}/postundel?topicId={{.Topic.ID}}&postId={{.Id}}">restore</a>
-						{{ else }}
-							<a href="/{{$forumUrl}}/postdel?topicId={{.Topic.ID}}&postId={{.Id}}">delete</a>
-						{{ end }}
+						<a href="/{{$forumUrl}}/postsby?ip={{.IPAddressInternal}}">{{ .IPAddress }}</a>
+						<a href="/{{$forumUrl}}/viewraw?topicId={{.Topic.ID}}&postId={{.ID}}">raw</a>
+						<a href="/{{$forumUrl}}/delete?topicId={{.Topic.ID}}&postId={{.ID}}">{{ if .IsDeleted }}restore{{ else }}delete{{end}}</a>
 					{{ end }}
 				</div>
 			</div>
@@ -39,10 +35,10 @@
 			{{if not .Archived}}
 			<div class="buttons">
 				<a accesskey="r" href="/{{ .ForumUrl }}/newpost?topicId={{.Topic.ID}}">
-					<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEWSURBVGhD7djBTQMxGETh7QM4hjqpJ5DSQAIKIL8PQSP0yPiw1o4lP+k7jr2+7rZarbCn8la+ys/B2jdcyql09VjeCx12pPZN7dtsr4UOSHAutu9C4wSfxUbDJDYaJbHRSI2O7lQ2GqnR0Z3KRiM1OrpT2WikRkd3KhuNktholMRGoyQ2GiWx0UiNju5UNhqp0dGdykYjNTq6U9lopEZHdyobjZLYaJTERqMkNholsdFI7RWd3cNGI7VXdHYPG43UXtHZPWw0UntFZ/ew0SiJjUZJbAn/Q++xtR+pNExhey4fhcYJunoo7Udq+xdJhxwpvpdCH34zRfceMU3/PWKq6BHT9fcRU6aPmLbbI6auPWK1Wv22bVdWHAl0dSG61AAAAABJRU5ErkJggg==" border="0" height="14" width="13"> 新回复
+					<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEWSURBVGhD7djBTQMxGETh7QM4hjqpJ5DSQAIKIL8PQSP0yPiw1o4lP+k7jr2+7rZarbCn8la+ys/B2jdcyql09VjeCx12pPZN7dtsr4UOSHAutu9C4wSfxUbDJDYaJbHRSI2O7lQ2GqnR0Z3KRiM1OrpT2WikRkd3KhuNktholMRGoyQ2GiWx0UiNju5UNhqp0dGdykYjNTq6U9lopEZHdyobjZLYaJTERqMkNholsdFI7RWd3cNGI7VXdHYPG43UXtHZPWw0UntFZ/ew0SiJjUZJbAn/Q++xtR+pNExhey4fhcYJunoo7Udq+xdJhxwpvpdCH34zRfceMU3/PWKq6BHT9fcRU6aPmLbbI6auPWK1Wv22bVdWHAl0dSG61AAAAABJRU5ErkJggg=="> 新回复
 				</a>
 				<a accesskey="t" href="/{{ .ForumUrl }}">
-					<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAB9SURBVGhD7dUhEsRAEMPA/f+ncyxAqVsbGamrxDx4jqSPB/3D3aqoPeBuVdQecLcqag+4WyVJ0lX7OLhbFbUH3K2K2gPuVkXtAXerJEm6ah8Hd6ui9oC7VVF7wN2qqD3gbpUkSVft4+BuVdQecLcqag+4WxW1B9ytkvQ65wdVKB3/xGUOgQAAAABJRU5ErkJggg==" border="0" height="14" width="13"> 返回主题列表
+					<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAB9SURBVGhD7dUhEsRAEMPA/f+ncyxAqVsbGamrxDx4jqSPB/3D3aqoPeBuVdQecLcqag+4WyVJ0lX7OLhbFbUH3K2K2gPuVkXtAXerJEm6ah8Hd6ui9oC7VVF7wN2qqD3gbpUkSVft4+BuVdQecLcqag+4WxW1B9ytkvQ65wdVKB3/xGUOgQAAAABJRU5ErkJggg=="> 返回主题列表
 				</a>
 			</div>
 			{{end}}

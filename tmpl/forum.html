@@ -6,26 +6,35 @@
     <div class="topbar">
         {{.Forum.TopbarHTML}}
     </div>
-    <div class="topics">
-      {{ if len .Topics }}
-        {{ range $i, $v := .Topics }}
-          <div class="topic">
+    <hr>
+    <div class="topics-container">
+    {{ range $i, $t := .Topics }}
+    <table class="topics">
+        {{ range $i, $v := $t }}
+            <tr class="topic">
+            <td class="no">{{.No}}.</td>
+            <td>
             {{if $v.Sticky}}<b>[置顶]</b>{{end}}
             {{if $v.Locked}}<b>[锁定]</b>{{end}}
             <a class="{{$v.TopicLinkClass}}" href="{{$v.TopicURL}}">{{ $v.Subject }} </a>
-            <em>{{ $v.CreatedBy }}</em> <span>({{ $v.CommentsCountMsg }}{{if eq $i 0}} 回复{{end}})</span> <span>{{$v.CreatedOnStr}}</span>
+            </td>
+            </tr>
+            <tr>
+            <td></td>
+            <td class="info"><em>{{ $v.CreatedBy }}</em> <span>({{ $v.CommentsCount }}{{if eq $i 0}} 回复{{end}})</span> <span>{{$v.CreatedOnStr}}</span>
             {{if $.IsAdmin}}
-              <a href="/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=s">S</a>
-              <a href="/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=l">L</a>
+                <a href="/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=s" style="color:#888">S</a>
+                <a href="/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=l" style="color:#888">L</a>
+                <a href="javascript:if(confirm('really purge this topic?'))location.href='/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=x'" style="color:#888">X</a>
             {{end}}
-          </div>
+            </td>
+            </tr>
         {{ end }}
-      {{ else }}
-        无任何主题可显示
-      {{ end }}
+    </table>
+    {{ end }}
     </div>
-    <hr>
+    <hr style="clear:both">
     {{template "forumnav.html" .}}
   </div>
 
-{{ template "footer.html" }}
+{{ template "footer.html" .}}

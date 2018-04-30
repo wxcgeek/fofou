@@ -33,10 +33,10 @@ func handlePostsBy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var ipAddr string
-	ipBlocked := false
+	ipBlocked, userBlocked := false, store.IsBlocked("u"+userInternal)
 	if ipAddrInternal != "" {
 		ipAddr = ipAddrInternalToOriginal(ipAddrInternal)
-		ipBlocked = store.IsIPBlocked(ipAddrInternal)
+		ipBlocked = store.IsBlocked("b" + ipAddrInternal)
 	}
 
 	isAdmin := userIsAdmin(forum, getSecureCookie(r))
@@ -53,20 +53,22 @@ func handlePostsBy(w http.ResponseWriter, r *http.Request) {
 		Posts          []*PostDisplay
 		TotalCount     int
 		IsAdmin        bool
-		Nick           string
-		IpAddr         string
-		IpAddrInternal string
-		IpBlocked      bool
+		User           string
+		IPAddr         string
+		IPAddrInternal string
+		IPBlocked      bool
+		UserBlocked    bool
 		LogInOut       template.HTML
 	}{
 		Forum:          *forum,
 		Posts:          displayPosts,
 		TotalCount:     total,
 		IsAdmin:        isAdmin,
-		Nick:           userInternal,
-		IpAddr:         ipAddr,
-		IpAddrInternal: ipAddrInternal,
-		IpBlocked:      ipBlocked,
+		User:           userInternal,
+		IPAddr:         ipAddr,
+		IPAddrInternal: ipAddrInternal,
+		UserBlocked:    userBlocked,
+		IPBlocked:      ipBlocked,
 		LogInOut:       getLogInOut(r, getSecureCookie(r)),
 	}
 	ExecTemplate(w, tmplPosts, model)

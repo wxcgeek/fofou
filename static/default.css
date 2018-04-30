@@ -13,10 +13,9 @@
 }
 
 body {
-	background-color:	white;
 	color:				black;
 	padding:			0; /* needed for Opera */
-	margin: 0 0.5em;
+	margin: 0;
 }
 
 form { margin: 0px; padding: 0px; }
@@ -30,7 +29,7 @@ a:visited {	color: purple; }
  * Header, footer, and body table
  ******************************************************************************/
 
- .header .item,.footer .item{
+ .header .item {
 	color:white;
 	display:inline-block;
 	zoom:1;
@@ -41,23 +40,29 @@ a:visited {	color: purple; }
 	text-decoration: none;
 }
 
-.header a.item:hover, .footer a.item:hover {
+.header a.item:hover {
 	text-decoration: underline;
 }
 
-.header,.footer{background:#676677;padding:4px 0;color:white;margin:2px 0}
-.header *,.footer *{color:white !important;}
+.header {
+	background:#676677;padding:4px 0;color:white;
+	margin: -4px -4px 0 -4px;
+}
+
+.header * {color:white !important;}
 
 #container {
 	width: 100%;
 	margin: 0 auto;
-	max-width: 800px;
+	max-width: 960px;
+	padding: 4px;
+	background-color: rgb(246, 246, 239);
 }
 
-td.contents {
-	font-size: 1.25em;
-	vertical-align: top;
-	width: 600px;
+hr {
+	border: none;
+	margin: 0 -4px;
+	border-bottom: dashed 1px #ccc;
 }
 
 code {
@@ -65,21 +70,14 @@ code {
 	font-family: "Lucida Console", Monaco, monospace;
 }
 
-div.footer {
-	font-family: "Lucida Grande", "Lucida Sans Unicode", sans-serif;	
-	border-top: 1px solid #189337; width: 735px; font-size: 9pt; margin-top: 20px;
-	text-align: center;
-}
-
-
 /*******************************************************************************
  * Form layout
  ******************************************************************************/
 
 table.form {
-	font-weight:		normal;
+	font-weight: normal;
 	width: 100%;
-	x-height:			1%;
+	margin: 4px 0;
 } 
 
 table.form td {
@@ -98,44 +96,37 @@ table.form th {
 
 table.form #Subject, table.form textarea {
 	width: 100%;
+	resize: vertical;
+	border: dotted 1px #999;
 }
 
 /*******************************************************************************
  * Topics layout
  ******************************************************************************/
 
-div.topics {
-	font-weight:		normal;
-	x-height:			1%;
+table.topics {
+	font-weight: normal;
+	width: 49%;
+	float:left;
 }
 
-div.topic {
-	padding: 4px 0;
+tr.topic {
+	padding: 3px 0;
 }
 
-div.topic em { 
-	font-family: "Lucida Console", Monaco, monospace;
+@media (max-width:640px) { 
+	table.topics {
+		width: 100%;
+	}
 }
 
-div.topics span { color: rgb(170, 170, 170); }
-div.topics a { text-decoration: none; }
-div.topics a:hover { text-decoration: underline; }
-div.topics a.deleted { text-decoration: line-through; }
-div.topics a.deleted:hover { text-decoration: line-through underline; }
-div.topics .dateline {
-	/*height: 8px;*/
-	border-bottom: 1px solid #DDDDDD;
-	width: 300px;
-	height: 1px;
-	font-size: 0px;
-}
-div.topics .date {
-	color: black;
-	font-weight: bold;
-	padding-top: 0.4em;
-	border-bottom: 1px solid black;
-	width: 300px;
-}
+td.info em { font-size: 80%; font-family: "Lucida Console", Monaco, monospace; }
+td.no { text-align: right; white-space: nowrap; width: 1px }
+td.info span { font-size: 80%; color: rgb(170, 170, 170); }
+table.topics a { text-decoration: none; }
+table.topics a:hover { text-decoration: underline; }
+table.topics a.deleted { text-decoration: line-through; }
+table.topics a.deleted:hover { text-decoration: line-through underline; }
 
 /*******************************************************************************
  * Posts layout
@@ -152,14 +143,17 @@ div.posts div.post {
     word-wrap: break-word;
 }
 
-div.posts div.post image {
+div.posts div.post .image {
 	border: none;
 	max-height: 600px;
+	width: 100%;
+	max-width: 600px;
 }
 
 div.posts div.post-container {
 	border-bottom: dashed 1px #ccc;
-	padding: 4px 0;
+	margin: 0 -4px;
+	padding: 4px 4px;
 }
 
 div.posts div.deleted {
@@ -199,21 +193,15 @@ h2 {
 h3 {
 	font-size:			18px;
 	font-weight:		bold;
-	margin:			4px 0px;
+	margin:			4px 0 0;
 	padding: 0;
-}
-
-hr {
-	border: none;
-	margin: 0;
-	border-bottom: dashed 1px #ccc;
 }
 
 .buttons { 
 	clear: all;
 	margin: 4px 0;
 }
-.buttons a, .buttons input {
+.buttons a, .buttons input, .buttons button {
     text-decoration: none;
 	color: black;
 	cursor: pointer;
@@ -229,43 +217,32 @@ hr {
 	position: relative;
 	line-height: 1.5em;
 }
-.buttons a:hover, .buttons input:hover {
+.buttons a:hover, .buttons input:hover, .buttons button:hover {
 	background: linear-gradient(#DFDFDF, #DBDBDB);
 	background: -webkit-linear-gradient(#DFDFDF, #DBDBDB);
 	background: -moz-linear-gradient(#DFDFDF, #DBDBDB);
 	background: -o-linear-gradient(#DFDFDF, #DBDBDB);
 	background-color: #DFDFDF;
 }
-.buttons a:active, .buttons input:active {
+.buttons a:active, .buttons input:active, .buttons button:active {
 	background: linear-gradient(#CCC, #DBDBDB);
 	background: -webkit-linear-gradient(#CCC, #DBDBDB);
 	background: -moz-linear-gradient(#CCC, #DBDBDB);
 	background: -o-linear-gradient(#CCC, #DBDBDB);
 	background-color: #CCC;
 } 
-.buttons a img, .buttons input img {
+.buttons a[disabled], .buttons input:disabled, .buttons button:disabled {
+	color: #ABABAB;
+}
+.buttons a img {
 	vertical-align: text-top;
+	display: inline-block;
+	border: none;
+	width: 16px;
+	height: 16px;
 }
 
-/*******************************************************************************
- * Search box
- ******************************************************************************/
-
-div.searchBox {
-	float:				right;
-	margin-left:		7px; 
-	font-size:			11px;
-	font-weight:		bold;
-	text-decoration:	none; 
-	padding:			3px 1px 2px 5px;
-}
-
-#tbTop {
-	text-align:right;
-}
-
-div.manageforumsmsg {
-  color: #ff0000;
-  text-align: center;
+div.topbar {
+	padding: 4px 0;
 }
 

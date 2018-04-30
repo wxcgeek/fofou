@@ -14,10 +14,11 @@ import (
 // TopicDisplay describes a topic
 type TopicDisplay struct {
 	Topic
-	CommentsCountMsg string
-	CreatedBy        string
-	TopicLinkClass   string
-	TopicURL         string
+	CommentsCount  int
+	No             int
+	CreatedBy      string
+	TopicLinkClass string
+	TopicURL       string
 }
 
 func plural(n int, s string) string {
@@ -87,9 +88,13 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 	if prevTo < 0 {
 		prevTo = -1
 	}
-	topicsDisplay := make([]*TopicDisplay, 0)
 
-	for _, t := range topics {
+	topicsDisplay := [][]*TopicDisplay{
+		make([]*TopicDisplay, 0),
+		make([]*TopicDisplay, 0),
+	}
+
+	for i, t := range topics {
 		if t.IsDeleted() && !isAdmin {
 			continue
 		}
@@ -98,7 +103,8 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 			CreatedBy: t.Posts[0].UserName(),
 		}
 		nComments := len(t.Posts) - 1
-		d.CommentsCountMsg = fmt.Sprintf("%d", nComments)
+		d.CommentsCount = nComments
+		d.No = 1 + i + from
 		if t.IsDeleted() {
 			d.TopicLinkClass = "deleted"
 		}
@@ -107,7 +113,12 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		} else {
 			d.TopicURL = fmt.Sprintf("/%s/topic?id=%d&comments=%d", forum.ForumUrl, t.ID, nComments)
 		}
-		topicsDisplay = append(topicsDisplay, d)
+
+		if i < nTopicsMax/2 {
+			topicsDisplay[0] = append(topicsDisplay[0], d)
+		} else {
+			topicsDisplay[1] = append(topicsDisplay[1], d)
+		}
 	}
 
 	model := struct {
@@ -115,7 +126,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		NewFrom  int
 		PrevTo   int
 		IsAdmin  bool
-		Topics   []*TopicDisplay
+		Topics   [][]*TopicDisplay
 		LogInOut template.HTML
 	}{
 		Forum:    *forum,

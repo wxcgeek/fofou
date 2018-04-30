@@ -5,19 +5,21 @@
 
 	<div class="contents">
 		<div class="posts">
-			{{ if .IpAddr }}
-				<div>Total <b>{{ .TotalCount }}</b> posts from ip address {{ .IpAddr }} 
-					{{ if .IpBlocked }}
-					  (<a href="/{{$forumUrl}}/unblockip?ip={{.IpAddrInternal}}">unblock this ip</a>)
-					{{ else }}
-					  (<a href="/{{$forumUrl}}/blockip?ip={{.IpAddrInternal}}">block this ip</a>)
-					{{ end }}
-				.</div><br>
+            <div style="margin: 4px 0">
+			{{ if .IPAddr }}
+			    Total <b>{{ .TotalCount }}</b> posts from IP <b>{{ .IPAddr }}</b>
+                {{if $isAdmin}}
+                    (<a href="/{{$forumUrl}}/block?term={{.IPAddressInternal}}&action=b">{{ if .IPBlocked }}unblock{{else}}block{{end}} this ip</a>)
+                {{end}}.
 			{{ end }}
 
-			{{ if .Nick }}
-			<div>Total <b>{{ .TotalCount }}</b> posts by user {{ .Nick }}.</div><br>
+			{{ if .User }}
+                Total <b>{{ .TotalCount }}</b> posts from <b>{{ .User }}</b>
+                {{if $isAdmin}}
+                    (<a href="/{{$forumUrl}}/block?term={{.User}}&action=u">{{ if .UserBlocked }}unblock{{else}}block{{end}} this user</a>)
+                {{end}}.
 			{{ end }}
+		    </div>
 
 			{{ range .Posts }}
 			<div class="post-container">
@@ -31,12 +33,8 @@
 					{{ end }}
 
 					{{ if $isAdmin }}
-						<br/> From: {{ .IpAddress }}
-						{{ if .IsDeleted }}
-							<a href="/{{$forumUrl}}/postundel?topicId={{.Topic.ID}}&postId={{.Id}}">restore</a>
-						{{ else }}
-							<a href="/{{$forumUrl}}/postdel?topicId={{.Topic.ID}}&postId={{.Id}}">delete</a>
-						{{ end }}
+						<br/> From: {{ .IPAddress }}
+						<a href="/{{$forumUrl}}/delete?topicId={{.Topic.ID}}&postId={{.ID}}">{{ if .IsDeleted }}restore{{ else }}delete{{end}}</a>
 					{{ end }}
 				</div>
 			</div>

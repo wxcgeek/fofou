@@ -13,6 +13,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/kjk/u"
@@ -141,13 +142,19 @@ func (l *ServerLogger) GetNotices() []*TimestampedMsg {
 func handleLogs(w http.ResponseWriter, r *http.Request) {
 	cookie := getSecureCookie(r)
 	isAdmin := cookie.GithubUser == "coyove" // only I can see the logs
+
+	m := &runtime.MemStats{}
+	runtime.ReadMemStats(m)
+
 	model := struct {
 		UserIsAdmin bool
 		Errors      []*TimestampedMsg
 		Notices     []*TimestampedMsg
 		Header      *http.Header
+		runtime.MemStats
 	}{
 		UserIsAdmin: isAdmin,
+		MemStats:    *m,
 	}
 
 	if model.UserIsAdmin {

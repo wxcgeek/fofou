@@ -14,29 +14,24 @@ func buildForumURL(r *http.Request, forum *Forum) string {
 }
 
 func buildTopicURL(r *http.Request, forum *Forum, p *Post) string {
-	return fmt.Sprintf("http://%s/%s/topic?id=%d&post=%d", r.Host, forum.ForumUrl, p.Topic.ID, p.Id)
+	return fmt.Sprintf("http://%s/%s/topic?id=%d&post=%d", r.Host, forum.ForumUrl, p.Topic.ID, p.ID)
 }
 
 func buildTopicID(r *http.Request, forum *Forum, p *Post) string {
 	pubDateStr := time.Unix(int64(p.CreatedOn), 0).Format("2006-01-02")
-	url := fmt.Sprintf("/%s/topic?id=%d&post=%d", forum.ForumUrl, p.Topic.ID, p.Id)
+	url := fmt.Sprintf("/%s/topic?id=%d&post=%d", forum.ForumUrl, p.Topic.ID, p.ID)
 	return fmt.Sprintf("tag:%s,%s:%s", r.Host, pubDateStr, url)
 }
 
-func handleRss2(w http.ResponseWriter, r *http.Request, all bool) {
+func handleRss(w http.ResponseWriter, r *http.Request) {
 	forum := mustGetForum(w, r)
 	if forum == nil {
 		return
 	}
-	var posts []*Post
-	if all {
-		posts = forum.Store.GetRecentPosts(25)
-	} else {
-		topics, _ := forum.Store.GetTopics(25, 0, false)
-		posts = make([]*Post, len(topics), len(topics))
-		for i, t := range topics {
-			posts[i] = &t.Posts[0]
-		}
+	topics, _ := forum.Store.GetTopics(25, 0, false)
+	posts := make([]*Post, len(topics), len(topics))
+	for i, t := range topics {
+		posts[i] = &t.Posts[0]
 	}
 
 	pubTime := time.Now()
@@ -69,14 +64,4 @@ func handleRss2(w http.ResponseWriter, r *http.Request, all bool) {
 	}
 
 	w.Write(s)
-}
-
-// url: /{forum}/rss
-func handleRss(w http.ResponseWriter, r *http.Request) {
-	handleRss2(w, r, false)
-}
-
-// url: /{forum}/rssall
-func handleRssAll(w http.ResponseWriter, r *http.Request) {
-	handleRss2(w, r, true)
 }

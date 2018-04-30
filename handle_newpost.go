@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/coyove/fofou/session"
 	"github.com/coyove/goflyway/pkg/rand"
 )
 
@@ -20,8 +20,10 @@ type ModelNewPost struct {
 	TopicID      int
 	PrevCaptcha  string
 	PrevSubject  string
+	Token        string
 	SubjectError bool
 	MessageError bool
+	TokenError   bool
 	TopicLocked  bool
 	PrevMessage  string
 	NameClass    string
@@ -91,23 +93,6 @@ Internal problem 0xcc03fad detected ...
 </html>
 `
 
-func isIPBlocked(forum Forum, ip string, ipInternal string) bool {
-	if forum.Store.IsIPBlocked(ipInternal) {
-		return true
-	}
-	banned := forum.BannedIps
-	if banned != nil {
-		for _, s := range *banned {
-			// we have already checked that s is a valid regexp in addForum()
-			r := regexp.MustCompile(s)
-			if r.MatchString(ip) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func isMessageBlocked(forum Forum, msg string) bool {
 	bannedWords := forum.BannedWords
 	if bannedWords != nil {
@@ -123,7 +108,7 @@ func isMessageBlocked(forum Forum, msg string) bool {
 func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, topic *Topic) {
 	ipAddr := getIPAddress(r)
 	ipAddrInternal := ipAddrToInternal(ipAddr)
-	if isIPBlocked(model.Forum, ipAddr, ipAddrInternal) {
+	if model.Forum.Store.IsBlocked("b" + ipAddrInternal) {
 		logger.Noticef("blocked a post from ip address %s (%s)", ipAddr, ipAddrInternal)
 		w.Write([]byte(badUserHTML))
 		return
@@ -142,6 +127,7 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	subject := strings.TrimSpace(r.FormValue("Subject"))
 	subject = strings.Replace(template.HTMLEscapeString(subject), "\n", "", -1)
 	msg := strings.TrimSpace(r.FormValue("Message"))
+	token := strings.TrimSpace(r.FormValue("Token"))
 
 	if isMessageBlocked(model.Forum, msg) {
 		logger.Notice("blocked a post because has a banned word in it")
@@ -166,6 +152,9 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	} else if topic != nil && topic.Locked {
 		model.TopicLocked = true
 		ok = false
+	} else if !session.ConsumeString(token, ipAddrInternal) {
+		model.TokenError = true
+		ok = false
 	}
 
 	if !ok {
@@ -187,6 +176,12 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	}
 	userName = MakeInternalUserName(userName, githubUser)
 	setSecureCookie(w, cookie)
+
+	if model.Forum.Store.IsBlocked("u" + userName) {
+		logger.Noticef("blocked a post from user %s", userName)
+		w.Write([]byte(badUserHTML))
+		return
+	}
 
 	store := model.Forum.Store
 	if topic == nil {
@@ -233,6 +228,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		TopicID:  topicID,
 		LogInOut: getLogInOut(r, getSecureCookie(r)),
 		PrevName: cookie.AnonUser,
+		Token:    session.NewString(ipAddrToInternal(getIPAddress(r))),
 	}
 
 	if topic != nil {
