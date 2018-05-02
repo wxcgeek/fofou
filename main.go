@@ -2,7 +2,6 @@
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
@@ -13,9 +12,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -28,16 +25,15 @@ import (
 var (
 	configPath   = flag.String("config", "config.json", "Path to configuration file")
 	httpAddr     = flag.String("addr", ":5010", "HTTP server address")
-	inProduction = flag.Bool("production", false, "are we running in production")
+	inProduction = flag.String("production", "", "production domain")
 	cookieName   = "ckie"
 )
 
 var (
-	githubToken  = os.Getenv("CYVBACK_TOKEN")
-	githubSecret = os.Getenv("CYVBACK_SECRET")
-
 	config struct {
 		MainTitle           string
+		GitHubOAuthToken    string
+		GitHubOAuthSecret   string
 		CookieAuthKeyHexStr string
 		CookieEncrKeyHexStr string
 	}
@@ -67,7 +63,7 @@ type ForumConfig struct {
 	DataDir        string
 	AdminLoginName string
 	Disabled       bool
-	BannedIps      *[]string
+	MaxLiveTopics  int
 	BannedWords    *[]string
 }
 
@@ -119,6 +115,7 @@ func NewForum(config *ForumConfig) *Forum {
 	a, b := store.PostsCount()
 	logger.Noticef("%d topics, %d visible topics, %d posts in forum %q", store.TopicsCount(), a, b, config.ForumUrl)
 	forum.Store = store
+	store.MaxLiveTopics = forum.MaxLiveTopics
 	return forum
 }
 
@@ -159,22 +156,8 @@ func addForum(forum *Forum) error {
 	if forumAlreadyExists(forum.ForumUrl) {
 		return errors.New("Forum already exists")
 	}
-	// verify BannedIps are valid regexpes
-	banned := forum.BannedIps
-	if banned != nil {
-		for _, s := range *banned {
-			_, err := regexp.Compile(s)
-			if err != nil {
-				log.Fatalf("%q is not a valid regexp, err: %s", s, err)
-			}
-		}
-	}
 	appState.Forums = append(appState.Forums, forum)
 	return nil
-}
-
-func isTopLevelURL(url string) bool {
-	return 0 == len(url) || "/" == url
 }
 
 func userIsAdmin(f *Forum, cookie *SecureCookieValue) bool {
@@ -274,13 +257,6 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 	}
 }
 
-func fofouHostPolicy(ctx context.Context, host string) error {
-	if strings.HasSuffix(host, "fofou.org") {
-		return nil
-	}
-	return errors.New("acme/autocert: only *.fofou.org hosts are allowed")
-}
-
 func main() {
 	// set number of goroutines to number of cpus, but capped at 4 since
 	// I don't expect this to be heavily trafficed website
@@ -291,46 +267,46 @@ func main() {
 	runtime.GOMAXPROCS(ncpu)
 	flag.Parse()
 
-	if *inProduction {
-		reloadTemplates = false
+	if *inProduction != "" {
 		alwaysLogTime = false
 	}
 
-	useStdout := !*inProduction
+	useStdout := *inProduction == ""
 	logger = NewServerLogger(256, 256, useStdout)
 
 	rand.Seed(time.Now().UnixNano())
 
 	if err := readConfig(*configPath); err != nil {
-		log.Fatalf("Failed reading config file %s. %s\n", *configPath, err)
+		log.Fatalf("failed to read config file %s: %s\n", *configPath, err)
 	}
 
 	if err := readForumConfigs("forums"); err != nil {
-		log.Fatalf("Failed to read forum configs, err: %s", err)
+		log.Fatalf("failed to read forum configs, err: %s", err)
 	}
 
 	for _, forumData := range forums {
+		start := time.Now()
 		f := NewForum(forumData)
 		if err := addForum(f); err != nil {
-			log.Fatalf("Failed to add the forum: %s, err: %s\n", f.Title, err)
+			log.Fatalf("failed to add the forum: %s, err: %s\n", f.Title, err)
 		} else {
-			fmt.Printf("added forum %s\n", f.ForumUrl)
+			fmt.Printf("add forum %s in %.2fs\n", f.ForumUrl, time.Now().Sub(start).Seconds())
 		}
 	}
 
 	if len(appState.Forums) == 0 {
-		log.Fatalf("No forums defined in config.json")
+		log.Fatalf("no forums defined in config.json")
 	}
 
-	if *inProduction {
+	if *inProduction != "" {
 		m := autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
-			HostPolicy: fofouHostPolicy,
+			HostPolicy: autocert.HostWhitelist(*inProduction),
 		}
 		srv := initHTTPServer()
 		srv.Addr = ":443"
 		srv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
-		logger.Noticef("Started runing HTTPS on %s\n", srv.Addr)
+		logger.Noticef("running HTTPS on %s, production domain: %s\n", srv.Addr, *inProduction)
 		go func() {
 			srv.ListenAndServeTLS("", "")
 		}()
@@ -338,9 +314,8 @@ func main() {
 
 	srv := initHTTPServer()
 	srv.Addr = *httpAddr
-	logger.Noticef(fmt.Sprintf("Started runing on %s\n", srv.Addr))
+	logger.Noticef("running on %s\n", srv.Addr)
 	if err := srv.ListenAndServe(); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %s\n", err)
 	}
-	fmt.Printf("Exited\n")
 }

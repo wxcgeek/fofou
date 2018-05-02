@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coyove/goflyway/pkg/rand"
+	"github.com/coyove/common/rand"
 	"github.com/kjk/u"
 )
 
@@ -76,11 +76,12 @@ type Store struct {
 
 	MaxLiveTopics int
 
-	dataDir     string
-	forumName   string
-	rootTopic   *Topic
-	endTopic    *Topic
-	topicsCount int
+	dataDir      string
+	dataFilePath string
+	forumName    string
+	rootTopic    *Topic
+	endTopic     *Topic
+	topicsCount  int
 
 	blocked  map[string]bool
 	dataFile *os.File
@@ -287,7 +288,7 @@ func (store *Store) readExistingData(fileDataPath string) error {
 
 			t := topicIDToTopic[topicID]
 			if t == nil {
-				logger.Errorf("can't find the topic to stick/lock: %d, %s", topicID, string(c))
+				logger.Errorf("can't find the topic to slax: %d, %s", topicID, string(c))
 				break
 			}
 
@@ -304,7 +305,7 @@ func (store *Store) readExistingData(fileDataPath string) error {
 				delete(topicIDToTopic, t.ID)
 			}
 		default:
-			panic("Unexpected line type")
+			panic("unexpected line type")
 		}
 	}
 
@@ -322,9 +323,9 @@ func (store *Store) verifyTopics() {
 
 // NewStore creates a new store
 func NewStore(dataDir, forumName string) (*Store, error) {
-	dataFilePath := filepath.Join(dataDir, "forum", forumName+".txt")
 	store := &Store{
 		dataDir:       dataDir,
+		dataFilePath:  filepath.Join(dataDir, "forum", forumName+".txt"),
 		forumName:     forumName,
 		rootTopic:     &Topic{},
 		endTopic:      &Topic{},
@@ -336,15 +337,15 @@ func NewStore(dataDir, forumName string) (*Store, error) {
 	store.endTopic.Prev = store.rootTopic
 
 	var err error
-	if u.PathExists(dataFilePath) {
-		if err = store.readExistingData(dataFilePath); err != nil {
-			fmt.Printf("readExistingData() failed with %s\n", err)
+	if u.PathExists(store.dataFilePath) {
+		if err = store.readExistingData(store.dataFilePath); err != nil {
+			fmt.Printf("readExistingData: %s\n", err)
 			return nil, err
 		}
 	} else {
-		f, err := os.Create(dataFilePath)
+		f, err := os.Create(store.dataFilePath)
 		if err != nil {
-			fmt.Printf("NewStore(): os.Create(%s) failed with %s\n", dataFilePath, err)
+			fmt.Printf("can't create %s: %s\n", store.dataFilePath, err)
 			return nil, err
 		}
 		f.Close()
@@ -352,9 +353,9 @@ func NewStore(dataDir, forumName string) (*Store, error) {
 
 	store.verifyTopics()
 
-	store.dataFile, err = os.OpenFile(dataFilePath, os.O_APPEND|os.O_RDWR, 0666)
+	store.dataFile, err = os.OpenFile(store.dataFilePath, os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
-		fmt.Printf("NewStore(): os.OpenFile(%s) failed with %s", dataFilePath, err)
+		fmt.Printf("can't open %s: %s", store.dataFilePath, err)
 		return nil, err
 	}
 
@@ -372,7 +373,7 @@ func NewStore(dataDir, forumName string) (*Store, error) {
 	// 			ipAddr := "7f000001"
 
 	// 			if r.Intn(10) == 1 {
-	// 				curTopicId, _ = store.CreateNewPost(subject, msg, userName, ipAddr)
+	// 				curTopicId, _ = store.CreateNewTopic(subject, msg, userName, ipAddr)
 	// 			} else if curTopicId > 0 {
 	// 				store.AddPostToTopic(r.Intn(curTopicId)+1, msg, userName, ipAddr)
 	// 			}
@@ -396,7 +397,7 @@ func LoadSingleTopicInStore(path string) (*Topic, error) {
 
 	var err error
 	if err = store.readExistingData(path); err != nil {
-		fmt.Printf("readExistingData() failed with %s\n", err)
+		logger.Errorf("LoadSingleTopicInStore: %s", err)
 		return nil, err
 	}
 
@@ -432,30 +433,6 @@ func (store *Store) DoAction(topicID int, action byte) {
 			t.Next.Prev = t.Prev
 		}
 	}
-}
-
-func (store *Store) archiveUnlocked(topic *Topic, saveToPath string) error {
-	topic.Prev.Next = topic.Next
-	topic.Next.Prev = topic.Prev
-
-	buf := &bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf("T%d|%s\n", topic.ID, topic.Subject))
-
-	for _, p := range topic.Posts {
-		if p.IsDeleted {
-			continue
-		}
-
-		s1 := fmt.Sprintf("%d", p.CreatedOn)
-		messageBuf := make([]byte, ascii85.MaxEncodedLen(len(p.Message)))
-		n := ascii85.Encode(messageBuf, p.Message)
-
-		parts := strings.Split(p.Internal, "|")
-		buf.WriteString(fmt.Sprintf("P%d|%d|%s|%s|%s|%s\n",
-			topic.ID, p.ID, s1, parts[1], parts[0], string(messageBuf[:n])))
-	}
-
-	return ioutil.WriteFile(saveToPath, buf.Bytes(), 0777)
 }
 
 // PostsCount returns number of posts
@@ -620,32 +597,78 @@ func (store *Store) BuildArchivePath(topicID int) string {
 	return filepath.Join(store.dataDir, "archive", store.forumName, strconv.Itoa(id1), strconv.Itoa(id2), strconv.Itoa(topicID))
 }
 
-// CreateNewPost creates a new post
-func (store *Store) CreateNewPost(subject, msg, user, ipAddr string) (int, error) {
+func archive(topic *Topic, saveToPath string) error {
+	topic.Prev.Next = topic.Next
+	topic.Next.Prev = topic.Prev
+
+	buf := &bytes.Buffer{}
+	buf.WriteString(fmt.Sprintf("T%d|%s\n", topic.ID, topic.Subject))
+
+	for _, p := range topic.Posts {
+		if p.IsDeleted {
+			continue
+		}
+
+		s1 := fmt.Sprintf("%d", p.CreatedOn)
+		messageBuf := make([]byte, ascii85.MaxEncodedLen(len(p.Message)))
+		n := ascii85.Encode(messageBuf, p.Message)
+
+		parts := strings.Split(p.Internal, "|")
+		buf.WriteString(fmt.Sprintf("P%d|%d|%s|%s|%s|%s\n",
+			topic.ID, p.ID, s1, parts[1], parts[0], string(messageBuf[:n])))
+	}
+
+	u.CreateDirForFileMust(saveToPath)
+	return ioutil.WriteFile(saveToPath, buf.Bytes(), 0777)
+}
+
+func (store *Store) Archive() {
+	store.Lock()
+	defer store.Unlock()
+
+	topic, i := store.rootTopic.Next, 0
+	for ; topic != store.endTopic; topic = topic.Next {
+		if i++; i == store.MaxLiveTopics {
+			break
+		}
+	}
+
+	info := &bytes.Buffer{}
+	info.WriteString("archive:")
+	for topic != store.endTopic.Prev && topic != store.endTopic {
+		t := store.endTopic.Prev
+		if err := store.appendString(fmt.Sprintf("A%d\n", t.ID)); err != nil {
+			info.WriteString(fmt.Sprintf(" %d(%v)", t.ID, err))
+			continue
+		}
+		err := archive(t, store.BuildArchivePath(t.ID))
+		if err == nil {
+			info.WriteString(fmt.Sprintf(" %d(ok)", t.ID))
+		} else {
+			info.WriteString(fmt.Sprintf(" %d(%v)", t.ID, err))
+		}
+	}
+	logger.Notice(info.String())
+}
+
+// CreateNewTopic creates a new topic
+func (store *Store) CreateNewTopic(subject, msg, user, ipAddr string) (int, error) {
 	store.Lock()
 	defer store.Unlock()
 
 	topic := &Topic{
-		ID:      1,
+		ID:      store.topicsCount + 1,
 		Subject: subject,
 		Posts:   make([]Post, 0),
 	}
 
-	// Id of the last topic + 1
-	topic.ID = store.topicsCount + 1
 	err := store.addNewPost(msg, user, ipAddr, topic, true)
 	if err == nil {
 		store.topicsCount++
 	}
 
-	if store.topicsCount > store.MaxLiveTopics {
-		last := store.endTopic.Prev
-		if err := store.appendString(fmt.Sprintf("A%d\n", last.ID)); err == nil {
-			path := store.BuildArchivePath(last.ID)
-			u.CreateDirForFileMust(path)
-			err := store.archiveUnlocked(last, path)
-			logger.Noticef("archive %d (%s): %v", last.ID, path, err)
-		}
+	if randG.Intn(64) == 0 {
+		go store.Archive()
 	}
 
 	return topic.ID, err
@@ -673,7 +696,10 @@ func (store *Store) AddPostToTopic(topicID int, msg, user, ipAddr string) error 
 func (store *Store) BlockIP(ipAddrInternal string) {
 	store.Lock()
 	defer store.Unlock()
-	s := fmt.Sprintf("B%s\n", ipAddrToInternal(ipAddrInternal))
+	if len(ipAddrInternal) == 0 {
+		return
+	}
+	s := fmt.Sprintf("B%s\n", ipAddrInternal)
 	if err := store.appendString(s); err == nil {
 		store.markBlockedOrUnblocked("b" + ipAddrInternal)
 	}
@@ -683,7 +709,7 @@ func (store *Store) BlockIP(ipAddrInternal string) {
 func (store *Store) BlockUser(username string) {
 	store.Lock()
 	defer store.Unlock()
-	s := fmt.Sprintf("U%s\n", ipAddrToInternal(username))
+	s := fmt.Sprintf("U%s\n", username)
 	if err := store.appendString(s); err == nil {
 		store.markBlockedOrUnblocked("u" + username)
 	}
@@ -693,6 +719,10 @@ func (store *Store) BlockUser(username string) {
 func (store *Store) IsBlocked(term string) bool {
 	store.RLock()
 	defer store.RUnlock()
+	if len(term) == 9 && term[0] == 'b' {
+		//     bAABBCCDD /32          bAABBCC /24                bAABBC /20                 bAABB /16
+		return store.blocked[term] || store.blocked[term[:7]] || store.blocked[term[:6]] || store.blocked[term[:5]]
+	}
 	return store.blocked[term]
 }
 
@@ -713,7 +743,7 @@ func (store *Store) getPostsBy(term string, max int, ip, name bool) ([]Post, int
 	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
 		for _, post := range topic.Posts {
 			if ip {
-				if strings.HasSuffix(post.Internal, term) {
+				if strings.Contains(post.Internal, "|"+term) {
 					total++
 					if total <= max {
 						res = append(res, post)

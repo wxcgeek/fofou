@@ -53,12 +53,6 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 	serveFileFromDir(w, r, "static", file)
 }
 
-// url: /img/*
-func handleStaticImg(w http.ResponseWriter, r *http.Request) {
-	file := r.URL.Path[len("/img/"):]
-	serveFileFromDir(w, r, "img", file)
-}
-
 // url: /robots.txt
 func handleRobotsTxt(w http.ResponseWriter, r *http.Request) {
 	serveFileFromDir(w, r, "static", "robots.txt")
@@ -130,11 +124,16 @@ func handleBlock(w http.ResponseWriter, r *http.Request) {
 func handleActionTopic(w http.ResponseWriter, r *http.Request) {
 	topicID, err := strconv.Atoi(r.FormValue("topicId"))
 	action := r.FormValue("action")
+	redirect := r.FormValue("redirect")
 	forum := mustGetForum(w, r)
 	if forum != nil && err == nil {
 		if userIsAdmin(forum, getSecureCookie(r)) {
 			forum.Store.DoAction(topicID, strings.ToUpper(action[:1])[0])
-			http.Redirect(w, r, "/"+forum.ForumUrl, 302)
+			if redirect == "" {
+				http.Redirect(w, r, "/"+forum.ForumUrl, 302)
+			} else {
+				http.Redirect(w, r, redirect, 302)
+			}
 			return
 		}
 	}
@@ -161,6 +160,10 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 	ExecTemplate(w, tmplMain, model)
 }
 
+func isTopLevelURL(url string) bool {
+	return 0 == len(url) || "/" == url
+}
+
 // // https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
 func initHTTPServer() *http.Server {
 	r := mux.NewRouter()
@@ -184,7 +187,6 @@ func initHTTPServer() *http.Server {
 	smux.HandleFunc("/robots.txt", handleRobotsTxt)
 	smux.HandleFunc("/logs", handleLogs)
 	smux.HandleFunc("/s/", makeTimingHandler(handleStatic))
-	smux.HandleFunc("/img/", makeTimingHandler(handleStaticImg))
 	smux.Handle("/", r)
 
 	srv := &http.Server{

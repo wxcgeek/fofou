@@ -110,8 +110,8 @@ func handleOauthGithubCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := url.Values{
-		"client_id":     {githubToken},
-		"client_secret": {githubSecret},
+		"client_id":     {config.GitHubOAuthToken},
+		"client_secret": {config.GitHubOAuthSecret},
 		"code":          {code},
 	}
 
@@ -182,7 +182,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	q2 := url.Values{
 		"redirect_uri": {cb},
-		"client_id":    {githubToken},
+		"client_id":    {config.GitHubOAuthToken},
 	}.Encode()
 
 	http.Redirect(w, r, "https://github.com/login/oauth/authorize?"+q2, 302)

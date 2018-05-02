@@ -4,7 +4,7 @@
         "DataDir":"SumatraPDF",
         "AdminLoginName":"coyove",
         "Disabled":false,
-        "BannedIps":[],
+        "MaxLiveTopics":10000,
         "BannedWords": ["ebookconverter.com", "epubconverter.com"]
 }
 

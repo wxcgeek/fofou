@@ -23,9 +23,9 @@
             <td></td>
             <td class="info"><em>{{ $v.CreatedBy }}</em> <span>({{ $v.CommentsCount }}{{if eq $i 0}} 回复{{end}})</span> <span>{{$v.CreatedOnStr}}</span>
             {{if $.IsAdmin}}
-                <a href="/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=s" style="color:#888">S</a>
-                <a href="/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=l" style="color:#888">L</a>
-                <a href="javascript:if(confirm('really purge this topic?'))location.href='/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=x'" style="color:#888">X</a>
+                <a href="javascript:location.href='/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=s&redirect='+location.href" style="color:#888">S</a>
+                <a href="javascript:location.href='/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=l&redirect='+location.href" style="color:#888">L</a>
+                <a href="javascript:if(confirm('really purge this topic?'))location.href='/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=x&redirect='+location.href" style="color:#888">X</a>
             {{end}}
             </td>
             </tr>

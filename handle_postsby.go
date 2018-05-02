@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -25,11 +26,16 @@ func handlePostsBy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isAdmin := userIsAdmin(forum, getSecureCookie(r))
+	maxTopics := 50
+	if count := r.FormValue("count"); isAdmin && count != "" {
+		maxTopics, _ = strconv.Atoi(count)
+	}
 	var total int
 	if userInternal != "" {
-		posts, total = store.GetPostsByUserInternal(userInternal, 50)
+		posts, total = store.GetPostsByUserInternal(userInternal, maxTopics)
 	} else {
-		posts, total = store.GetPostsByIPInternal(ipAddrInternal, 50)
+		posts, total = store.GetPostsByIPInternal(ipAddrInternal, maxTopics)
 	}
 
 	var ipAddr string
@@ -39,7 +45,6 @@ func handlePostsBy(w http.ResponseWriter, r *http.Request) {
 		ipBlocked = store.IsBlocked("b" + ipAddrInternal)
 	}
 
-	isAdmin := userIsAdmin(forum, getSecureCookie(r))
 	displayPosts := make([]*PostDisplay, 0)
 	for _, p := range posts {
 		pd := NewPostDisplay(p, forum, isAdmin)
@@ -50,26 +55,46 @@ func handlePostsBy(w http.ResponseWriter, r *http.Request) {
 
 	model := struct {
 		Forum
-		Posts          []*PostDisplay
-		TotalCount     int
-		IsAdmin        bool
-		User           string
-		IPAddr         string
-		IPAddrInternal string
-		IPBlocked      bool
-		UserBlocked    bool
-		LogInOut       template.HTML
+		Posts       []*PostDisplay
+		TotalCount  int
+		IsAdmin     bool
+		User        string
+		IPAddr      string
+		IPAddrI32   string
+		IPAddrI24   string
+		IPAddrI20   string
+		IPAddrI16   string
+		Blocked     map[string]string
+		IPBlocked   bool
+		UserBlocked bool
+		LogInOut    template.HTML
 	}{
-		Forum:          *forum,
-		Posts:          displayPosts,
-		TotalCount:     total,
-		IsAdmin:        isAdmin,
-		User:           userInternal,
-		IPAddr:         ipAddr,
-		IPAddrInternal: ipAddrInternal,
-		UserBlocked:    userBlocked,
-		IPBlocked:      ipBlocked,
-		LogInOut:       getLogInOut(r, getSecureCookie(r)),
+		Forum:       *forum,
+		Posts:       displayPosts,
+		TotalCount:  total,
+		IsAdmin:     isAdmin,
+		User:        userInternal,
+		IPAddr:      ipAddr,
+		IPAddrI32:   ipAddrInternal,
+		UserBlocked: userBlocked,
+		IPBlocked:   ipBlocked,
+		LogInOut:    getLogInOut(r, getSecureCookie(r)),
 	}
+
+	if len(ipAddrInternal) == 8 {
+		model.IPAddrI24 = ipAddrInternal[:6]
+		model.IPAddrI20 = ipAddrInternal[:5]
+		model.IPAddrI16 = ipAddrInternal[:4]
+	}
+
+	if isAdmin {
+		model.Blocked = make(map[string]string)
+		for k := range forum.Store.blocked {
+			if k[0] == 'b' {
+				model.Blocked[k[1:]] = ipAddrInternalToOriginal(k[1:])
+			}
+		}
+	}
+
 	ExecTemplate(w, tmplPosts, model)
 }

@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/coyove/fofou/session"
-	"github.com/coyove/goflyway/pkg/rand"
+	"github.com/coyove/common/rand"
+	"github.com/coyove/common/session"
 )
 
 // ModelNewPost represents a new post
@@ -185,7 +185,7 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 
 	store := model.Forum.Store
 	if topic == nil {
-		if topicID, err := store.CreateNewPost(subject, msg, userName, ipAddr); err != nil {
+		if topicID, err := store.CreateNewTopic(subject, msg, userName, ipAddr); err != nil {
 			logger.Errorf("createNewPost(): store.CreateNewPost() failed with %s", err)
 		} else {
 			http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", model.ForumUrl, topicID), 302)

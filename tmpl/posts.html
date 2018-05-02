@@ -8,8 +8,21 @@
             <div style="margin: 4px 0">
 			{{ if .IPAddr }}
 			    Total <b>{{ .TotalCount }}</b> posts from IP <b>{{ .IPAddr }}</b>
-                {{if $isAdmin}}
-                    (<a href="/{{$forumUrl}}/block?term={{.IPAddressInternal}}&action=b">{{ if .IPBlocked }}unblock{{else}}block{{end}} this ip</a>)
+				{{if $isAdmin}}
+					{{if .IPBlocked}}
+						({{range $k, $v := .Blocked}}
+						<a href="/{{$forumUrl}}/block?term={{$k}}&action=b">unblock {{$v}}</a>
+						{{end}})
+					{{else}}
+					(
+						<a href="/{{$forumUrl}}/block?term={{.IPAddrI32}}&action=b">block /32</a>
+						{{if .IPAddrI24}}
+						<a href="/{{$forumUrl}}/block?term={{.IPAddrI24}}&action=b">block /24</a>
+						<a href="/{{$forumUrl}}/block?term={{.IPAddrI20}}&action=b">block /20</a>
+						<a href="/{{$forumUrl}}/block?term={{.IPAddrI16}}&action=b">block /16</a>
+						{{end}}
+					)
+					{{end}}
                 {{end}}.
 			{{ end }}
 

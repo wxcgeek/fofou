@@ -169,20 +169,22 @@ func ipAddrToInternal(ipAddr string) string {
 }
 
 func ipAddrInternalToOriginal(s string) string {
-	// an earlier version of ipAddrToInternal would sometimes generate
-	// 7-byte string (due to Printf() %x not printing the most significant
-	// byte as 0 padded), so we're fixing it up here
-	if len(s) == 7 {
-		// check if ipv4 in hex form
-		s2 := "0" + s
-		if d, err := hex.DecodeString(s2); err == nil {
-			return fmt.Sprintf("%d.%d.%d.%d", d[0], d[1], d[2], d[3])
-		}
-	}
-	if len(s) == 8 {
-		// check if ipv4 in hex form
+	switch len(s) {
+	case 8:
 		if d, err := hex.DecodeString(s); err == nil {
 			return fmt.Sprintf("%d.%d.%d.%d", d[0], d[1], d[2], d[3])
+		}
+	case 6:
+		if d, err := hex.DecodeString(s); err == nil {
+			return fmt.Sprintf("%d.%d.%d.0/24", d[0], d[1], d[2])
+		}
+	case 4:
+		if d, err := hex.DecodeString(s); err == nil {
+			return fmt.Sprintf("%d.%d.0.0/16", d[0], d[1])
+		}
+	case 5:
+		if d, err := hex.DecodeString(s + "0"); err == nil {
+			return fmt.Sprintf("%d.%d.%d.0/20", d[0], d[1], d[2])
 		}
 	}
 	// other format (ipv6?)

@@ -5,7 +5,11 @@
 
 	<div class="contents">
 		<div class="posts">
-			<h3>{{ .Subject }}</h3>
+			<h3 style="margin-bottom:-4px;">
+				{{if .Archived}}<b>[存档]</b>{{end}}
+				{{if .Locked}}<b>[锁定]</b>{{end}}
+				{{ .Subject }}
+			</h3>
 
 			{{ range .Posts }}
 			<div class="post-container" id="post-{{.ActualNo}}">
@@ -33,6 +37,7 @@
 			{{ end }}
 
 			{{if not .Archived}}
+			{{if not .Locked}}
 			<div class="buttons">
 				<a accesskey="r" href="/{{ .ForumUrl }}/newpost?topicId={{.Topic.ID}}">
 					<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEWSURBVGhD7djBTQMxGETh7QM4hjqpJ5DSQAIKIL8PQSP0yPiw1o4lP+k7jr2+7rZarbCn8la+ys/B2jdcyql09VjeCx12pPZN7dtsr4UOSHAutu9C4wSfxUbDJDYaJbHRSI2O7lQ2GqnR0Z3KRiM1OrpT2WikRkd3KhuNktholMRGoyQ2GiWx0UiNju5UNhqp0dGdykYjNTq6U9lopEZHdyobjZLYaJTERqMkNholsdFI7RWd3cNGI7VXdHYPG43UXtHZPWw0UntFZ/ew0SiJjUZJbAn/Q++xtR+pNExhey4fhcYJunoo7Udq+xdJhxwpvpdCH34zRfceMU3/PWKq6BHT9fcRU6aPmLbbI6auPWK1Wv22bVdWHAl0dSG61AAAAABJRU5ErkJggg=="> 新回复
@@ -42,7 +47,8 @@
 				</a>
 			</div>
 			{{end}}
+			{{end}}
 		</div>
 	</div>
 
-{{ template "footer.html" }}
+{{ template "footer.html" .}}
