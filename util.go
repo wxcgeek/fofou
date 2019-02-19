@@ -2,73 +2,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 )
-
-func isSp(c rune) bool {
-	return c == ' '
-}
-
-func isNewline(s string) bool {
-	return 1 == len(s) && s[0] == '\n'
-}
-
-func isNewlineChar(c rune) bool {
-	return c == '\n'
-}
-
-func endsSendence(s string) bool {
-	n := len(s)
-	if 0 == n {
-		return false
-	}
-	c := s[n-1]
-	if c == '.' || c == '?' || c == '\n' {
-		return true
-	}
-	return false
-}
-
-// TODO: this is a bit clumsy. Would be much faster (and probably cleaner) to
-// go over string char-by-char
-// TODO: only do it if detects high CAPS rate
-func UnCaps(s string) string {
-	parts := strings.FieldsFunc(s, isSp)
-	n := len(parts)
-	res := make([]string, n, n)
-	sentenceStart := true
-	for i := 0; i < n; i++ {
-		s := parts[i]
-		if isNewline(s) {
-			res[i] = s
-			sentenceStart = true
-			continue
-		}
-		s2 := strings.ToLower(s)
-		if sentenceStart {
-			res[i] = strings.Title(s2)
-		} else {
-			res[i] = s2
-		}
-		sentenceStart = endsSendence(s)
-	}
-	s = strings.Join(res, " ")
-	return s
-	/*
-		parts = strings.FieldsFunc(s, isNewlineChar)
-		n = len(parts)
-		res = make([]string, n, n)
-		for i := 0; i < n; i++ {
-			res[i] = strings.Title(res[i])
-		}
-		return strings.Join(res, "\n")
-	*/
-}
 
 func panicif(cond bool, args ...interface{}) {
 	if !cond {
@@ -190,3 +132,121 @@ func ipAddrInternalToOriginal(s string) string {
 	// other format (ipv6?)
 	return s
 }
+
+type buffer struct {
+	p      bytes.Buffer
+	r      io.Reader
+	pos    int
+	postmp int
+	one    [1]byte
+}
+
+func (b *buffer) SetReader(r io.Reader) {
+	b.r = r
+	b.pos = 0
+	b.postmp = 0
+}
+
+func (b *buffer) ReadByte() (byte, error) {
+	_, err := b.r.Read(b.one[:1])
+	if err != nil {
+		return 0, err
+	}
+	b.pos++
+	return b.one[0], nil
+}
+
+func (b *buffer) Read2Bytes() (byte, byte, error) {
+	v0, err := b.ReadByte()
+	v1, err := b.ReadByte()
+	if err != nil {
+		return 0, 0, err
+	}
+	return v0, v1, nil
+}
+
+func (b *buffer) WriteUInt32(v uint32) {
+	b.p.WriteByte(byte(v >> 24))
+	b.p.WriteByte(byte(v >> 16))
+	b.p.WriteByte(byte(v >> 8))
+	b.p.WriteByte(byte(v))
+}
+
+func (b *buffer) ReadUInt32() (uint32, error) {
+	v0, err := b.ReadByte()
+	v1, err := b.ReadByte()
+	v2, err := b.ReadByte()
+	v3, err := b.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	return uint32(v0<<24) + uint32(v1<<16) + uint32(v2<<8) + uint32(v3), nil
+}
+
+func (b *buffer) WriteString(str string) {
+	queue := make([]byte, 0, 256)
+
+	appendQueue := func() {
+		b.p.WriteByte(byte(len(queue)/2-1) | 0x80)
+		b.p.Write(queue)
+		queue = queue[:0]
+	}
+
+	for _, r := range str {
+		if r < 128 {
+			if len(queue) > 0 {
+				appendQueue()
+			}
+			b.p.WriteByte(byte(r))
+		} else {
+			queue = append(queue, byte(r>>8), byte(r))
+			if len(queue)/2 == 128 {
+				appendQueue()
+			}
+		}
+	}
+
+	if len(queue) > 0 {
+		appendQueue()
+	}
+
+	b.p.WriteByte(0)
+}
+
+func (b *buffer) ReadString() (string, error) {
+	str := make([]byte, 0)
+	enc := make([]byte, 3)
+
+	b.postmp = b.pos
+	for {
+		v, err := b.ReadByte()
+		if err != nil {
+			return "", err
+		}
+		if v == 0 {
+			break
+		}
+
+		if v < 128 {
+			str = append(str, v)
+			continue
+		}
+
+		ln := int((v & 0x7f) + 1)
+		for i := 0; i < ln; i++ {
+			v0, v1, err := b.Read2Bytes()
+			if err != nil {
+				return "", err
+			}
+			n := utf8.EncodeRune(enc, rune(v0)<<8+rune(v1))
+			str = append(str, enc[:n]...)
+		}
+	}
+
+	return string(str), nil
+
+}
+
+func (b *buffer) LastStringCheckpoint() int { return b.postmp }
+
+func (b *buffer) LastByteCheckpoint() int { return b.pos }

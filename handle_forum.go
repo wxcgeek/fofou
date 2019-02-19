@@ -89,10 +89,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		prevTo = -1
 	}
 
-	topicsDisplay := [][]*TopicDisplay{
-		make([]*TopicDisplay, 0),
-		make([]*TopicDisplay, 0),
-	}
+	topicsDisplay := make([]*TopicDisplay, 0)
 
 	for i, t := range topics {
 		if t.IsDeleted() && !isAdmin {
@@ -114,11 +111,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 			d.TopicURL = fmt.Sprintf("/%s/topic?id=%d&comments=%d", forum.ForumUrl, t.ID, nComments)
 		}
 
-		if i < nTopicsMax/2 {
-			topicsDisplay[0] = append(topicsDisplay[0], d)
-		} else {
-			topicsDisplay[1] = append(topicsDisplay[1], d)
-		}
+		topicsDisplay = append(topicsDisplay, d)
 	}
 
 	model := struct {
@@ -126,7 +119,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		NewFrom  int
 		PrevTo   int
 		IsAdmin  bool
-		Topics   [][]*TopicDisplay
+		Topics   []*TopicDisplay
 		LogInOut template.HTML
 	}{
 		Forum:    *forum,

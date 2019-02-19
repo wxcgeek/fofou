@@ -8,9 +8,8 @@
     </div>
     <hr>
     <div class="topics-container">
-    {{ range $i, $t := .Topics }}
     <table class="topics">
-        {{ range $i, $v := $t }}
+        {{ range $i, $v := .Topics }}
             <tr class="topic">
             <td class="no">{{.No}}.</td>
             <td>
@@ -31,7 +30,6 @@
             </tr>
         {{ end }}
     </table>
-    {{ end }}
     </div>
     <hr style="clear:both">
     {{template "forumnav.html" .}}
