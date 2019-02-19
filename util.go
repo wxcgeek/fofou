@@ -6,9 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
-	"strconv"
-	"strings"
 	"unicode/utf8"
 )
 
@@ -16,15 +15,16 @@ func panicif(cond bool, args ...interface{}) {
 	if !cond {
 		return
 	}
-	msg := "panic"
-	if len(args) > 0 {
-		s, ok := args[0].(string)
-		if ok {
-			msg = s
-			if len(s) > 1 {
-				msg = fmt.Sprintf(msg, args[1:]...)
-			}
+
+	var msg string
+	s, ok := args[0].(string)
+	if ok {
+		msg = s
+		if len(s) > 1 {
+			msg = fmt.Sprintf(msg, args[1:]...)
 		}
+	} else {
+		msg = fmt.Sprintf("%v", args[0])
 	}
 	panic(msg)
 }
@@ -95,19 +95,18 @@ func plane0StringToBytes(str string) []byte {
 	return buf
 }
 
-func ipAddrToInternal(ipAddr string) string {
-	var nums [4]byte
-	parts := strings.Split(ipAddr, ".")
-	if len(parts) == 4 {
-		for n, p := range parts {
-			num, _ := strconv.Atoi(p)
-			nums[n] = byte(num)
-		}
-		s := hex.EncodeToString(nums[:])
-		return s
+func ipAddrToInternal(ipAddr string) (v [8]byte) {
+	ip := net.ParseIP(ipAddr)
+	if len(ip) == 0 {
+		return
 	}
-	// I assume it's ipv6
-	return ipAddr
+	ipv4 := ip.To4()
+	if len(ipv4) == 0 {
+		copy(v[:], ip)
+		return
+	}
+	copy(v[:], ipv4[:3])
+	return
 }
 
 func ipAddrInternalToOriginal(s string) string {
@@ -141,6 +140,10 @@ type buffer struct {
 	one    [1]byte
 }
 
+func (b *buffer) Bytes() []byte {
+	return b.p.Bytes()
+}
+
 func (b *buffer) SetReader(r io.Reader) {
 	b.r = r
 	b.pos = 0
@@ -165,11 +168,40 @@ func (b *buffer) Read2Bytes() (byte, byte, error) {
 	return v0, v1, nil
 }
 
-func (b *buffer) WriteUInt32(v uint32) {
+func (b *buffer) Write8Bytes(v [8]byte) *buffer {
+	for _, s := range v {
+		b.p.WriteByte(s)
+	}
+	return b
+}
+
+func (b *buffer) WriteUInt32(v uint32) *buffer {
 	b.p.WriteByte(byte(v >> 24))
 	b.p.WriteByte(byte(v >> 16))
 	b.p.WriteByte(byte(v >> 8))
 	b.p.WriteByte(byte(v))
+	return b
+}
+
+func (b *buffer) WriteUInt16(v uint16) *buffer {
+	b.p.WriteByte(byte(v >> 8))
+	b.p.WriteByte(byte(v))
+	return b
+}
+
+func (b *buffer) WriteByte(v byte) *buffer {
+	b.p.WriteByte(v)
+	return b
+}
+
+func (b *buffer) Read8Bytes() (res [8]byte, err error) {
+	for i := 0; i < 8; i++ {
+		res[i], err = b.ReadByte()
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 
 func (b *buffer) ReadUInt32() (uint32, error) {
@@ -180,10 +212,20 @@ func (b *buffer) ReadUInt32() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	return uint32(v0<<24) + uint32(v1<<16) + uint32(v2<<8) + uint32(v3), nil
+	return uint32(v0)<<24 + uint32(v1)<<16 + uint32(v2)<<8 + uint32(v3), nil
 }
 
-func (b *buffer) WriteString(str string) {
+func (b *buffer) ReadUInt16() (uint16, error) {
+	v0, err := b.ReadByte()
+	v1, err := b.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	return uint16(v0)<<8 + uint16(v1), nil
+}
+
+// Plane 0 only
+func (b *buffer) WriteString(str string) *buffer {
 	queue := make([]byte, 0, 256)
 
 	appendQueue := func() {
@@ -211,6 +253,7 @@ func (b *buffer) WriteString(str string) {
 	}
 
 	b.p.WriteByte(0)
+	return b
 }
 
 func (b *buffer) ReadString() (string, error) {

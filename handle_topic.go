@@ -54,7 +54,7 @@ func NewPostDisplay(p Post, forum *Forum, isAdmin bool) *PostDisplay {
 	if p.IsDeleted {
 		pd.CssClass = "post deleted"
 	}
-	msgHtml := msgToHtml(bytesToPlane0String(p.Message))
+	msgHtml := msgToHtml(p.Message)
 	pd.MessageHtml = template.HTML(msgHtml)
 
 	if p.IsGithubUser() {
@@ -114,9 +114,9 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//fmt.Printf("handleTopic(): forum: %q, topicId: %d\n", forum.ForumUrl, topicId)
-	topic := forum.Store.TopicByID(topicID)
+	topic := forum.Store.TopicByID(uint32(topicID))
 	if nil == topic {
-		path := forum.Store.BuildArchivePath(topicID)
+		path := forum.Store.BuildArchivePath(uint32(topicID))
 		if u.PathExists(path) {
 			topic, err = LoadSingleTopicInStore(path)
 			if err == nil {

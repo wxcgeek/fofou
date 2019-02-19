@@ -24,14 +24,14 @@ func handleViewRaw(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
 		return
 	}
-	topic := forum.Store.TopicByID(topicID)
+	topic := forum.Store.TopicByID(uint32(topicID))
 	if nil == topic {
 		logger.Noticef("handleViewRaw(): didn't find topic with id %d, referer: %q", topicID, getReferer(r))
 		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
 		return
 	}
 	post := topic.Posts[postID-1]
-	msg := bytesToPlane0String(post.Message)
+	msg := post.Message
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte("****** Raw:\n"))
 	w.Write([]byte(msg))
@@ -58,7 +58,7 @@ func handleRobotsTxt(w http.ResponseWriter, r *http.Request) {
 	serveFileFromDir(w, r, "static", "robots.txt")
 }
 
-func getTopicAndPostID(w http.ResponseWriter, r *http.Request) (*Forum, int, int) {
+func getTopicAndPostID(w http.ResponseWriter, r *http.Request) (*Forum, uint32, uint16) {
 	forum := mustGetForum(w, r)
 	if forum == nil {
 		http.Redirect(w, r, "/", 302)
@@ -76,7 +76,7 @@ func getTopicAndPostID(w http.ResponseWriter, r *http.Request) (*Forum, int, int
 		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
 		return forum, 0, 0
 	}
-	return forum, topicID, postID
+	return forum, uint32(topicID), uint16(postID)
 }
 
 // url: /{forum}/postdel?topicId=${topicId}&postId=${postId}
@@ -128,7 +128,7 @@ func handleActionTopic(w http.ResponseWriter, r *http.Request) {
 	forum := mustGetForum(w, r)
 	if forum != nil && err == nil {
 		if userIsAdmin(forum, getSecureCookie(r)) {
-			forum.Store.DoAction(topicID, strings.ToUpper(action[:1])[0])
+			forum.Store.DoAction(uint32(topicID), strings.ToUpper(action[:1])[0])
 			if redirect == "" {
 				http.Redirect(w, r, "/"+forum.ForumUrl, 302)
 			} else {

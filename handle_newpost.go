@@ -2,7 +2,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"html/template"
@@ -43,9 +42,8 @@ func isMsgValid(msg string, topic *Topic) bool {
 	}
 	// prevent duplicate posts within the topic
 	if topic != nil {
-		buf := plane0StringToBytes(msg)
 		for _, p := range topic.Posts {
-			if bytes.Equal(p.Message, buf) {
+			if p.Message == msg {
 				return false
 			}
 		}
@@ -107,7 +105,7 @@ func isMessageBlocked(forum Forum, msg string) bool {
 
 func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, topic *Topic) {
 	ipAddr := getIPAddress(r)
-	ipAddrInternal := ipAddrToInternal(ipAddr)
+	ipAddrInternal := IPAddress(ipAddrToInternal(ipAddr))
 	if model.Forum.Store.IsBlocked("b" + ipAddrInternal) {
 		logger.Noticef("blocked a post from ip address %s (%s)", ipAddr, ipAddrInternal)
 		w.Write([]byte(badUserHTML))
@@ -214,7 +212,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
 			return
 		}
-		if topic = forum.Store.TopicByID(topicID); topic == nil {
+		if topic = forum.Store.TopicByID(uint32(topicID)); topic == nil {
 			logger.Noticef("handleNewPost(): invalid topicId: %d\n", topicID)
 			http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
 			return
@@ -228,7 +226,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		TopicID:  topicID,
 		LogInOut: getLogInOut(r, getSecureCookie(r)),
 		PrevName: cookie.AnonUser,
-		Token:    session.NewString(ipAddrToInternal(getIPAddress(r))),
+		Token:    session.NewString(IPAddress(ipAddrToInternal(getIPAddress(r)))),
 	}
 
 	if topic != nil {

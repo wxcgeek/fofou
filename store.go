@@ -4,10 +4,11 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/ascii85"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -19,29 +20,45 @@ import (
 	"github.com/kjk/u"
 )
 
+const (
+	OP_TOPIC     = 'T'
+	OP_POST      = 'P'
+	OP_DELETE    = 'D'
+	OP_BLOCKIP   = 'B'
+	OP_BLOCKUSER = 'U'
+	OP_STICKY    = 'S'
+	OP_LOCK      = 'L'
+	OP_ARCHIVE   = 'A'
+	OP_PURGE     = 'X'
+)
+
 type Post struct {
-	Message   []byte
-	Internal  string // form: username|ip
+	Message   string
+	User      string
+	IP        [8]byte
 	CreatedOn uint32
 	ID        uint16
 	IsDeleted bool
 	Topic     *Topic // for convenience, we link to the topic this post belongs to
 }
 
-func (p *Post) IPAddress() string { return ipAddrInternalToOriginal(p.IPAddressInternal()) }
+func IPAddress(ip [8]byte) string {
+	buf := bytes.Buffer{}
+	for i := 0; i < len(ip); i++ {
+		buf.WriteString(fmt.Sprintf("%x.", ip[i]))
+	}
+	buf.Truncate(buf.Len() - 1)
+	return buf.String()
+}
 
-func (p *Post) IsGithubUser() bool { return strings.HasPrefix(p.Internal, "g:") }
+func (p *Post) IsGithubUser() bool { return strings.HasPrefix(p.User, "g:") }
 
 func (p *Post) UserName() string {
 	if p.IsGithubUser() {
-		return p.UserNameInternal()[2:]
+		return p.User[2:]
 	}
-	return p.UserNameInternal()
+	return p.User
 }
-
-func (p *Post) UserNameInternal() string { return p.Internal[:strings.Index(p.Internal, "|")] }
-
-func (p *Post) IPAddressInternal() string { return p.Internal[strings.Index(p.Internal, "|")+1:] }
 
 // MakeInternalUserName makes internal user name
 func MakeInternalUserName(userName string, github bool) string {
@@ -59,7 +76,7 @@ func MakeInternalUserName(userName string, github bool) string {
 
 // Topic describes topic
 type Topic struct {
-	ID        int
+	ID        uint32
 	Sticky    bool
 	Locked    bool
 	Archived  bool
@@ -81,7 +98,7 @@ type Store struct {
 	forumName    string
 	rootTopic    *Topic
 	endTopic     *Topic
-	topicsCount  int
+	topicsCount  uint32
 
 	blocked  map[string]bool
 	dataFile *os.File
@@ -106,39 +123,30 @@ func (t *Topic) IsDeleted() bool {
 	return true
 }
 
-func findPostToDelUndel(d []byte, topicIDToTopic map[int]*Topic) (*Post, error) {
-	parts := strings.Split(string(d[1:]), "|")
-	if len(parts) != 2 {
-		panic("len(parts) != 2")
-	}
-	topicID, err1 := strconv.Atoi(parts[0])
-	postID, err2 := strconv.Atoi(parts[1])
-	if err1 != nil || err2 != nil {
-		panic("invalid postID/topicID")
-	}
+func findPostToDelUndel(r *buffer, topicIDToTopic map[uint32]*Topic) (*Post, error) {
+	topicID, err1 := r.ReadUInt32()
+	postID, err2 := r.ReadUInt16()
+	panicif(err1 != nil || err2 != nil, "invalid post ID/topic ID")
+
 	topic, ok := topicIDToTopic[topicID]
 	if !ok {
-		return nil, fmt.Errorf("no topic with that id")
+		return nil, fmt.Errorf("no topic with that ID")
 	}
-	if postID > len(topic.Posts) {
-		return nil, fmt.Errorf("invalid postId")
+	if int(postID) > len(topic.Posts) {
+		return nil, fmt.Errorf("invalid post ID")
 	}
 	return &topic.Posts[postID-1], nil
 }
 
 // parse:
 // T$id|$subject
-func parseTopic(line []byte) *Topic {
-	idx := bytes.IndexByte(line, '|')
-	if idx == -1 {
-		panic("corrupted topic")
-	}
-	subject := string(line[idx+1:])
-	idStr := string(line[1:idx])
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		panic("idStr is not a number")
-	}
+func parseTopic(r *buffer) *Topic {
+	id, err := r.ReadUInt32()
+	panicif(err != nil, "invalid ID")
+
+	subject, err := r.ReadString()
+	panicif(err != nil, "invalid subject")
+
 	return &Topic{
 		ID:      id,
 		Subject: subject,
@@ -148,71 +156,48 @@ func parseTopic(line []byte) *Topic {
 
 // parse:
 // P1|1|1148874103|4b0af66e|Krzysztof Kowalczyk|message in ascii85 format
-func parsePost(line []byte, topicIDToTopic map[int]*Topic) Post {
-	s := line
-	var idx int
-	readNextSep := func() {
-		s = s[idx+1:]
-		idx = bytes.IndexByte(s, '|')
-		if idx == -1 {
-			panic("invalid format")
-		}
-	}
+func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
+	topicID, err := r.ReadUInt32()
+	panicif(err != nil, "invalid topic ID")
 
-	readNextSep()
-	topicID, err := strconv.Atoi(string(s[:idx]))
-	if err != nil {
-		panic("topicIdStr not a number")
-	}
+	id, err := r.ReadUInt16()
+	panicif(err != nil, "invalid post ID")
 
-	readNextSep()
-	id, err := strconv.Atoi(string(s[:idx]))
-	if err != nil {
-		panic("idStr not a number")
-	}
+	createdOnSeconds, err := r.ReadUInt32()
+	panicif(err != nil, "invalid timestamp")
 
-	readNextSep()
-	createdOnSeconds, err := strconv.Atoi(string(s[:idx]))
-	if err != nil {
-		panic("createdOnSeconds not a number")
-	}
+	ipAddrInternal, err := r.Read8Bytes()
+	panicif(err != nil, "invalid IP")
 
-	readNextSep()
-	ipAddrInternal := string(s[:idx])
+	userName, err := r.ReadString()
+	panicif(err != nil, "invalid username")
 
-	readNextSep()
-	userName := string(s[:idx])
-
-	s = s[idx+1:]
-	messageBuf := make([]byte, len(s)*2)
-	ndst, nsrc, err := ascii85.Decode(messageBuf, s, true)
-	if nsrc != len(s) || err != nil {
-		fmt.Println(s, nsrc, err)
-		panic("error reading message")
-	}
+	message, err := r.ReadString()
+	panicif(err != nil, "invalid message body")
 
 	t, ok := topicIDToTopic[topicID]
 	if !ok {
-		fmt.Printf("didn't find topic with the given topicId")
+		fmt.Println("[WARNING] Didn't find topic with the given topic ID")
 		return Post{}
 	}
 
 	realPostID := len(t.Posts) + 1
-	if id != realPostID {
-		fmt.Printf("!Unexpected post id:\n")
-		fmt.Printf("  %s\n", string(line))
-		fmt.Printf("  id: %d, expectedId: %d, topicId: %d\n", topicID, id, realPostID)
+	if int(id) != realPostID {
+		fmt.Printf("[WARNING] Unexpected post ID:\n")
+		fmt.Printf("  topic ID: %d, post ID: %d, expected post ID: %d\n", topicID, id, realPostID)
 		fmt.Printf("  %s\n", t.Subject)
 	} else if realPostID >= 65536 {
-		fmt.Printf("having more than 65536 posts in a single topic")
+		fmt.Println("having more than 65536 posts in a single topic")
 	}
+
 	post := Post{
 		ID:        uint16(realPostID),
-		CreatedOn: uint32(createdOnSeconds),
-		Internal:  userName + "|" + ipAddrInternal,
+		CreatedOn: createdOnSeconds,
+		User:      userName,
+		IP:        ipAddrInternal,
 		IsDeleted: false,
 		Topic:     t,
-		Message:   messageBuf[:ndst],
+		Message:   message,
 	}
 	return post
 }
@@ -231,36 +216,26 @@ func (store *Store) readExistingData(fileDataPath string) error {
 		return err
 	}
 
-	topicIDToTopic := make(map[int]*Topic)
-	r := bufio.NewReader(fh)
+	topicIDToTopic := make(map[uint32]*Topic)
+	r := &buffer{}
+	r.SetReader(bufio.NewReader(fh))
+
 	for {
-		line, err := r.ReadBytes('\n')
-		if err != nil && len(line) == 0 {
+		fmt.Print("\r%d", r.pos)
+		op, err := r.ReadByte()
+		if err != nil {
 			break
 		}
 
-		line = line[:len(line)-1]
-		if len(line) == 0 {
-			continue
-		}
-
-		c := line[0]
-		// T - topic
-		// P - post
-		// D - delete post
-		// B - block IP
-		// U - block user
-		// S - sticky topic
-		// L - lock topic
-		// X - purge topic
-		switch c {
-		case 'T':
-			t := parseTopic(line)
+		switch op {
+		case OP_TOPIC:
+			t := parseTopic(r)
 			store.moveTopicToFront(t)
 			store.topicsCount++
+			panicif(topicIDToTopic[t.ID] != nil, "topic %d already existed, %d", t.ID, r.LastByteCheckpoint())
 			topicIDToTopic[t.ID] = t
-		case 'P':
-			post := parsePost(line, topicIDToTopic)
+		case OP_POST:
+			post := parsePost(r, topicIDToTopic)
 			if post.ID == 0 {
 				break
 			}
@@ -268,38 +243,33 @@ func (store *Store) readExistingData(fileDataPath string) error {
 			t.Posts = append(t.Posts, post)
 			t.CreatedOn = post.CreatedOn
 			store.moveTopicToFront(t)
-		case 'D':
-			// D|1234|1
-			post, err := findPostToDelUndel(line, topicIDToTopic)
-			if err != nil {
-				logger.Errorf("%v", err)
-				break
-			}
+		case OP_DELETE:
+			post, err := findPostToDelUndel(r, topicIDToTopic)
+			panicif(err != nil, err)
 			post.IsDeleted = !post.IsDeleted
-		case 'B':
-			store.markBlockedOrUnblocked("b" + string(line[1:]))
-		case 'U':
-			store.markBlockedOrUnblocked("u" + string(line[1:]))
-		case 'S', 'L', 'A', 'X':
-			topicID, err := strconv.Atoi(string(line[1:]))
-			if err != nil {
-				panic(err)
+		case OP_BLOCKIP, OP_BLOCKUSER:
+			str, err := r.ReadString()
+			panicif(err != nil, "invalid string")
+			if op == OP_BLOCKIP {
+				store.markBlockedOrUnblocked("b" + str)
+			} else {
+				store.markBlockedOrUnblocked("u" + str)
 			}
+		case OP_STICKY, OP_ARCHIVE, OP_LOCK, OP_PURGE:
+			topicID, err := r.ReadUInt32()
+			panicif(err != nil, err)
 
 			t := topicIDToTopic[topicID]
-			if t == nil {
-				logger.Errorf("can't find the topic to slax: %d, %s", topicID, string(c))
-				break
-			}
+			panicif(t == nil, "can't find the topic to '%s': %d", string(op), topicID)
 
-			switch c {
-			case 'S':
+			switch op {
+			case OP_STICKY:
 				if t.Sticky = !t.Sticky; t.Sticky {
 					store.moveTopicToFront(t)
 				}
-			case 'L':
+			case OP_LOCK:
 				t.Locked = !t.Locked
-			case 'A', 'X':
+			case OP_ARCHIVE, OP_PURGE:
 				t.Prev.Next = t.Next
 				t.Next.Prev = t.Prev
 				delete(topicIDToTopic, t.ID)
@@ -359,30 +329,32 @@ func NewStore(dataDir, forumName string) (*Store, error) {
 		return nil, err
 	}
 
-	r := rand.New()
-	_ = r
-	// curTopicId := 0
-	// for i := 0; i < 20000; i++ {
-	// 	wg := &sync.WaitGroup{}
-	// 	for i := 0; i < 1000; i++ {
-	// 		wg.Add(1)
-	// 		go func() {
-	// 			subject := base64.StdEncoding.EncodeToString(r.Fetch(16))
-	// 			msg := base64.StdEncoding.EncodeToString(r.Fetch(r.Intn(256) + 256))
-	// 			userName := "abcdefgh"
-	// 			ipAddr := "7f000001"
+	if false {
+		r := rand.New()
+		curTopicId := uint32(0)
+		for i := 0; i < 20; i++ {
+			wg := &sync.WaitGroup{}
+			for i := 0; i < 1000; i++ {
+				wg.Add(1)
+				go func() {
+					subject := base64.StdEncoding.EncodeToString(r.Fetch(16))
+					msg := base64.StdEncoding.EncodeToString(r.Fetch(r.Intn(64) + 64))
+					msg = strings.Repeat(msg, 4)
+					userName := "abcdefgh"
+					ipAddr := "127.0.0.1"
 
-	// 			if r.Intn(10) == 1 {
-	// 				curTopicId, _ = store.CreateNewTopic(subject, msg, userName, ipAddr)
-	// 			} else if curTopicId > 0 {
-	// 				store.AddPostToTopic(r.Intn(curTopicId)+1, msg, userName, ipAddr)
-	// 			}
-	// 			wg.Done()
-	// 		}()
-	// 	}
-	// 	wg.Wait()
-	// 	fmt.Println(i)
-	// }
+					if r.Intn(10) == 1 {
+						curTopicId, _ = store.CreateNewTopic(subject, msg, userName, ipAddr)
+					} else if curTopicId > 0 {
+						store.AddPostToTopic(uint32(r.Intn(int(curTopicId))+1), msg, userName, ipAddr)
+					}
+					wg.Done()
+				}()
+			}
+			wg.Wait()
+			fmt.Println(i)
+		}
+	}
 	return store, nil
 }
 
@@ -409,7 +381,7 @@ func LoadSingleTopicInStore(path string) (*Topic, error) {
 }
 
 // DoAction operates a topic
-func (store *Store) DoAction(topicID int, action byte) {
+func (store *Store) DoAction(topicID uint32, action byte) {
 	store.Lock()
 	defer store.Unlock()
 	t := store.topicByIDUnlocked(topicID)
@@ -417,18 +389,19 @@ func (store *Store) DoAction(topicID int, action byte) {
 		return
 	}
 
+	var p buffer
 	switch action {
-	case 'S':
-		if err := store.appendString(fmt.Sprintf("S%d\n", topicID)); err == nil {
+	case OP_STICKY:
+		if err := store.append(p.WriteByte(OP_STICKY).WriteUInt32(topicID).Bytes()); err == nil {
 			t.Sticky = !t.Sticky
 			store.moveTopicToFront(t)
 		}
-	case 'L':
-		if err := store.appendString(fmt.Sprintf("L%d\n", topicID)); err == nil {
+	case OP_LOCK:
+		if err := store.append(p.WriteByte(OP_LOCK).WriteUInt32(topicID).Bytes()); err == nil {
 			t.Locked = !t.Locked
 		}
-	case 'X':
-		if err := store.appendString(fmt.Sprintf("X%d\n", topicID)); err == nil {
+	case OP_PURGE:
+		if err := store.append(p.WriteByte(OP_PURGE).WriteUInt32(topicID).Bytes()); err == nil {
 			t.Prev.Next = t.Next
 			t.Next.Prev = t.Prev
 		}
@@ -449,7 +422,7 @@ func (store *Store) PostsCount() (int, int) {
 
 // TopicsCount retuns number of topics
 func (store *Store) TopicsCount() int {
-	return store.topicsCount
+	return int(store.topicsCount)
 }
 
 // GetTopics retuns topics
@@ -470,7 +443,7 @@ func (store *Store) GetTopics(nMax, from int, withDeleted bool) ([]*Topic, int) 
 	return res, i
 }
 
-func (store *Store) topicByIDUnlocked(id int) *Topic {
+func (store *Store) topicByIDUnlocked(id uint32) *Topic {
 	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
 		if id == topic.ID {
 			return topic
@@ -480,26 +453,26 @@ func (store *Store) topicByIDUnlocked(id int) *Topic {
 }
 
 // TopicByID returns topic given its id
-func (store *Store) TopicByID(id int) *Topic {
+func (store *Store) TopicByID(id uint32) *Topic {
 	store.RLock()
 	defer store.RUnlock()
 	return store.topicByIDUnlocked(id)
 }
 
-func (store *Store) findPost(topicID, postID int) (*Post, error) {
+func (store *Store) findPost(topicID uint32, postID uint16) (*Post, error) {
 	topic := store.topicByIDUnlocked(topicID)
 	if nil == topic {
-		return nil, errors.New("didn't find a topic with this id")
+		return nil, errors.New("can't find a topic with this ID")
 	}
-	if postID > len(topic.Posts) {
-		return nil, errors.New("didn't find post with this id")
+	if int(postID) > len(topic.Posts) {
+		return nil, errors.New("can't find post with this ID")
 	}
 
 	return &topic.Posts[postID-1], nil
 }
 
-func (store *Store) appendString(str string) error {
-	_, err := store.dataFile.WriteString(str)
+func (store *Store) append(buf []byte) error {
+	_, err := store.dataFile.Write(buf)
 	if err != nil {
 		fmt.Printf("appendString() error: %s\n", err)
 	}
@@ -507,15 +480,15 @@ func (store *Store) appendString(str string) error {
 }
 
 // DeletePost deletes/restores a post
-func (store *Store) DeletePost(topicID, postID int) error {
+func (store *Store) DeletePost(topicID uint32, postID uint16) error {
 	store.Lock()
 	defer store.Unlock()
 	post, err := store.findPost(topicID, postID)
 	if err != nil {
 		return err
 	}
-	str := fmt.Sprintf("D%d|%d\n", topicID, postID)
-	if err = store.appendString(str); err != nil {
+	var p buffer
+	if err = store.append(p.WriteByte(OP_DELETE).WriteUInt32(topicID).WriteUInt16(postID).Bytes()); err != nil {
 		return err
 	}
 	post.IsDeleted = !post.IsDeleted
@@ -553,36 +526,39 @@ func (store *Store) moveTopicToFront(topic *Topic) {
 var errTooManyPosts = fmt.Errorf("topic already has 65535 posts")
 
 func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic bool) error {
-	msgBytes := plane0StringToBytes(msg)
 	nextID := len(topic.Posts) + 1
 	if nextID >= 65536 {
 		return errTooManyPosts
 	}
 
 	user = strings.Replace(user, "|", "", -1)
-	ipAddr = strings.Replace(ipAddrToInternal(ipAddr), "|", "", -1)
+	ipAddrBytes := ipAddrToInternal(ipAddr)
 	p := &Post{
 		ID:        uint16(nextID),
 		CreatedOn: uint32(time.Now().Unix()),
-		Internal:  user + "|" + ipAddr,
+		User:      user,
+		IP:        ipAddrBytes,
 		IsDeleted: false,
 		Topic:     topic,
-		Message:   msgBytes,
+		Message:   msg,
 	}
 
-	topicStr := ""
+	var topicStr buffer
 	if newTopic {
-		topicStr = fmt.Sprintf("T%d|%s\n", topic.ID, topic.Subject)
+		topicStr.WriteByte(OP_TOPIC)
+		topicStr.WriteUInt32(uint32(topic.ID))
+		topicStr.WriteString(topic.Subject)
 	}
 
-	s1 := fmt.Sprintf("%d", p.CreatedOn)
-	messageBuf := make([]byte, ascii85.MaxEncodedLen(len(msgBytes)))
-	n := ascii85.Encode(messageBuf, msgBytes)
+	topicStr.WriteByte(OP_POST)
+	topicStr.WriteUInt32(uint32(topic.ID))
+	topicStr.WriteUInt16(uint16(p.ID))
+	topicStr.WriteUInt32(p.CreatedOn)
+	topicStr.Write8Bytes(ipAddrBytes)
+	topicStr.WriteString(user)
+	topicStr.WriteString(msg)
 
-	postStr := fmt.Sprintf("P%d|%d|%s|%s|%s|%s\n", topic.ID, p.ID, s1, ipAddr, user, string(messageBuf[:n]))
-
-	str := topicStr + postStr
-	if err := store.appendString(str); err != nil {
+	if err := store.append(topicStr.Bytes()); err != nil {
 		return err
 	}
 
@@ -592,30 +568,24 @@ func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic 
 	return nil
 }
 
-func (store *Store) BuildArchivePath(topicID int) string {
-	id1, id2 := topicID/100000, topicID/1000
-	return filepath.Join(store.dataDir, "archive", store.forumName, strconv.Itoa(id1), strconv.Itoa(id2), strconv.Itoa(topicID))
+func (store *Store) BuildArchivePath(topicID uint32) string {
+	id1, id2 := int(topicID)/100000, int(topicID)/1000
+	return filepath.Join(store.dataDir, "archive", store.forumName, strconv.Itoa(id1), strconv.Itoa(id2), strconv.Itoa(int(topicID)))
 }
 
 func archive(topic *Topic, saveToPath string) error {
 	topic.Prev.Next = topic.Next
 	topic.Next.Prev = topic.Prev
 
-	buf := &bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf("T%d|%s\n", topic.ID, topic.Subject))
+	buf := &buffer{}
+	buf.WriteByte(OP_TOPIC).WriteUInt32(topic.ID).WriteString(topic.Subject)
 
 	for _, p := range topic.Posts {
 		if p.IsDeleted {
 			continue
 		}
 
-		s1 := fmt.Sprintf("%d", p.CreatedOn)
-		messageBuf := make([]byte, ascii85.MaxEncodedLen(len(p.Message)))
-		n := ascii85.Encode(messageBuf, p.Message)
-
-		parts := strings.Split(p.Internal, "|")
-		buf.WriteString(fmt.Sprintf("P%d|%d|%s|%s|%s|%s\n",
-			topic.ID, p.ID, s1, parts[1], parts[0], string(messageBuf[:n])))
+		buf.WriteByte(OP_POST).WriteUInt32(topic.ID).WriteUInt16(p.ID).WriteUInt32(p.CreatedOn).Write8Bytes(p.IP).WriteString(p.User).WriteString(p.Message)
 	}
 
 	u.CreateDirForFileMust(saveToPath)
@@ -637,7 +607,8 @@ func (store *Store) Archive() {
 	info.WriteString("archive:")
 	for topic != store.endTopic.Prev && topic != store.endTopic {
 		t := store.endTopic.Prev
-		if err := store.appendString(fmt.Sprintf("A%d\n", t.ID)); err != nil {
+		var p buffer
+		if err := store.append(p.WriteByte(OP_ARCHIVE).WriteUInt32(t.ID).Bytes()); err != nil {
 			info.WriteString(fmt.Sprintf(" %d(%v)", t.ID, err))
 			continue
 		}
@@ -652,9 +623,13 @@ func (store *Store) Archive() {
 }
 
 // CreateNewTopic creates a new topic
-func (store *Store) CreateNewTopic(subject, msg, user, ipAddr string) (int, error) {
+func (store *Store) CreateNewTopic(subject, msg, user, ipAddr string) (uint32, error) {
 	store.Lock()
 	defer store.Unlock()
+
+	if store.topicsCount == math.MaxUint32 {
+		return 0, fmt.Errorf("that day finally come")
+	}
 
 	topic := &Topic{
 		ID:      store.topicsCount + 1,
@@ -675,17 +650,18 @@ func (store *Store) CreateNewTopic(subject, msg, user, ipAddr string) (int, erro
 }
 
 // AddPostToTopic adds a post to a topic
-func (store *Store) AddPostToTopic(topicID int, msg, user, ipAddr string) error {
+func (store *Store) AddPostToTopic(topicID uint32, msg, user, ipAddr string) error {
 	store.Lock()
 	defer store.Unlock()
 
 	topic := store.topicByIDUnlocked(topicID)
 	if topic == nil {
-		return errors.New("invalid topicID")
+		return errors.New("invalid topic ID")
 	}
 	err := store.addNewPost(msg, user, ipAddr, topic, false)
 	if err == errTooManyPosts {
-		if err = store.appendString(fmt.Sprintf("L%d\n", topicID)); err == nil {
+		var p buffer
+		if err = store.append(p.WriteByte(OP_LOCK).WriteUInt32(topicID).Bytes()); err == nil {
 			topic.Locked = true
 		}
 	}
@@ -699,8 +675,8 @@ func (store *Store) BlockIP(ipAddrInternal string) {
 	if len(ipAddrInternal) == 0 {
 		return
 	}
-	s := fmt.Sprintf("B%s\n", ipAddrInternal)
-	if err := store.appendString(s); err == nil {
+	var p buffer // := fmt.Sprintf("B%s\n", ipAddrInternal)
+	if err := store.append(p.WriteByte(OP_BLOCKIP).WriteString(ipAddrInternal).Bytes()); err == nil {
 		store.markBlockedOrUnblocked("b" + ipAddrInternal)
 	}
 }
@@ -709,8 +685,8 @@ func (store *Store) BlockIP(ipAddrInternal string) {
 func (store *Store) BlockUser(username string) {
 	store.Lock()
 	defer store.Unlock()
-	s := fmt.Sprintf("U%s\n", username)
-	if err := store.appendString(s); err == nil {
+	var p buffer // := fmt.Sprintf("B%s\n", ipAddrInternal)
+	if err := store.append(p.WriteByte(OP_BLOCKUSER).WriteString(username).Bytes()); err == nil {
 		store.markBlockedOrUnblocked("u" + username)
 	}
 }
@@ -743,7 +719,7 @@ func (store *Store) getPostsBy(term string, max int, ip, name bool) ([]Post, int
 	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
 		for _, post := range topic.Posts {
 			if ip {
-				if strings.Contains(post.Internal, "|"+term) {
+				if strings.Contains(IPAddress(post.IP), term) {
 					total++
 					if total <= max {
 						res = append(res, post)
@@ -751,7 +727,7 @@ func (store *Store) getPostsBy(term string, max int, ip, name bool) ([]Post, int
 				}
 			}
 			if name {
-				if strings.HasPrefix(post.Internal, term) {
+				if strings.HasPrefix(post.UserName(), term) {
 					total++
 					if total <= max {
 						res = append(res, post)
