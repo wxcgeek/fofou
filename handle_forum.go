@@ -29,7 +29,7 @@ func plural(n int, s string) string {
 }
 
 func (p *TopicDisplay) CreatedOnStr() string {
-	return prettySec(p.CreatedOn)
+	return prettySec(p.CreatedAt)
 }
 
 // those happen often so exclude them in order to not overwhelm the logs

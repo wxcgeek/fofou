@@ -36,7 +36,7 @@ type Post struct {
 	Message   string
 	User      string
 	IP        [8]byte
-	CreatedOn uint32
+	CreatedAt uint32
 	ID        uint16
 	IsDeleted bool
 	Topic     *Topic // for convenience, we link to the topic this post belongs to
@@ -76,15 +76,16 @@ func MakeInternalUserName(userName string, github bool) string {
 
 // Topic describes topic
 type Topic struct {
-	ID        uint32
-	Sticky    bool
-	Locked    bool
-	Archived  bool
-	CreatedOn uint32
-	Subject   string
-	Next      *Topic
-	Prev      *Topic
-	Posts     []Post
+	ID         uint32
+	Sticky     bool
+	Locked     bool
+	Archived   bool
+	CreatedAt  uint32
+	ModifiedAt uint32
+	Subject    string
+	Next       *Topic
+	Prev       *Topic
+	Posts      []Post
 }
 
 // Store describes store
@@ -176,30 +177,21 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	panicif(err != nil, "invalid message body")
 
 	t, ok := topicIDToTopic[topicID]
-	if !ok {
-		fmt.Println("[WARNING] Didn't find topic with the given topic ID")
-		return Post{}
-	}
+	panicif(!ok, "invalid topic ID")
 
 	realPostID := len(t.Posts) + 1
-	if int(id) != realPostID {
-		fmt.Printf("[WARNING] Unexpected post ID:\n")
-		fmt.Printf("  topic ID: %d, post ID: %d, expected post ID: %d\n", topicID, id, realPostID)
-		fmt.Printf("  %s\n", t.Subject)
-	} else if realPostID >= 65536 {
-		fmt.Println("having more than 65536 posts in a single topic")
-	}
+	panicif(int(id) != realPostID, "invalid post ID: %d, topic ID: %d, expected post ID: %d\n", id, topicID, realPostID)
+	panicif(realPostID >= 65536, "too many posts (65536)")
 
-	post := Post{
+	return Post{
 		ID:        uint16(realPostID),
-		CreatedOn: createdOnSeconds,
+		CreatedAt: createdOnSeconds,
 		User:      userName,
 		IP:        ipAddrInternal,
 		IsDeleted: false,
 		Topic:     t,
 		Message:   message,
 	}
-	return post
 }
 
 func (store *Store) markBlockedOrUnblocked(term string) {
@@ -210,8 +202,8 @@ func (store *Store) markBlockedOrUnblocked(term string) {
 	}
 }
 
-func (store *Store) readExistingData(fileDataPath string) error {
-	fh, err := os.Open(fileDataPath)
+func (store *Store) loadDB(path string, slient bool) (err error) {
+	fh, err := os.Open(path)
 	if err != nil {
 		return err
 	}
@@ -219,9 +211,26 @@ func (store *Store) readExistingData(fileDataPath string) error {
 	topicIDToTopic := make(map[uint32]*Topic)
 	r := &buffer{}
 	r.SetReader(bufio.NewReader(fh))
+	print := func(f string, args ...interface{}) {
+		if !slient {
+			fmt.Printf(f, args...)
+		}
+	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			if slient {
+				err = fmt.Errorf("panic error: %v", r)
+			} else {
+				print("\npanic: %v\n", r)
+				panic(0)
+			}
+		}
+	}()
+
+	fhInfo, _ := fh.Stat()
 	for {
-		fmt.Print("\r%d", r.pos)
+		print("\rloading %02d%% %d/%d", r.pos*100/int(fhInfo.Size()), r.pos, fhInfo.Size())
 		op, err := r.ReadByte()
 		if err != nil {
 			break
@@ -232,16 +241,17 @@ func (store *Store) readExistingData(fileDataPath string) error {
 			t := parseTopic(r)
 			store.moveTopicToFront(t)
 			store.topicsCount++
-			panicif(topicIDToTopic[t.ID] != nil, "topic %d already existed, %d", t.ID, r.LastByteCheckpoint())
+			panicif(topicIDToTopic[t.ID] != nil, "topic %d already existed", t.ID)
 			topicIDToTopic[t.ID] = t
 		case OP_POST:
 			post := parsePost(r, topicIDToTopic)
-			if post.ID == 0 {
-				break
-			}
 			t := post.Topic
 			t.Posts = append(t.Posts, post)
-			t.CreatedOn = post.CreatedOn
+			if len(t.Posts) == 1 {
+				t.CreatedAt = post.CreatedAt
+			} else {
+				t.ModifiedAt = post.CreatedAt
+			}
 			store.moveTopicToFront(t)
 		case OP_DELETE:
 			post, err := findPostToDelUndel(r, topicIDToTopic)
@@ -280,6 +290,7 @@ func (store *Store) readExistingData(fileDataPath string) error {
 	}
 
 	fh.Close()
+	print("\n")
 	return nil
 }
 
@@ -308,26 +319,17 @@ func NewStore(dataDir, forumName string) (*Store, error) {
 
 	var err error
 	if u.PathExists(store.dataFilePath) {
-		if err = store.readExistingData(store.dataFilePath); err != nil {
-			fmt.Printf("readExistingData: %s\n", err)
-			return nil, err
-		}
+		store.loadDB(store.dataFilePath, false)
 	} else {
 		f, err := os.Create(store.dataFilePath)
-		if err != nil {
-			fmt.Printf("can't create %s: %s\n", store.dataFilePath, err)
-			return nil, err
-		}
+		panicif(err != nil, "can't create initial DB %s: %v", store.dataFilePath, err)
 		f.Close()
 	}
 
 	store.verifyTopics()
 
 	store.dataFile, err = os.OpenFile(store.dataFilePath, os.O_APPEND|os.O_RDWR, 0666)
-	if err != nil {
-		fmt.Printf("can't open %s: %s", store.dataFilePath, err)
-		return nil, err
-	}
+	panicif(err != nil, "can't open DB %s: %v", store.dataFilePath, err)
 
 	if false {
 		r := rand.New()
@@ -368,7 +370,7 @@ func LoadSingleTopicInStore(path string) (*Topic, error) {
 	store.endTopic.Prev = store.rootTopic
 
 	var err error
-	if err = store.readExistingData(path); err != nil {
+	if err = store.loadDB(path, true); err != nil {
 		logger.Errorf("LoadSingleTopicInStore: %s", err)
 		return nil, err
 	}
@@ -535,7 +537,7 @@ func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic 
 	ipAddrBytes := ipAddrToInternal(ipAddr)
 	p := &Post{
 		ID:        uint16(nextID),
-		CreatedOn: uint32(time.Now().Unix()),
+		CreatedAt: uint32(time.Now().Unix()),
 		User:      user,
 		IP:        ipAddrBytes,
 		IsDeleted: false,
@@ -553,7 +555,7 @@ func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic 
 	topicStr.WriteByte(OP_POST)
 	topicStr.WriteUInt32(uint32(topic.ID))
 	topicStr.WriteUInt16(uint16(p.ID))
-	topicStr.WriteUInt32(p.CreatedOn)
+	topicStr.WriteUInt32(p.CreatedAt)
 	topicStr.Write8Bytes(ipAddrBytes)
 	topicStr.WriteString(user)
 	topicStr.WriteString(msg)
@@ -564,7 +566,11 @@ func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic 
 
 	topic.Posts = append(topic.Posts, *p)
 	store.moveTopicToFront(topic)
-	topic.CreatedOn = p.CreatedOn
+	if newTopic {
+		topic.CreatedAt = p.CreatedAt
+	} else {
+		topic.ModifiedAt = p.CreatedAt
+	}
 	return nil
 }
 
@@ -585,7 +591,7 @@ func archive(topic *Topic, saveToPath string) error {
 			continue
 		}
 
-		buf.WriteByte(OP_POST).WriteUInt32(topic.ID).WriteUInt16(p.ID).WriteUInt32(p.CreatedOn).Write8Bytes(p.IP).WriteString(p.User).WriteString(p.Message)
+		buf.WriteByte(OP_POST).WriteUInt32(topic.ID).WriteUInt16(p.ID).WriteUInt32(p.CreatedAt).Write8Bytes(p.IP).WriteString(p.User).WriteString(p.Message)
 	}
 
 	u.CreateDirForFileMust(saveToPath)

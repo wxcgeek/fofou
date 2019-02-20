@@ -39,7 +39,7 @@ func prettySec(sec uint32) string {
 }
 
 func (p *PostDisplay) CreatedOnStr() string {
-	return prettySec(p.CreatedOn)
+	return prettySec(p.CreatedAt)
 }
 
 func NewPostDisplay(p Post, forum *Forum, isAdmin bool) *PostDisplay {

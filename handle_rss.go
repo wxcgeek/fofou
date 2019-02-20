@@ -18,7 +18,7 @@ func buildTopicURL(r *http.Request, forum *Forum, p *Post) string {
 }
 
 func buildTopicID(r *http.Request, forum *Forum, p *Post) string {
-	pubDateStr := time.Unix(int64(p.CreatedOn), 0).Format("2006-01-02")
+	pubDateStr := time.Unix(int64(p.CreatedAt), 0).Format("2006-01-02")
 	url := fmt.Sprintf("/%s/topic?id=%d&post=%d", forum.ForumUrl, p.Topic.ID, p.ID)
 	return fmt.Sprintf("tag:%s,%s:%s", r.Host, pubDateStr, url)
 }
@@ -36,7 +36,7 @@ func handleRss(w http.ResponseWriter, r *http.Request) {
 
 	pubTime := time.Now()
 	if len(posts) > 0 {
-		pubTime = time.Unix(int64(posts[0].CreatedOn), 0)
+		pubTime = time.Unix(int64(posts[0].CreatedAt), 0)
 	}
 
 	feed := &atom.Feed{
@@ -51,7 +51,7 @@ func handleRss(w http.ResponseWriter, r *http.Request) {
 		e := &atom.Entry{
 			Id:      buildTopicID(r, forum, p),
 			Title:   p.Topic.Subject,
-			PubDate: time.Unix(int64(p.CreatedOn), 0),
+			PubDate: time.Unix(int64(p.CreatedAt), 0),
 			Link:    buildTopicURL(r, forum, p),
 			Content: msgStr,
 		}
