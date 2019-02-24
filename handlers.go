@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/mux"
 	"github.com/kjk/u"
 )
 
@@ -18,12 +17,9 @@ type ForumInfo struct {
 }
 
 // url: /{forum}/viewraw?topicId=${topicId}&postId=${postId}
-func handleViewRaw(w http.ResponseWriter, r *http.Request) {
-	forum, topicID, postID := getTopicAndPostID(w, r)
-	if 0 == topicID {
-		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
-		return
-	}
+func handleViewRaw(forum *Forum, w http.ResponseWriter, r *http.Request) {
+	topicID, _ := strconv.Atoi(r.FormValue("tid"))
+	postID, _ := strconv.Atoi(r.FormValue("pid"))
 	topic := forum.Store.TopicByID(uint32(topicID))
 	if nil == topic {
 		logger.Noticef("handleViewRaw(): didn't find topic with id %d, referer: %q", topicID, getReferer(r))
@@ -31,7 +27,7 @@ func handleViewRaw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	post := topic.Posts[postID-1]
-	msg := post.Message
+	msg := post.Message()
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte("****** Raw:\n"))
 	w.Write([]byte(msg))
@@ -58,84 +54,59 @@ func handleRobotsTxt(w http.ResponseWriter, r *http.Request) {
 	serveFileFromDir(w, r, "static", "robots.txt")
 }
 
-func getTopicAndPostID(w http.ResponseWriter, r *http.Request) (*Forum, uint32, uint16) {
-	forum := mustGetForum(w, r)
-	if forum == nil {
-		http.Redirect(w, r, "/", 302)
-		return nil, 0, 0
-	}
-	topicIDStr := strings.TrimSpace(r.FormValue("topicId"))
-	postIDStr := strings.TrimSpace(r.FormValue("postId"))
-	topicID, err := strconv.Atoi(topicIDStr)
-	if err != nil || topicID == 0 {
-		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
-		return nil, 0, 0
-	}
-	postID, err := strconv.Atoi(postIDStr)
-	if err != nil || postID == 0 {
-		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
-		return forum, 0, 0
-	}
-	return forum, uint32(topicID), uint16(postID)
-}
-
 // url: /{forum}/postdel?topicId=${topicId}&postId=${postId}
-func handlePostDelete(w http.ResponseWriter, r *http.Request) {
-	if forum, topicID, postID := getTopicAndPostID(w, r); forum != nil {
-		//fmt.Printf("handlePostDelete(): forum: %q, topicId: %d, postId: %d\n", forum.ForumUrl, topicId, postId)
-		// TODO: handle error?
-		if userIsAdmin(forum, getSecureCookie(r)) {
-			forum.Store.DeletePost(topicID, postID)
-			http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", forum.ForumUrl, topicID), 302)
-			return
-		}
+func handlePostDelete(forum *Forum, w http.ResponseWriter, r *http.Request) {
+	if forum.IsAdmin(getSecureCookie(r)) {
+		topicID, _ := strconv.Atoi(r.FormValue("tid"))
+		postID, _ := strconv.Atoi(r.FormValue("pid"))
+		forum.Store.DeletePost(uint32(topicID), uint16(postID))
+		http.Redirect(w, r, fmt.Sprintf("/%s?tid=%d", forum.ForumUrl, topicID), 302)
+		return
 	}
 	w.WriteHeader(403)
 }
 
 // url: /{forum}/block?term=${term}&action=[bu]
-func handleBlock(w http.ResponseWriter, r *http.Request) {
-	forum := mustGetForum(w, r)
-	if forum == nil {
-		w.WriteHeader(403)
+func handleBlock(forum *Forum, w http.ResponseWriter, r *http.Request) {
+	ip := strings.TrimSpace(r.FormValue("ip"))
+	user := strings.TrimSpace(r.FormValue("u"))
+	if user == "" && ip == "" {
+		http.Redirect(w, r, fmt.Sprintf("/%s", forum.ForumUrl), 302)
 		return
 	}
-	action := r.FormValue("action")
-	term := strings.TrimSpace(r.FormValue("term"))
-	if term == "" {
-		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
-		return
-	}
-	if userIsAdmin(forum, getSecureCookie(r)) {
-		if action == "b" {
-			forum.Store.BlockIP(term)
-			http.Redirect(w, r, fmt.Sprintf("/%s/postsby?ip=%s", forum.ForumUrl, term), 302)
-			return
-		} else if action == "u" {
-			forum.Store.BlockUser(term)
-			http.Redirect(w, r, fmt.Sprintf("/%s/postsby?user=%s", forum.ForumUrl, term), 302)
-			return
+	if forum.IsAdmin(getSecureCookie(r)) {
+		if ip != "" {
+			forum.Store.BlockIP(ip)
+			http.Redirect(w, r, fmt.Sprintf("/%s?t=list&ip=%s", forum.ForumUrl, ip), 302)
+		} else {
+			forum.Store.BlockUser(user)
+			http.Redirect(w, r, fmt.Sprintf("/%s?t=list&u=%s", forum.ForumUrl, user), 302)
 		}
+		return
 	}
-	w.WriteHeader(403)
+	http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
 }
 
 // url: /{forum}/taction?topicId=${topicId}&action=[slx]
-func handleActionTopic(w http.ResponseWriter, r *http.Request) {
-	topicID, err := strconv.Atoi(r.FormValue("topicId"))
-	action := r.FormValue("action")
+func handleOperateTopic(forum *Forum, w http.ResponseWriter, r *http.Request) {
+	topicID, _ := strconv.Atoi(r.FormValue("tid"))
 	redirect := r.FormValue("redirect")
-	forum := mustGetForum(w, r)
-	if forum != nil && err == nil {
-		if userIsAdmin(forum, getSecureCookie(r)) {
-			forum.Store.DoAction(uint32(topicID), strings.ToUpper(action[:1])[0])
-			if redirect == "" {
-				http.Redirect(w, r, "/"+forum.ForumUrl, 302)
-			} else {
-				http.Redirect(w, r, redirect, 302)
-			}
-			return
+
+	if forum.IsAdmin(getSecureCookie(r)) {
+		switch r.FormValue("t") {
+		case "stick":
+			forum.Store.OperateTopic(uint32(topicID), OP_STICKY)
+		case "lock":
+			forum.Store.OperateTopic(uint32(topicID), OP_LOCK)
+		case "purge":
+			forum.Store.OperateTopic(uint32(topicID), OP_PURGE)
 		}
+		if redirect == "" {
+			http.Redirect(w, r, "/"+forum.ForumUrl, 302)
+		} else {
+			http.Redirect(w, r, redirect, 302)
+		}
+		return
 	}
 	w.WriteHeader(403)
 }
@@ -153,9 +124,7 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 		Forum
 		LogInOut template.HTML
 	}{
-		Forums:   &appState.Forums,
-		Title:    config.MainTitle,
-		LogInOut: getLogInOut(r, getSecureCookie(r)),
+		Forums: &appState.Forums,
 	}
 	ExecTemplate(w, tmplMain, model)
 }
@@ -166,34 +135,11 @@ func isTopLevelURL(url string) bool {
 
 // // https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
 func initHTTPServer() *http.Server {
-	r := mux.NewRouter()
-	r.HandleFunc("/", makeTimingHandler(handleMain))
-	r.HandleFunc("/{forum}", makeTimingHandler(handleForum))
-	r.HandleFunc("/{forum}/", makeTimingHandler(handleForum))
-	r.HandleFunc("/{forum}/rss.xml", makeTimingHandler(handleRss))
-	r.HandleFunc("/{forum}/topic", makeTimingHandler(handleTopic))
-	r.HandleFunc("/{forum}/postsby", makeTimingHandler(handlePostsBy))
-	r.HandleFunc("/{forum}/viewraw", makeTimingHandler(handleViewRaw))
-	r.HandleFunc("/{forum}/newpost", makeTimingHandler(handleNewPost))
-	r.HandleFunc("/{forum}/block", makeTimingHandler(handleBlock))
-	r.HandleFunc("/{forum}/delete", makeTimingHandler(handlePostDelete))
-	r.HandleFunc("/{forum}/taction", makeTimingHandler(handleActionTopic))
-
 	smux := &http.ServeMux{}
-	smux.HandleFunc("/oauthgithubcb", handleOauthGithubCallback)
-	smux.HandleFunc("/login", handleLogin)
-	smux.HandleFunc("/logout", handleLogout)
 	smux.HandleFunc("/favicon.ico", http.NotFound)
 	smux.HandleFunc("/robots.txt", handleRobotsTxt)
 	smux.HandleFunc("/logs", handleLogs)
 	smux.HandleFunc("/s/", makeTimingHandler(handleStatic))
-	smux.Handle("/", r)
-
-	srv := &http.Server{
-		// TODO: 1.8 only
-		// IdleTimeout:  120 * time.Second,
-		Handler: smux,
-	}
-	// TODO: track connections and their state
-	return srv
+	smux.HandleFunc("/", makeTimingHandler(handleForum))
+	return &http.Server{Handler: smux}
 }

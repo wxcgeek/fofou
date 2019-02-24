@@ -10,13 +10,6 @@
 <div id="container"> 
     <div class="header">
         <a class="item" href="/">主页</a><!--
-        -->{{if .Forum.ForumConfig.Title}}<a class="item" href="/{{.Forum.ForumConfig.ForumUrl}}">{{.Forum.ForumConfig.Title}}</a>{{end}}<!--
-        
-        -->{{if .LogInOut}}<!--
-        --><span class="item">{{.LogInOut}}</span><!--
-        --><a class="item" href="javascript:location.href='/logout?redirect='+location.href" onload>登出</a>
-        {{else}}<!--
-        --><a class="item" href="javascript:location.href='/login?redirect='+location.href">GitHub账号登入</a>
-        {{end}}
+        -->{{if .Forum.ForumConfig.Title}}<a class="item" href="/{{.Forum.ForumConfig.ForumUrl}}">{{.Forum.ForumConfig.Title}}</a>{{end}}
         
     </div>

@@ -1,12 +1,14 @@
 {{ template "header.html" . }}
 <div class="form">
-	<form action="newpost" method="post">
-	<input name="Token" value="{{ .Token }}" type="hidden">
+	<form method="post">
+	<input name="Token" value="{{.Token}}" type="hidden">
+    <input name="t" value="new" type="hidden">
+
 	{{if .TopicLocked}}
 		<h2>主题已被锁定，无法回复</h2>
 	{{else}}
 		{{ if .TopicID }}
-			<input name="topicId" value="{{ .TopicID }}" type="hidden">
+			<input name="tid" value="{{ .TopicID }}" type="hidden">
 			<h2>回复 "{{ .PrevSubject }}"</h2>
 		{{ else }}
 			<h2>新主题</h2>

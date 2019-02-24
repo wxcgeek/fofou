@@ -33,46 +33,32 @@ const (
 )
 
 type Post struct {
-	Message   string
-	User      string
-	IP        [8]byte
-	CreatedAt uint32
-	ID        uint16
-	IsDeleted bool
-	Topic     *Topic // for convenience, we link to the topic this post belongs to
+	message    string
+	rawMessage []byte
+	User       string
+	IP         [8]byte
+	CreatedAt  uint32
+	ID         uint16
+	IsDeleted  bool
+	Topic      *Topic // for convenience, we link to the topic this post belongs to
 }
 
-func IPAddress(ip [8]byte) string {
-	buf := bytes.Buffer{}
-	for i := 0; i < len(ip); i++ {
-		buf.WriteString(fmt.Sprintf("%x.", ip[i]))
+const stdTimeFormat = "2006-01-02 15:04:05"
+
+func (p *Post) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
+
+func (p *Post) Message() string {
+	if p.message == "" {
+		var b buffer
+		b.SetReader(bytes.NewReader(p.rawMessage))
+		p.message, _ = b.ReadString()
 	}
-	buf.Truncate(buf.Len() - 1)
-	return buf.String()
+	return p.message
 }
 
-func (p *Post) IsGithubUser() bool { return strings.HasPrefix(p.User, "g:") }
+func (p *Post) MessageHTML() string { return msgToHtml(p.Message()) }
 
-func (p *Post) UserName() string {
-	if p.IsGithubUser() {
-		return p.User[2:]
-	}
-	return p.User
-}
-
-// MakeInternalUserName makes internal user name
-func MakeInternalUserName(userName string, github bool) string {
-	if github {
-		return "g:" + userName
-	}
-	if len(userName) >= 2 && userName[1] == ':' {
-		if len(userName) > 2 {
-			return userName[2:]
-		}
-		return userName[:1]
-	}
-	return userName
-}
+func (p *Post) IPAddress() string { return IPAddress(p.IP) }
 
 // Topic describes topic
 type Topic struct {
@@ -87,6 +73,10 @@ type Topic struct {
 	Prev       *Topic
 	Posts      []Post
 }
+
+func (p *Topic) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
+
+func (p *Topic) LastDate() string { return time.Unix(int64(p.ModifiedAt), 0).Format(stdTimeFormat) }
 
 // Store describes store
 type Store struct {
@@ -173,7 +163,7 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	userName, err := r.ReadString()
 	panicif(err != nil, "invalid username")
 
-	message, err := r.ReadString()
+	message, err := r.ReadStringBytes()
 	panicif(err != nil, "invalid message body")
 
 	t, ok := topicIDToTopic[topicID]
@@ -184,13 +174,13 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	panicif(realPostID >= 65536, "too many posts (65536)")
 
 	return Post{
-		ID:        uint16(realPostID),
-		CreatedAt: createdOnSeconds,
-		User:      userName,
-		IP:        ipAddrInternal,
-		IsDeleted: false,
-		Topic:     t,
-		Message:   message,
+		ID:         uint16(realPostID),
+		CreatedAt:  createdOnSeconds,
+		User:       userName,
+		IP:         ipAddrInternal,
+		IsDeleted:  false,
+		Topic:      t,
+		rawMessage: message,
 	}
 }
 
@@ -210,7 +200,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 
 	topicIDToTopic := make(map[uint32]*Topic)
 	r := &buffer{}
-	r.SetReader(bufio.NewReader(fh))
+	r.SetReader(bufio.NewReaderSize(fh, 1024*1024*1))
 	print := func(f string, args ...interface{}) {
 		if !slient {
 			fmt.Printf(f, args...)
@@ -303,7 +293,7 @@ func (store *Store) verifyTopics() {
 }
 
 // NewStore creates a new store
-func NewStore(dataDir, forumName string) (*Store, error) {
+func NewStore(dataDir, forumName string) *Store {
 	store := &Store{
 		dataDir:       dataDir,
 		dataFilePath:  filepath.Join(dataDir, "forum", forumName+".txt"),
@@ -317,7 +307,6 @@ func NewStore(dataDir, forumName string) (*Store, error) {
 	store.rootTopic.Next = store.endTopic
 	store.endTopic.Prev = store.rootTopic
 
-	var err error
 	if u.PathExists(store.dataFilePath) {
 		store.loadDB(store.dataFilePath, false)
 	} else {
@@ -326,8 +315,8 @@ func NewStore(dataDir, forumName string) (*Store, error) {
 		f.Close()
 	}
 
+	var err error
 	store.verifyTopics()
-
 	store.dataFile, err = os.OpenFile(store.dataFilePath, os.O_APPEND|os.O_RDWR, 0666)
 	panicif(err != nil, "can't open DB %s: %v", store.dataFilePath, err)
 
@@ -357,7 +346,7 @@ func NewStore(dataDir, forumName string) (*Store, error) {
 			fmt.Println(i)
 		}
 	}
-	return store, nil
+	return store
 }
 
 func LoadSingleTopicInStore(path string) (*Topic, error) {
@@ -382,8 +371,7 @@ func LoadSingleTopicInStore(path string) (*Topic, error) {
 	return store.rootTopic.Next, nil
 }
 
-// DoAction operates a topic
-func (store *Store) DoAction(topicID uint32, action byte) {
+func (store *Store) OperateTopic(topicID uint32, action byte) {
 	store.Lock()
 	defer store.Unlock()
 	t := store.topicByIDUnlocked(topicID)
@@ -542,7 +530,7 @@ func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic 
 		IP:        ipAddrBytes,
 		IsDeleted: false,
 		Topic:     topic,
-		Message:   msg,
+		message:   msg,
 	}
 
 	var topicStr buffer
@@ -591,7 +579,7 @@ func archive(topic *Topic, saveToPath string) error {
 			continue
 		}
 
-		buf.WriteByte(OP_POST).WriteUInt32(topic.ID).WriteUInt16(p.ID).WriteUInt32(p.CreatedAt).Write8Bytes(p.IP).WriteString(p.User).WriteString(p.Message)
+		buf.WriteByte(OP_POST).WriteUInt32(topic.ID).WriteUInt16(p.ID).WriteUInt32(p.CreatedAt).Write8Bytes(p.IP).WriteString(p.User).WriteString(p.Message())
 	}
 
 	u.CreateDirForFileMust(saveToPath)
@@ -733,7 +721,7 @@ func (store *Store) getPostsBy(term string, max int, ip, name bool) ([]Post, int
 				}
 			}
 			if name {
-				if strings.HasPrefix(post.UserName(), term) {
+				if strings.HasPrefix(post.User, term) {
 					total++
 					if total <= max {
 						res = append(res, post)

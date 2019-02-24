@@ -23,11 +23,7 @@ func buildTopicID(r *http.Request, forum *Forum, p *Post) string {
 	return fmt.Sprintf("tag:%s,%s:%s", r.Host, pubDateStr, url)
 }
 
-func handleRss(w http.ResponseWriter, r *http.Request) {
-	forum := mustGetForum(w, r)
-	if forum == nil {
-		return
-	}
+func handleRSS(forum *Forum, w http.ResponseWriter, r *http.Request) {
 	topics, _ := forum.Store.GetTopics(25, 0, false)
 	posts := make([]*Post, len(topics), len(topics))
 	for i, t := range topics {
@@ -46,7 +42,7 @@ func handleRss(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, p := range posts {
-		msgStr := msgToHtml(p.Message)
+		msgStr := msgToHtml(p.Message())
 		//id := fmt.Sprintf("tag:forums.fofou.org,1999:%s-topic-%d-post-%d", forum.ForumUrl, p.Topic.Id, p.Id)
 		e := &atom.Entry{
 			Id:      buildTopicID(r, forum, p),

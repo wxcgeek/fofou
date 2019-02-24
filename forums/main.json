@@ -2,7 +2,7 @@
         "Title":"Basic forum",
         "ForumUrl":"main",
         "DataDir":"SumatraPDF",
-        "AdminLoginName":"coyove",
+        "AdminLoginName":"a:coyove",
         "Disabled":false,
         "MaxLiveTopics":10000,
         "BannedWords": ["ebookconverter.com", "epubconverter.com"]

@@ -27,7 +27,6 @@ type ModelNewPost struct {
 	PrevMessage  string
 	NameClass    string
 	PrevName     string
-	LogInOut     template.HTML
 }
 
 var randG = rand.New()
@@ -43,7 +42,7 @@ func isMsgValid(msg string, topic *Topic) bool {
 	// prevent duplicate posts within the topic
 	if topic != nil {
 		for _, p := range topic.Posts {
-			if p.Message == msg {
+			if p.Message() == msg {
 				return false
 			}
 		}
@@ -113,10 +112,10 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	}
 
 	if r.FormValue("Cancel") != "" {
-		if tid := r.FormValue("topicId"); tid != "" {
-			http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%s", model.Forum.ForumUrl, tid), 302)
+		if tid := r.FormValue("tid"); tid != "" {
+			http.Redirect(w, r, fmt.Sprintf("/%s?tid=%s", model.Forum.ForumUrl, tid), 302)
 		} else {
-			http.Redirect(w, r, fmt.Sprintf("/%s/", model.Forum.ForumUrl), 302)
+			http.Redirect(w, r, fmt.Sprintf("/%s", model.Forum.ForumUrl), 302)
 		}
 		return
 	}
@@ -160,20 +159,11 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 		return
 	}
 
-	cookie := getSecureCookie(r)
-	userName := cookie.GithubUser
-	githubUser := true
+	userName := getSecureCookie(r)
 	if userName == "" {
-		if cookie.AnonUser == "" {
-			x := randG.Fetch(6)
-			cookie.AnonUser = base64.URLEncoding.EncodeToString(x)
-		}
-
-		userName = cookie.AnonUser
-		githubUser = false
+		userName = base64.URLEncoding.EncodeToString(randG.Fetch(6))
 	}
-	userName = MakeInternalUserName(userName, githubUser)
-	setSecureCookie(w, cookie)
+	setSecureCookie(w, userName)
 
 	if model.Forum.Store.IsBlocked("u" + userName) {
 		logger.Noticef("blocked a post from user %s", userName)
@@ -186,35 +176,26 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 		if topicID, err := store.CreateNewTopic(subject, msg, userName, ipAddr); err != nil {
 			logger.Errorf("createNewPost(): store.CreateNewPost() failed with %s", err)
 		} else {
-			http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", model.ForumUrl, topicID), 302)
+			http.Redirect(w, r, fmt.Sprintf("/%s?tid=%d", model.ForumUrl, topicID), 302)
 		}
 	} else {
 		if err := store.AddPostToTopic(topic.ID, msg, userName, ipAddr); err != nil {
 			logger.Errorf("createNewPost(): store.AddPostToTopic() failed with %s", err)
 		}
-		http.Redirect(w, r, fmt.Sprintf("/%s/topic?id=%d", model.ForumUrl, topic.ID), 302)
+		http.Redirect(w, r, fmt.Sprintf("/%s?tid=%d", model.ForumUrl, topic.ID), 302)
 	}
 }
 
 // url: /{forum}/newpost[?topicId={topicId}]
-func handleNewPost(w http.ResponseWriter, r *http.Request) {
-	var err error
-	forum := mustGetForum(w, r)
-	if forum == nil {
-		return
-	}
-
-	topicID := 0
+func handleNewPost(forum *Forum, w http.ResponseWriter, r *http.Request) {
 	var topic *Topic
-	topicIDStr := strings.TrimSpace(r.FormValue("topicId"))
-	if topicIDStr != "" {
-		if topicID, err = strconv.Atoi(topicIDStr); err != nil {
-			http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
-			return
-		}
+	topicID := 0
+
+	if topicIDStr := strings.TrimSpace(r.FormValue("tid")); topicIDStr != "" {
+		topicID, _ = strconv.Atoi(topicIDStr)
 		if topic = forum.Store.TopicByID(uint32(topicID)); topic == nil {
 			logger.Noticef("handleNewPost(): invalid topicId: %d\n", topicID)
-			http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
+			http.Redirect(w, r, fmt.Sprintf("/%s", forum.ForumUrl), 302)
 			return
 		}
 	}
@@ -224,8 +205,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	model := &ModelNewPost{
 		Forum:    *forum,
 		TopicID:  topicID,
-		LogInOut: getLogInOut(r, getSecureCookie(r)),
-		PrevName: cookie.AnonUser,
+		PrevName: cookie,
 		Token:    session.NewString(IPAddress(ipAddrToInternal(getIPAddress(r)))),
 	}
 

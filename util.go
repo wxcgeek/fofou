@@ -3,11 +3,14 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -37,64 +40,6 @@ func httpErrorf(w http.ResponseWriter, format string, args ...interface{}) {
 	http.Error(w, msg, http.StatusBadRequest)
 }
 
-func bytesToPlane0String(buf []byte) string {
-	str := make([]byte, 0, len(buf))
-	enc := make([]byte, 3)
-
-	for i := 0; i < len(buf); {
-		if buf[i] < 128 {
-			str = append(str, buf[i])
-			i++
-			continue
-		}
-
-		ln := 2 * int((buf[i]&0x7f)+1)
-		if i+1+ln > len(buf) {
-			return ""
-		}
-
-		for j := i + 1; j < i+1+ln; j += 2 {
-			n := utf8.EncodeRune(enc, rune(buf[j])<<8+rune(buf[j+1]))
-			str = append(str, enc[:n]...)
-		}
-
-		i += 1 + ln
-	}
-
-	return string(str)
-}
-
-func plane0StringToBytes(str string) []byte {
-	buf := make([]byte, 0, len(str))
-	queue := make([]byte, 0, 256)
-
-	appendQueue := func() {
-		buf = append(buf, byte(len(queue)/2-1)|0x80)
-		buf = append(buf, queue...)
-		queue = queue[:0]
-	}
-
-	for _, r := range str {
-		if r < 128 {
-			if len(queue) > 0 {
-				appendQueue()
-			}
-			buf = append(buf, byte(r))
-		} else {
-			queue = append(queue, byte(r>>8), byte(r))
-			if len(queue)/2 == 128 {
-				appendQueue()
-			}
-		}
-	}
-
-	if len(queue) > 0 {
-		appendQueue()
-	}
-
-	return buf
-}
-
 func ipAddrToInternal(ipAddr string) (v [8]byte) {
 	ip := net.ParseIP(ipAddr)
 	if len(ip) == 0 {
@@ -105,7 +50,7 @@ func ipAddrToInternal(ipAddr string) (v [8]byte) {
 		copy(v[:], ip)
 		return
 	}
-	copy(v[:], ipv4[:3])
+	copy(v[4:], ipv4[:3])
 	return
 }
 
@@ -289,7 +234,86 @@ func (b *buffer) ReadString() (string, error) {
 	return string(str), nil
 
 }
+func (b *buffer) ReadStringBytes() ([]byte, error) {
+	b.postmp = b.pos
+	p := bytes.Buffer{}
+
+	for {
+		v, err := b.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+		p.WriteByte(v)
+		if v == 0 {
+			break
+		}
+	}
+
+	return p.Bytes(), nil
+
+}
 
 func (b *buffer) LastStringCheckpoint() int { return b.postmp }
 
 func (b *buffer) LastByteCheckpoint() int { return b.pos }
+
+func IPAddress(ip [8]byte) string {
+	buf := bytes.Buffer{}
+	for i := 0; i < len(ip); i += 2 {
+		buf.WriteString(fmt.Sprintf("%x:", int(ip[i])*256+int(ip[i+1])))
+	}
+	buf.Truncate(buf.Len() - 1)
+	return buf.String()
+}
+
+const _salt = "testsalt123456"
+const _password = "testpassword"
+
+func getSecureCookie(r *http.Request) string {
+	uid, err := r.Cookie("uid")
+	if err != nil {
+		return ""
+	}
+
+	parts := strings.Split(uid.Value, "|")
+	if len(parts) != 2 {
+		return ""
+	}
+
+	if strings.HasPrefix(parts[0], "a:") {
+		if parts[1] == _password {
+			return parts[0]
+		}
+	}
+
+	x := sha256.Sum256([]byte(parts[0] + _salt))
+	for i := 0; i < 16; i++ {
+		x = sha256.Sum256(x[:])
+	}
+
+	if fmt.Sprintf("%x", x) == parts[1] {
+		return parts[0]
+	}
+
+	return ""
+}
+
+func setSecureCookie(w http.ResponseWriter, username string) {
+	x := sha256.Sum256([]byte(username + _salt))
+	for i := 0; i < 16; i++ {
+		x = sha256.Sum256(x[:])
+	}
+
+	v := username + "|" + fmt.Sprintf("%x", x)
+	if strings.HasPrefix(username, "a:") {
+		v = username + "|" + _password
+	}
+
+	cookie := &http.Cookie{
+		Name:    "uid",
+		Value:   v,
+		Path:    "/",
+		Expires: time.Now().AddDate(1, 0, 0),
+	}
+	http.SetCookie(w, cookie)
+}

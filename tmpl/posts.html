@@ -9,27 +9,17 @@
 			{{ if .IPAddr }}
 			    Total <b>{{ .TotalCount }}</b> posts from IP <b>{{ .IPAddr }}</b>
 				{{if $isAdmin}}
-					{{if .IPBlocked}}
-						({{range $k, $v := .Blocked}}
-						<a href="/{{$forumUrl}}/block?term={{$k}}&action=b">unblock {{$v}}</a>
-						{{end}})
-					{{else}}
-					(
-						<a href="/{{$forumUrl}}/block?term={{.IPAddrI32}}&action=b">block /32</a>
-						{{if .IPAddrI24}}
-						<a href="/{{$forumUrl}}/block?term={{.IPAddrI24}}&action=b">block /24</a>
-						<a href="/{{$forumUrl}}/block?term={{.IPAddrI20}}&action=b">block /20</a>
-						<a href="/{{$forumUrl}}/block?term={{.IPAddrI16}}&action=b">block /16</a>
-						{{end}}
-					)
-					{{end}}
+                    ({{range $k, $v := .Blocked}}
+                    <a href="/{{$forumUrl}}?t=block&ip={{$k}}">unblock {{$v}}</a>
+                    {{end}})
+                    (<a href="/{{$forumUrl}}?t=block&ip={{.IPAddr}}">{{if .IPBlocked}}unblock{{else}}block{{end}} {{.IPAddr}}</a>)
                 {{end}}.
 			{{ end }}
 
 			{{ if .User }}
                 Total <b>{{ .TotalCount }}</b> posts from <b>{{ .User }}</b>
                 {{if $isAdmin}}
-                    (<a href="/{{$forumUrl}}/block?term={{.User}}&action=u">{{ if .UserBlocked }}unblock{{else}}block{{end}} this user</a>)
+                    (<a href="/{{$forumUrl}}?t=block&u={{.User}}">{{if .UserBlocked}}unblock{{else}}block{{end}} user</a>)
                 {{end}}.
 			{{ end }}
 		    </div>
@@ -37,13 +27,9 @@
 			{{ range .Posts }}
 			<div class="post-container">
 				<h3>{{ .Topic.Subject }}</h3>
-				<div class="{{.CssClass}}">{{ .MessageHtml }}</div>
+				<div>{{ .MessageHTML }}</div>
 				<div class="signature">
-					{{ if .UserHomepage }}
-						<a href="{{ .UserHomepage }}">{{ .UserName }}</a> {{ .CreatedOnStr }}
-					{{ else }}
-						{{ .UserName}} {{ .CreatedOnStr }}
-					{{ end }}
+						{{ .User}} {{ .Date }}
 
 					{{ if $isAdmin }}
 						<br/> From: {{ .IPAddress }}

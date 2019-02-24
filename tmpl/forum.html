@@ -15,16 +15,16 @@
             <td>
             {{if $v.Sticky}}<b>[置顶]</b>{{end}}
             {{if $v.Locked}}<b>[锁定]</b>{{end}}
-            <a class="{{$v.TopicLinkClass}}" href="{{$v.TopicURL}}">{{ $v.Subject }} </a>
+            <a class="{{$v.TopicLinkClass}}" href="/{{$forumUrl}}?tid={{$v.ID}}">{{ $v.Subject }} </a>
             </td>
             </tr>
             <tr>
             <td></td>
-            <td class="info"><em>{{ $v.CreatedBy }}</em> <span>({{ $v.CommentsCount }}{{if eq $i 0}} 回复{{end}})</span> <span>{{$v.CreatedOnStr}}</span>
+            <td class="info"><em>{{ $v.CreatedBy }}</em> <span>({{ $v.CommentsCount }}{{if eq $i 0}} 回复{{end}})</span> <span>{{$v.Date}}</span>
             {{if $.IsAdmin}}
-                <a href="javascript:location.href='/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=s&redirect='+location.href" style="color:#888">S</a>
-                <a href="javascript:location.href='/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=l&redirect='+location.href" style="color:#888">L</a>
-                <a href="javascript:if(confirm('really purge this topic?'))location.href='/{{$forumUrl}}/taction?topicId={{$v.ID}}&action=x&redirect='+location.href" style="color:#888">X</a>
+                <a href="javascript:location.href='/{{$forumUrl}}?t=stick&tid={{$v.ID}}&redirect='+location.href" style="color:#888">S</a>
+                <a href="javascript:location.href='/{{$forumUrl}}?t=lock&tid={{$v.ID}}&redirect='+location.href" style="color:#888">L</a>
+                <a href="javascript:if(confirm('really purge this topic?'))location.href='/{{$forumUrl}}?t=purge&tid={{$v.ID}}&redirect='+location.href" style="color:#888">X</a>
             {{end}}
             </td>
             </tr>

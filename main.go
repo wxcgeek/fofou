@@ -3,7 +3,6 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -17,41 +16,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/securecookie"
 	"github.com/kjk/u"
 	"golang.org/x/crypto/acme/autocert"
 )
 
 var (
-	configPath   = flag.String("config", "config.json", "Path to configuration file")
 	httpAddr     = flag.String("addr", ":5010", "HTTP server address")
 	inProduction = flag.String("production", "", "production domain")
 	cookieName   = "ckie"
 )
 
 var (
-	config struct {
-		MainTitle           string
-		GitHubOAuthToken    string
-		GitHubOAuthSecret   string
-		CookieAuthKeyHexStr string
-		CookieEncrKeyHexStr string
-	}
-
-	forums = make([]*ForumConfig, 0)
-
-	logger        *ServerLogger
-	cookieAuthKey []byte
-	cookieEncrKey []byte
-	secureCookie  *securecookie.SecureCookie
-
-	dataDir string
-
+	forums   = make([]*ForumConfig, 0)
+	logger   *ServerLogger
+	dataDir  string
 	appState = AppState{
 		Users:  make([]*User, 0),
 		Forums: make([]*Forum, 0),
 	}
-
 	alwaysLogTime = true
 )
 
@@ -78,15 +60,12 @@ type Forum struct {
 	Store *Store
 }
 
+func (f *Forum) IsAdmin(id string) bool { return f.AdminLoginName == id }
+
 // AppState describes state of the app
 type AppState struct {
 	Users  []*User
 	Forums []*Forum
-}
-
-// StringEmpty returns true if string is empty
-func StringEmpty(s *string) bool {
-	return s == nil || 0 == len(*s)
 }
 
 func getDataDir() string {
@@ -100,18 +79,12 @@ func getDataDir() string {
 func NewForum(config *ForumConfig) *Forum {
 	forum := &Forum{ForumConfig: *config}
 	sidebarTmplPath := filepath.Join("forums", fmt.Sprintf("%s_topbar.html", forum.ForumUrl))
-	if !u.PathExists(sidebarTmplPath) {
-		panic(fmt.Sprintf("topbar template %s for forum %s doesn't exist", sidebarTmplPath, forum.ForumUrl))
-	}
+	panicif(!u.PathExists(sidebarTmplPath), "topbar template %s for forum %s doesn't exist", sidebarTmplPath, forum.ForumUrl)
 
 	topbarBuf, _ := ioutil.ReadFile(sidebarTmplPath)
 	forum.TopbarHTML = string(topbarBuf)
 
-	store, err := NewStore(getDataDir(), config.DataDir)
-	if err != nil {
-		logger.Errorf("NewStore('%s', '%s') failed with '%s'\n", getDataDir(), config.DataDir, err)
-		panic("failed to create store for a forum")
-	}
+	store := NewStore(getDataDir(), config.DataDir)
 	a, b := store.PostsCount()
 	logger.Noticef("%d topics, %d visible topics, %d posts in forum %q", store.TopicsCount(), a, b, config.ForumUrl)
 	forum.Store = store
@@ -160,10 +133,6 @@ func addForum(forum *Forum) error {
 	return nil
 }
 
-func userIsAdmin(f *Forum, cookie *SecureCookieValue) bool {
-	return cookie.GithubUser == f.AdminLoginName
-}
-
 // reads forums/*_config.json files
 func readForumConfigs(configDir string) error {
 	pat := filepath.Join(configDir, "*.json")
@@ -192,43 +161,6 @@ func readForumConfigs(configDir string) error {
 		return errors.New("all forums are disabled")
 	}
 	return nil
-}
-
-// reads the configuration file from the path specified by
-// the config command line flag.
-func readConfig(configFile string) error {
-	b, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		return fmt.Errorf("%s config file doesn't exist. Read readme.md for config instructions", configFile)
-	}
-	err = json.Unmarshal(b, &config)
-	if err != nil {
-		return err
-	}
-	cookieAuthKey, err = hex.DecodeString(config.CookieAuthKeyHexStr)
-	if err != nil {
-		return err
-	}
-	cookieEncrKey, err = hex.DecodeString(config.CookieEncrKeyHexStr)
-	if err != nil {
-		return err
-	}
-	secureCookie = securecookie.New(cookieAuthKey, cookieEncrKey)
-	// verify auth/encr keys are correct
-	val := map[string]string{
-		"foo": "bar",
-	}
-	_, err = secureCookie.Encode(cookieName, val)
-	if err != nil {
-		// for convenience, if the auth/encr keys are not set,
-		// generate valid, random value for them
-		fmt.Printf("CookieAuthKeyHexStr and CookieEncrKeyHexStr are invalid or missing in %q\nYou can use the following random values:\n", configFile)
-		auth := securecookie.GenerateRandomKey(32)
-		encr := securecookie.GenerateRandomKey(32)
-		fmt.Printf("CookieAuthKeyHexStr: %s\nCookieEncrKeyHexStr: %s\n", hex.EncodeToString(auth), hex.EncodeToString(encr))
-	}
-	// TODO: somehow verify twitter creds
-	return err
 }
 
 func getReferer(r *http.Request) string {
@@ -275,10 +207,6 @@ func main() {
 	logger = NewServerLogger(256, 256, useStdout)
 
 	rand.Seed(time.Now().UnixNano())
-
-	if err := readConfig(*configPath); err != nil {
-		log.Fatalf("failed to read config file %s: %s\n", *configPath, err)
-	}
 
 	if err := readForumConfigs("forums"); err != nil {
 		log.Fatalf("failed to read forum configs, err: %s", err)
