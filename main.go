@@ -47,6 +47,7 @@ type ForumConfig struct {
 	Disabled       bool
 	MaxLiveTopics  int
 	BannedWords    *[]string
+	Recaptcha      string
 }
 
 // User describes a user

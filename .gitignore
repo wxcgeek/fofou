@@ -2,6 +2,7 @@
 .DS_Store
 fofou_app
 config.json
+main.json
 appengine/imported_data/
 appengine/posts.txt
 appengine/topics.txt

@@ -200,7 +200,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 
 	topicIDToTopic := make(map[uint32]*Topic)
 	r := &buffer{}
-	r.SetReader(bufio.NewReaderSize(fh, 1024*1024*1))
+	r.SetReader(bufio.NewReaderSize(fh, 1024*1024*10))
 	print := func(f string, args ...interface{}) {
 		if !slient {
 			fmt.Printf(f, args...)
@@ -219,6 +219,12 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 	}()
 
 	fhInfo, _ := fh.Stat()
+	if fhInfo.Size() == 0 {
+		fh.Close()
+		print("empty DB")
+		return nil
+	}
+
 	for {
 		print("\rloading %02d%% %d/%d", r.pos*100/int(fhInfo.Size()), r.pos, fhInfo.Size())
 		op, err := r.ReadByte()

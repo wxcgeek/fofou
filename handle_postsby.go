@@ -64,7 +64,7 @@ func handleList(forum *Forum, w http.ResponseWriter, r *http.Request) {
 		forum.Store.RLock()
 		for k := range forum.Store.blocked {
 			if k[0] == 'b' {
-				model.Blocked[k[1:]] = ipAddrInternalToOriginal(k[1:])
+				model.Blocked[k[1:]] = k[1:]
 			}
 		}
 		forum.Store.RUnlock()

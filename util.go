@@ -4,7 +4,6 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
@@ -52,29 +51,6 @@ func ipAddrToInternal(ipAddr string) (v [8]byte) {
 	}
 	copy(v[4:], ipv4[:3])
 	return
-}
-
-func ipAddrInternalToOriginal(s string) string {
-	switch len(s) {
-	case 8:
-		if d, err := hex.DecodeString(s); err == nil {
-			return fmt.Sprintf("%d.%d.%d.%d", d[0], d[1], d[2], d[3])
-		}
-	case 6:
-		if d, err := hex.DecodeString(s); err == nil {
-			return fmt.Sprintf("%d.%d.%d.0/24", d[0], d[1], d[2])
-		}
-	case 4:
-		if d, err := hex.DecodeString(s); err == nil {
-			return fmt.Sprintf("%d.%d.0.0/16", d[0], d[1])
-		}
-	case 5:
-		if d, err := hex.DecodeString(s + "0"); err == nil {
-			return fmt.Sprintf("%d.%d.%d.0/20", d[0], d[1], d[2])
-		}
-	}
-	// other format (ipv6?)
-	return s
 }
 
 type buffer struct {

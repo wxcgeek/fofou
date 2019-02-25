@@ -3,11 +3,15 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/coyove/common/rand"
 	"github.com/coyove/common/session"
@@ -120,6 +124,34 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 		return
 	}
 
+	recaptcha := strings.TrimSpace(r.FormValue("g-recaptcha-response"))
+	if recaptcha == "" {
+		w.Write([]byte(badUserHTML))
+		return
+	}
+
+	resp, err := (&http.Client{Timeout: time.Second * 5}).PostForm("https://www.recaptcha.net/recaptcha/api/siteverify", url.Values{
+		"secret":   []string{model.Forum.Recaptcha},
+		"response": []string{recaptcha},
+	})
+	if err != nil {
+		logger.Errorf("recaptcha error: %v", err)
+		w.WriteHeader(502)
+		return
+	}
+
+	defer resp.Body.Close()
+	buf, _ := ioutil.ReadAll(resp.Body)
+
+	recaptchaResult := map[string]interface{}{}
+	json.Unmarshal(buf, &recaptchaResult)
+
+	if r, _ := recaptchaResult["success"].(bool); !r {
+		logger.Errorf("recaptcha failed: %v", string(buf))
+		w.Write([]byte(badUserHTML))
+		return
+	}
+
 	// validate the fields
 	subject := strings.TrimSpace(r.FormValue("Subject"))
 	subject = strings.Replace(template.HTMLEscapeString(subject), "\n", "", -1)
@@ -127,7 +159,7 @@ func createNewPost(w http.ResponseWriter, r *http.Request, model *ModelNewPost, 
 	token := strings.TrimSpace(r.FormValue("Token"))
 
 	if isMessageBlocked(model.Forum, msg) {
-		logger.Notice("blocked a post because has a banned word in it")
+		logger.Notice("blocked a post of banned words: " + msg)
 		w.Write([]byte(badUserHTML))
 		return
 	}
