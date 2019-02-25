@@ -44,8 +44,11 @@ type ForumConfig struct {
 	ForumUrl       string
 	DataDir        string
 	AdminLoginName string
-	Disabled       bool
+	NoMoreNewUsers bool
 	MaxLiveTopics  int
+	MaxSubjectLen  int
+	MaxMessageLen  int
+	MinMessageLen  int
 	BannedWords    *[]string
 	Recaptcha      string
 }
@@ -154,9 +157,17 @@ func readForumConfigs(configDir string) error {
 		if err != nil {
 			return err
 		}
-		if !forum.Disabled {
-			forums = append(forums, &forum)
+		if forum.MaxSubjectLen == 0 {
+			forum.MaxSubjectLen = 60
 		}
+		if forum.MaxMessageLen == 0 {
+			forum.MaxMessageLen = 10000
+		}
+		if forum.MinMessageLen == 0 {
+			forum.MinMessageLen = 3
+		}
+
+		forums = append(forums, &forum)
 	}
 	if len(forums) == 0 {
 		return errors.New("all forums are disabled")

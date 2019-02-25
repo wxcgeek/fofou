@@ -30,6 +30,7 @@ const (
 	OP_LOCK      = 'L'
 	OP_ARCHIVE   = 'A'
 	OP_PURGE     = 'X'
+	OP_FREEREPLY = 'F'
 )
 
 type Post struct {
@@ -66,6 +67,7 @@ type Topic struct {
 	Sticky     bool
 	Locked     bool
 	Archived   bool
+	FreeReply  bool
 	CreatedAt  uint32
 	ModifiedAt uint32
 	Subject    string
@@ -261,7 +263,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 			} else {
 				store.markBlockedOrUnblocked("u" + str)
 			}
-		case OP_STICKY, OP_ARCHIVE, OP_LOCK, OP_PURGE:
+		case OP_STICKY, OP_ARCHIVE, OP_LOCK, OP_PURGE, OP_FREEREPLY:
 			topicID, err := r.ReadUInt32()
 			panicif(err != nil, err)
 
@@ -275,6 +277,8 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 				}
 			case OP_LOCK:
 				t.Locked = !t.Locked
+			case OP_FREEREPLY:
+				t.FreeReply = !t.FreeReply
 			case OP_ARCHIVE, OP_PURGE:
 				t.Prev.Next = t.Next
 				t.Next.Prev = t.Prev
@@ -338,7 +342,7 @@ func NewStore(dataDir, forumName string) *Store {
 					msg := base64.StdEncoding.EncodeToString(r.Fetch(r.Intn(64) + 64))
 					msg = strings.Repeat(msg, 4)
 					userName := "abcdefgh"
-					ipAddr := "127.0.0.1"
+					ipAddr := [8]byte{}
 
 					if r.Intn(10) == 1 {
 						curTopicId, _ = store.CreateNewTopic(subject, msg, userName, ipAddr)
@@ -395,6 +399,10 @@ func (store *Store) OperateTopic(topicID uint32, action byte) {
 	case OP_LOCK:
 		if err := store.append(p.WriteByte(OP_LOCK).WriteUInt32(topicID).Bytes()); err == nil {
 			t.Locked = !t.Locked
+		}
+	case OP_FREEREPLY:
+		if err := store.append(p.WriteByte(OP_FREEREPLY).WriteUInt32(topicID).Bytes()); err == nil {
+			t.FreeReply = !t.FreeReply
 		}
 	case OP_PURGE:
 		if err := store.append(p.WriteByte(OP_PURGE).WriteUInt32(topicID).Bytes()); err == nil {
@@ -521,19 +529,18 @@ func (store *Store) moveTopicToFront(topic *Topic) {
 
 var errTooManyPosts = fmt.Errorf("topic already has 65535 posts")
 
-func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic bool) error {
+func (store *Store) addNewPost(msg, user string, ipAddr [8]byte, topic *Topic, newTopic bool) error {
 	nextID := len(topic.Posts) + 1
 	if nextID >= 65536 {
 		return errTooManyPosts
 	}
 
 	user = strings.Replace(user, "|", "", -1)
-	ipAddrBytes := ipAddrToInternal(ipAddr)
 	p := &Post{
 		ID:        uint16(nextID),
 		CreatedAt: uint32(time.Now().Unix()),
 		User:      user,
-		IP:        ipAddrBytes,
+		IP:        ipAddr,
 		IsDeleted: false,
 		Topic:     topic,
 		message:   msg,
@@ -550,7 +557,7 @@ func (store *Store) addNewPost(msg, user, ipAddr string, topic *Topic, newTopic 
 	topicStr.WriteUInt32(uint32(topic.ID))
 	topicStr.WriteUInt16(uint16(p.ID))
 	topicStr.WriteUInt32(p.CreatedAt)
-	topicStr.Write8Bytes(ipAddrBytes)
+	topicStr.Write8Bytes(ipAddr)
 	topicStr.WriteString(user)
 	topicStr.WriteString(msg)
 
@@ -623,7 +630,7 @@ func (store *Store) Archive() {
 }
 
 // CreateNewTopic creates a new topic
-func (store *Store) CreateNewTopic(subject, msg, user, ipAddr string) (uint32, error) {
+func (store *Store) CreateNewTopic(subject, msg, user string, ipAddr [8]byte) (uint32, error) {
 	store.Lock()
 	defer store.Unlock()
 
@@ -650,7 +657,7 @@ func (store *Store) CreateNewTopic(subject, msg, user, ipAddr string) (uint32, e
 }
 
 // AddPostToTopic adds a post to a topic
-func (store *Store) AddPostToTopic(topicID uint32, msg, user, ipAddr string) error {
+func (store *Store) AddPostToTopic(topicID uint32, msg, user string, ipAddr [8]byte) error {
 	store.Lock()
 	defer store.Unlock()
 

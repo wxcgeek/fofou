@@ -293,3 +293,16 @@ func setSecureCookie(w http.ResponseWriter, username string) {
 	}
 	http.SetCookie(w, cookie)
 }
+
+func adminOpCode(forum *Forum, msg string) bool {
+	if !strings.HasPrefix(msg, "!!") {
+		return false
+	}
+	msg = msg[2:]
+	if strings.HasPrefix(msg, "no-more-new-users=") {
+		msg = msg[18:]
+		forum.NoMoreNewUsers = msg == "true"
+		return true
+	}
+	return false
+}
