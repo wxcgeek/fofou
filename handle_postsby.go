@@ -2,7 +2,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,7 +14,7 @@ func handleList(forum *Forum, w http.ResponseWriter, r *http.Request) {
 	ipAddrInternal := strings.TrimSpace(r.FormValue("ip"))
 	if userInternal == "" && ipAddrInternal == "" {
 		logger.Noticef("handlePostsBy(): missing both user and ip")
-		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
+		http.Redirect(w, r, "/", 302)
 		return
 	}
 

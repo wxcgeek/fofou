@@ -2,7 +2,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -50,23 +49,25 @@ func handleTopic(forum *Forum, topicID int, w http.ResponseWriter, r *http.Reque
 		}
 
 		logger.Noticef("handleTopic(): didn't find topic with id %d, referer: %q", topicID, getReferer(r))
-		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
+		http.Redirect(w, r, "/", 302)
 		return
 	}
 NEXT:
 	isAdmin := forum.IsAdmin(getSecureCookie(r))
 	if topic.IsDeleted() && !isAdmin {
-		http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
+		http.Redirect(w, r, "/", 302)
 		return
 	}
 
 	model := struct {
-		Forum
-		Topic
+		*Forum
+		*Topic
+		TopicID int
 		IsAdmin bool
 	}{
-		Forum:   *forum,
-		Topic:   *topic,
+		Forum:   forum,
+		Topic:   topic,
+		TopicID: topicID,
 		IsAdmin: isAdmin,
 	}
 	ExecTemplate(w, tmplTopic, model)

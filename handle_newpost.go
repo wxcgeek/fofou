@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -88,47 +87,65 @@ func writeSimpleJSON(w http.ResponseWriter, args ...interface{}) {
 }
 
 func createNewPost(forum *Forum, topic *Topic, w http.ResponseWriter, r *http.Request) {
+
+}
+
+// url: /{forum}/newpost[?topicId={topicId}]
+func handleNewPost(forum *Forum, w http.ResponseWriter, r *http.Request) {
 	badRequest := func() { writeSimpleJSON(w, "success", false, "error", "bad-request") }
 	internalError := func() { writeSimpleJSON(w, "success", false, "error", "internal-error") }
 
+	var topic *Topic
+
+	if topicIDStr := strings.TrimSpace(r.FormValue("tid")); topicIDStr != "" {
+		topicID, _ := strconv.Atoi(topicIDStr)
+		if topic = forum.Store.TopicByID(uint32(topicID)); topic == nil {
+			logger.Noticef("handleNewPost(): invalid topic ID: %d\n", topicID)
+			badRequest()
+			return
+		}
+	}
+
 	ipAddr := getIPAddress(r)
+	userName := getSecureCookie(r)
 	if forum.Store.IsBlocked("b" + IPAddress(ipAddr)) {
 		logger.Noticef("blocked a post from IP %s", IPAddress(ipAddr))
 		badRequest()
 		return
 	}
 
-	recaptcha := strings.TrimSpace(r.FormValue("g-recaptcha-response"))
-	if recaptcha == "" {
-		badRequest()
-		return
+	if !forum.IsAdmin(userName) {
+		recaptcha := strings.TrimSpace(r.FormValue("g-recaptcha-response"))
+		if recaptcha == "" {
+			badRequest()
+			return
+		}
+
+		resp, err := (&http.Client{Timeout: time.Second * 5}).PostForm("https://www.recaptcha.net/recaptcha/api/siteverify", url.Values{
+			"secret":   []string{forum.Recaptcha},
+			"response": []string{recaptcha},
+		})
+		if err != nil {
+			logger.Errorf("recaptcha error: %v", err)
+			internalError()
+			return
+		}
+
+		defer resp.Body.Close()
+		buf, _ := ioutil.ReadAll(resp.Body)
+
+		recaptchaResult := map[string]interface{}{}
+		json.Unmarshal(buf, &recaptchaResult)
+
+		if r, _ := recaptchaResult["success"].(bool); !r {
+			logger.Errorf("recaptcha failed: %v", string(buf))
+			writeSimpleJSON(w, "success", false, "error", "recaptcha-failed")
+			return
+		}
 	}
 
-	resp, err := (&http.Client{Timeout: time.Second * 5}).PostForm("https://www.recaptcha.net/recaptcha/api/siteverify", url.Values{
-		"secret":   []string{forum.Recaptcha},
-		"response": []string{recaptcha},
-	})
-	if err != nil {
-		logger.Errorf("recaptcha error: %v", err)
-		internalError()
-		return
-	}
-
-	defer resp.Body.Close()
-	buf, _ := ioutil.ReadAll(resp.Body)
-
-	recaptchaResult := map[string]interface{}{}
-	json.Unmarshal(buf, &recaptchaResult)
-
-	if r, _ := recaptchaResult["success"].(bool); !r {
-		logger.Errorf("recaptcha failed: %v", string(buf))
-		writeSimpleJSON(w, "success", false, "error", "recaptcha-failed")
-		return
-	}
-
-	subject := strings.Replace(r.FormValue("Subject"), "<", "&lt;", -1)
-	msg := strings.TrimSpace(r.FormValue("Message"))
-	userName := getSecureCookie(r)
+	subject := strings.Replace(r.FormValue("subject"), "<", "&lt;", -1)
+	msg := strings.TrimSpace(r.FormValue("message"))
 
 	// validate the fields
 	if userName == "" {
@@ -182,6 +199,7 @@ func createNewPost(forum *Forum, topic *Topic, w http.ResponseWriter, r *http.Re
 			return
 		}
 		writeSimpleJSON(w, "success", true, "topic", topicID)
+		return
 	}
 
 	if err := forum.Store.AddPostToTopic(topic.ID, msg, userName, ipAddr); err != nil {
@@ -190,42 +208,4 @@ func createNewPost(forum *Forum, topic *Topic, w http.ResponseWriter, r *http.Re
 		return
 	}
 	writeSimpleJSON(w, "success", true, "topic", topic.ID)
-}
-
-// url: /{forum}/newpost[?topicId={topicId}]
-func handleNewPost(forum *Forum, w http.ResponseWriter, r *http.Request) {
-	var topic *Topic
-	topicID := 0
-
-	if topicIDStr := strings.TrimSpace(r.FormValue("tid")); topicIDStr != "" {
-		topicID, _ = strconv.Atoi(topicIDStr)
-		if topic = forum.Store.TopicByID(uint32(topicID)); topic == nil {
-			logger.Noticef("handleNewPost(): invalid topicId: %d\n", topicID)
-			http.Redirect(w, r, fmt.Sprintf("/%s", forum.ForumUrl), 302)
-			return
-		}
-	}
-
-	//fmt.Printf("handleNewPost(): forum: %q, topicId: %d\n", forum.ForumUrl, topicId)
-	cookie := getSecureCookie(r)
-	model := &ModelNewPost{
-		Forum:    forum,
-		TopicID:  topicID,
-		PrevName: cookie,
-	}
-
-	if topic != nil {
-		model.TopicLocked = topic.Locked
-	}
-
-	if r.Method == "POST" {
-		createNewPost(forum, topic, w, r)
-		return
-	}
-
-	if topicID != 0 {
-		model.PrevSubject = topic.Subject
-	}
-
-	ExecTemplate(w, tmplNewPost, model)
 }

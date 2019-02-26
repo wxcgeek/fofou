@@ -2,22 +2,17 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"net/http"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/kjk/u"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 var (
@@ -27,13 +22,8 @@ var (
 )
 
 var (
-	forums   = make([]*ForumConfig, 0)
-	logger   *ServerLogger
-	dataDir  string
-	appState = AppState{
-		Users:  make([]*User, 0),
-		Forums: make([]*Forum, 0),
-	}
+	logger        *ServerLogger
+	forum         *Forum
 	alwaysLogTime = true
 )
 
@@ -41,138 +31,38 @@ var (
 type ForumConfig struct {
 	Title          string
 	TopbarHTML     string
-	ForumUrl       string
-	DataDir        string
 	AdminLoginName string
 	NoMoreNewUsers bool
 	MaxLiveTopics  int
 	MaxSubjectLen  int
 	MaxMessageLen  int
 	MinMessageLen  int
-	BannedWords    *[]string
 	Recaptcha      string
-}
-
-// User describes a user
-type User struct {
-	Login string
 }
 
 // Forum describes forum
 type Forum struct {
-	ForumConfig
+	*ForumConfig
 	Store *Store
 }
 
 func (f *Forum) IsAdmin(id string) bool { return f.AdminLoginName == id }
 
-// AppState describes state of the app
-type AppState struct {
-	Users  []*User
-	Forums []*Forum
-}
-
-func getDataDir() string {
-	u.CreateDirIfNotExists("data/forum")
-	u.CreateDirIfNotExists("data/archive")
-	dataDir = "data"
-	return dataDir
-}
-
 // NewForum creates new forum
 func NewForum(config *ForumConfig) *Forum {
-	forum := &Forum{ForumConfig: *config}
-	sidebarTmplPath := filepath.Join("forums", fmt.Sprintf("%s_topbar.html", forum.ForumUrl))
-	panicif(!u.PathExists(sidebarTmplPath), "topbar template %s for forum %s doesn't exist", sidebarTmplPath, forum.ForumUrl)
-
+	sidebarTmplPath := filepath.Join("data/topbar.html")
+	panicif(!u.PathExists(sidebarTmplPath), "topbar template %s doesn't exist", sidebarTmplPath)
 	topbarBuf, _ := ioutil.ReadFile(sidebarTmplPath)
+
+	forum := &Forum{ForumConfig: config}
 	forum.TopbarHTML = string(topbarBuf)
 
-	store := NewStore(getDataDir(), config.DataDir)
+	store := NewStore("data/main.txt")
 	a, b := store.PostsCount()
-	logger.Noticef("%d topics, %d visible topics, %d posts in forum %q", store.TopicsCount(), a, b, config.ForumUrl)
+	logger.Noticef("%d topics, %d visible topics, %d posts", store.TopicsCount(), a, b)
 	forum.Store = store
 	store.MaxLiveTopics = forum.MaxLiveTopics
 	return forum
-}
-
-func findForum(forumURL string) *Forum {
-	for _, f := range appState.Forums {
-		if f.ForumUrl == forumURL {
-			return f
-		}
-	}
-	return nil
-}
-
-func forumAlreadyExists(siteURL string) bool {
-	return nil != findForum(siteURL)
-}
-
-func forumInvalidField(forum *Forum) string {
-	forum.Title = strings.TrimSpace(forum.Title)
-	if forum.Title == "" {
-		return "Title"
-	}
-	if forum.ForumUrl == "" {
-		return "ForumUrl"
-	}
-	if forum.DataDir == "" {
-		return "DataDir"
-	}
-	if forum.AdminLoginName == "" {
-		return "AdminLoginName"
-	}
-	return ""
-}
-
-func addForum(forum *Forum) error {
-	if invalidField := forumInvalidField(forum); invalidField != "" {
-		return fmt.Errorf("Forum has invalid field %q", invalidField)
-	}
-	if forumAlreadyExists(forum.ForumUrl) {
-		return errors.New("Forum already exists")
-	}
-	appState.Forums = append(appState.Forums, forum)
-	return nil
-}
-
-// reads forums/*_config.json files
-func readForumConfigs(configDir string) error {
-	pat := filepath.Join(configDir, "*.json")
-	files, err := filepath.Glob(pat)
-	if err != nil {
-		return err
-	}
-	if files == nil {
-		return errors.New("no forums configured")
-	}
-	for _, configFile := range files {
-		var forum ForumConfig
-		b, err := ioutil.ReadFile(configFile)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(b, &forum)
-		if err != nil {
-			return err
-		}
-		if forum.MaxSubjectLen == 0 {
-			forum.MaxSubjectLen = 60
-		}
-		if forum.MaxMessageLen == 0 {
-			forum.MaxMessageLen = 10000
-		}
-		if forum.MinMessageLen == 0 {
-			forum.MinMessageLen = 3
-		}
-
-		forums = append(forums, &forum)
-	}
-	if len(forums) == 0 {
-		return errors.New("all forums are disabled")
-	}
-	return nil
 }
 
 func getReferer(r *http.Request) string {
@@ -202,13 +92,10 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 }
 
 func main() {
-	// set number of goroutines to number of cpus, but capped at 4 since
-	// I don't expect this to be heavily trafficed website
-	ncpu := runtime.NumCPU()
-	if ncpu > 4 {
-		ncpu = 4
-	}
-	runtime.GOMAXPROCS(ncpu)
+	u.CreateDirIfNotExists("data")
+	u.CreateDirIfNotExists("data/archive")
+
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
 
 	if *inProduction != "" {
@@ -220,37 +107,26 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	if err := readForumConfigs("forums"); err != nil {
-		log.Fatalf("failed to read forum configs, err: %s", err)
+	var config ForumConfig
+	b, err := ioutil.ReadFile("data/main.json")
+	panicif(err != nil, err)
+
+	err = json.Unmarshal(b, &config)
+	panicif(err != nil, err)
+
+	if config.MaxSubjectLen == 0 {
+		config.MaxSubjectLen = 60
+	}
+	if config.MaxMessageLen == 0 {
+		config.MaxMessageLen = 10000
+	}
+	if config.MinMessageLen == 0 {
+		config.MinMessageLen = 3
 	}
 
-	for _, forumData := range forums {
-		start := time.Now()
-		f := NewForum(forumData)
-		if err := addForum(f); err != nil {
-			log.Fatalf("failed to add the forum: %s, err: %s\n", f.Title, err)
-		} else {
-			fmt.Printf("add forum %s in %.2fs\n", f.ForumUrl, time.Now().Sub(start).Seconds())
-		}
-	}
-
-	if len(appState.Forums) == 0 {
-		log.Fatalf("no forums defined in config.json")
-	}
-
-	if *inProduction != "" {
-		m := autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(*inProduction),
-		}
-		srv := initHTTPServer()
-		srv.Addr = ":443"
-		srv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
-		logger.Noticef("running HTTPS on %s, production domain: %s\n", srv.Addr, *inProduction)
-		go func() {
-			srv.ListenAndServeTLS("", "")
-		}()
-	}
+	start := time.Now()
+	forum = NewForum(&config)
+	fmt.Printf("loaded all in %.2fs\n", time.Now().Sub(start).Seconds())
 
 	srv := initHTTPServer()
 	srv.Addr = *httpAddr

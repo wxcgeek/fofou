@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -299,9 +300,38 @@ func adminOpCode(forum *Forum, msg string) bool {
 		return false
 	}
 	msg = msg[2:]
-	if strings.HasPrefix(msg, "no-more-new-users=") {
-		msg = msg[18:]
-		forum.NoMoreNewUsers = msg == "true"
+	parts := strings.Split(msg, "=")
+	if len(parts) != 2 {
+		return false
+	}
+
+	v := parts[1]
+	vint, _ := strconv.ParseInt(v, 10, 64)
+	switch parts[0] {
+	case "cookie-moat":
+		forum.NoMoreNewUsers = v == "true"
+		return true
+	case "delete":
+		topicID, postID := uint32(vint>>16), uint16(vint)
+		forum.Store.DeletePost(topicID, postID)
+		return true
+	case "stick":
+		forum.Store.OperateTopic(uint32(vint), OP_STICKY)
+		return true
+	case "lock":
+		forum.Store.OperateTopic(uint32(vint), OP_LOCK)
+		return true
+	case "purge":
+		forum.Store.OperateTopic(uint32(vint), OP_PURGE)
+		return true
+	case "free-reply":
+		forum.Store.OperateTopic(uint32(vint), OP_FREEREPLY)
+		return true
+	case "block-ip":
+		forum.Store.BlockIP(v)
+		return true
+	case "block-user":
+		forum.Store.BlockUser(v)
 		return true
 	}
 	return false

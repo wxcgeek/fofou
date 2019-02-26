@@ -1,12 +1,12 @@
 <div class="buttons">
-    <a href="/{{ .ForumUrl }}?t=new">新主题</a>
+    <a href="/?t=new">新主题</a>
 {{ if gt .PrevTo 0 }}
-    <a href="/{{ .ForumUrl }}"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAFdSURBVGhD7ZexTQNREESPhIyYBuiAHugAAtqgDdqgCHqgA3IgJiMBZiWfhKzxrO9m/f2N/pOeZJ1vxpuNPA0Gg8G/5Qw+bozPJ8U5fII/G+NzPDsJLuAznI+fjWfxXddcwhe4ffxsfBfvdMkVfIXs8L/GO/FuV1zDD8gOZsa7kemCG/gJ2aHKyET2qNzDL8gO3MfIRsdReIDfkB22xOiIrmbMA8WOcWwyeNsDVe1BB2/XQFV7kMHLBqra0sHbd6CqLRm8pQNVrTV4aweq2lWD5w5UtYsGr2qgql09eKyspTastKU2rLSlNqy0pTasVJnBMkobVqrMYBmlDStVZrCM0oaVKjNYRmnDSpUZLKO0YaXKDJZR2rBSZQbLKG1YqTKDZZQ2rFSZwTJKG1aqzGAZpQ0rVWawjNKGlSozWEZps/Q/cQbL7PIN2tzBd8h+gJnBMsw4/hYOBoNBt0zTL70tM0JZx7kxAAAAAElFTkSuQmCC" > <span>首页</span></a>
+    <a href="/"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAFdSURBVGhD7ZexTQNREESPhIyYBuiAHugAAtqgDdqgCHqgA3IgJiMBZiWfhKzxrO9m/f2N/pOeZJ1vxpuNPA0Gg8G/5Qw+bozPJ8U5fII/G+NzPDsJLuAznI+fjWfxXddcwhe4ffxsfBfvdMkVfIXs8L/GO/FuV1zDD8gOZsa7kemCG/gJ2aHKyET2qNzDL8gO3MfIRsdReIDfkB22xOiIrmbMA8WOcWwyeNsDVe1BB2/XQFV7kMHLBqra0sHbd6CqLRm8pQNVrTV4aweq2lWD5w5UtYsGr2qgql09eKyspTastKU2rLSlNqy0pTasVJnBMkobVqrMYBmlDStVZrCM0oaVKjNYRmnDSpUZLKO0YaXKDJZR2rBSZQbLKG1YqTKDZZQ2rFSZwTJKG1aqzGAZpQ0rVWawjNKGlSozWEZps/Q/cQbL7PIN2tzBd8h+gJnBMsw4/hYOBoNBt0zTL70tM0JZx7kxAAAAAElFTkSuQmCC" > <span>首页</span></a>
 {{ end }}
 {{ if ne .PrevTo -1 }}
-    <a href="/{{ .ForumUrl }}?from={{ .PrevTo }}"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABmSURBVGhD7dKxDYAwEAPAjMbmjAZJQRdRYiPdSe7zdgbwiWPmesk5U209cPfwJ+vAWtpP0n6S9pO0n6T9JO0naT9J+0naT/v9Ab//QosVGlihgRUaWKGBFRpYoYEVGlihgRWAnTFu/p8+0OxqwL4AAAAASUVORK5CYII=" > <span>上一页</span></a>
+    <a href="/?from={{ .PrevTo }}"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABmSURBVGhD7dKxDYAwEAPAjMbmjAZJQRdRYiPdSe7zdgbwiWPmesk5U209cPfwJ+vAWtpP0n6S9pO0n6T9JO0naT9J+0naT/v9Ab//QosVGlihgRUaWKGBFRpYoYEVGlihgRWAnTFu/p8+0OxqwL4AAAAASUVORK5CYII=" > <span>上一页</span></a>
 {{ end }}
 {{ if .NewFrom }}
-    <a href="/{{ .ForumUrl }}?from={{ .NewFrom }}"><span>下一页</span> <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABnSURBVGhD7dKxDYAwEAPAjMbmjAahoEMUUNiR7iT3eTsD+G2fOV6yzVS7Hvj08DvXgfWs0MAKDazQwAoNrNDACg2s0MAKDayQtvwBS38h7SdpP0n7SdpP0n6S9pO0n6T9JO0DX41xAv6fPtB/WepNAAAAAElFTkSuQmCC" ></a>
+    <a href="/?from={{ .NewFrom }}"><span>下一页</span> <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABnSURBVGhD7dKxDYAwEAPAjMbmjAahoEMUUNiR7iT3eTsD+G2fOV6yzVS7Hvj08DvXgfWs0MAKDazQwAoNrNDACg2s0MAKDayQtvwBS38h7SdpP0n7SdpP0n6S9pO0n6T9JO0DX41xAv6fPtB/WepNAAAAAElFTkSuQmCC" ></a>
 {{ end }}
 </div>

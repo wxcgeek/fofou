@@ -1,19 +1,6 @@
-{{ template "header.html" . }}
-<div class="form">
-	<form method="post">
-	<input name="Token" value="{{.Token}}" type="hidden">
-    <input name="t" value="new" type="hidden">
-
-	{{if .TopicLocked}}
-		<h2>主题已被锁定，无法回复</h2>
-	{{else}}
-		{{ if .TopicID }}
-			<input name="tid" value="{{ .TopicID }}" type="hidden">
-			<h2>回复 "{{ .PrevSubject }}"</h2>
-		{{ else }}
-			<h2>新主题</h2>
-		{{ end }}
-	{{end}}
+    {{ if .TopicID }}
+        <input name="tid" value="{{ .TopicID }}" type="hidden">
+    {{ end }}
 
 	<table class="form" cellspacing="0">
 		<tbody>
@@ -21,35 +8,22 @@
 		<tr>
 			<th><label for="Subject">标题:</label></th>
 			<td colspan="2">
-				<input maxlength="64" name="Subject" id="Subject" value="{{ .PrevSubject }}" type="edit">
+				<input maxlength="64" name="Subject" id="Subject" type="edit">
 			</td>
 		</tr>
 		{{ end }}
 
-		{{if .SubjectError}}
-		<tr><th>&nbsp;</th><td colspan="2" style="color:red">无效标题 (6 至 96 字节)</td></tr>
-		{{end}}
-
 		<tr>
 			<th><label for="Message">正文:</label></th>
 			<td colspan="2">
-				<textarea name="Message" id="Message" rows="16" wrap="virtual">{{ .PrevMessage }}</textarea>
+				<textarea name="Message" id="Message" rows="16" wrap="virtual"></textarea>
 			</td>
 		</tr>
-
-		{{if .MessageError}}
-		<tr><th>&nbsp;</th><td colspan="2" style="color:red">无效正文 (6 至 16384 字节)</td></tr>
-		{{end}}
-
-		{{if .TokenError}}
-		<tr><th>&nbsp;</th><td colspan="2" style="color:red">无效请求</td></tr>
-		{{end}}
 
 		<tr>
 			<td>&nbsp;</td>
 			<td class="buttons">
 				<input name="Ok" value="发布" type="submit">
-				<input name="Cancel" value="返回" type="submit">
 			</td>
 			
 			<td class="buttons" style="text-align: right">
@@ -60,20 +34,19 @@
 		</tr>
 		</tbody>
 	</table>
-    <div class="g-recaptcha" data-sitekey="6LeNoZMUAAAAAOX2EGs8eewS_W73IqxWMtXFaZAq"></div>
-	</form>
     <script src="https://www.recaptcha.net/recaptcha/api.js" async defer></script>
+    <div class="g-recaptcha" data-sitekey="6LeNoZMUAAAAAOX2EGs8eewS_W73IqxWMtXFaZAq"></div>
 
 	<input type="file" multiple="multiple" id="select-images" style="display: none" onchange="updateState()"/>
 	<script>
 		function updateState() {
-			var files = document.getElementById('select-images').files;
+			var files = $('#select-images').get(0).files;
 			if (files.length > 0) {
-				document.getElementById('select').innerHTML='选择图片 (' + files.length + ')';
-				document.getElementById('upload').style.display = "";
+				$('#select').html('选择图片 (' + files.length + ')');
+				$('#upload').show();
 			} else {
-				document.getElementById('select').innerHTML='选择图片';
-				document.getElementById('upload').style.display = "none";
+				$('#select').html('选择图片');
+                $('#upload').hide();
 			}
 		}
 		function uplaodToSMMS() {
@@ -118,7 +91,4 @@
 			upload(0);
 		}
 	</script>
-</div>
-
-{{ template "footer.html" }}
 

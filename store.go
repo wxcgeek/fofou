@@ -61,6 +61,8 @@ func (p *Post) MessageHTML() string { return msgToHtml(p.Message()) }
 
 func (p *Post) IPAddress() string { return IPAddress(p.IP) }
 
+func (p *Post) LongID() uint64 { return uint64(p.Topic.ID)<<16 + uint64(p.ID) }
+
 // Topic describes topic
 type Topic struct {
 	ID         uint32
@@ -86,9 +88,7 @@ type Store struct {
 
 	MaxLiveTopics int
 
-	dataDir      string
 	dataFilePath string
-	forumName    string
 	rootTopic    *Topic
 	endTopic     *Topic
 	topicsCount  uint32
@@ -303,11 +303,9 @@ func (store *Store) verifyTopics() {
 }
 
 // NewStore creates a new store
-func NewStore(dataDir, forumName string) *Store {
+func NewStore(path string) *Store {
 	store := &Store{
-		dataDir:       dataDir,
-		dataFilePath:  filepath.Join(dataDir, "forum", forumName+".txt"),
-		forumName:     forumName,
+		dataFilePath:  path,
 		rootTopic:     &Topic{},
 		endTopic:      &Topic{},
 		blocked:       make(map[string]bool),
@@ -390,25 +388,29 @@ func (store *Store) OperateTopic(topicID uint32, action byte) {
 	}
 
 	var p buffer
+	var err error
 	switch action {
 	case OP_STICKY:
-		if err := store.append(p.WriteByte(OP_STICKY).WriteUInt32(topicID).Bytes()); err == nil {
+		if err = store.append(p.WriteByte(OP_STICKY).WriteUInt32(topicID).Bytes()); err == nil {
 			t.Sticky = !t.Sticky
 			store.moveTopicToFront(t)
 		}
 	case OP_LOCK:
-		if err := store.append(p.WriteByte(OP_LOCK).WriteUInt32(topicID).Bytes()); err == nil {
+		if err = store.append(p.WriteByte(OP_LOCK).WriteUInt32(topicID).Bytes()); err == nil {
 			t.Locked = !t.Locked
 		}
 	case OP_FREEREPLY:
-		if err := store.append(p.WriteByte(OP_FREEREPLY).WriteUInt32(topicID).Bytes()); err == nil {
+		if err = store.append(p.WriteByte(OP_FREEREPLY).WriteUInt32(topicID).Bytes()); err == nil {
 			t.FreeReply = !t.FreeReply
 		}
 	case OP_PURGE:
-		if err := store.append(p.WriteByte(OP_PURGE).WriteUInt32(topicID).Bytes()); err == nil {
+		if err = store.append(p.WriteByte(OP_PURGE).WriteUInt32(topicID).Bytes()); err == nil {
 			t.Prev.Next = t.Next
 			t.Next.Prev = t.Prev
 		}
+	}
+	if err != nil {
+		logger.Errorf("OperateTopic(): %v", err)
 	}
 }
 
@@ -448,6 +450,9 @@ func (store *Store) GetTopics(nMax, from int, withDeleted bool) ([]*Topic, int) 
 }
 
 func (store *Store) topicByIDUnlocked(id uint32) *Topic {
+	if id == 0 {
+		return nil
+	}
 	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
 		if id == topic.ID {
 			return topic
@@ -463,18 +468,6 @@ func (store *Store) TopicByID(id uint32) *Topic {
 	return store.topicByIDUnlocked(id)
 }
 
-func (store *Store) findPost(topicID uint32, postID uint16) (*Post, error) {
-	topic := store.topicByIDUnlocked(topicID)
-	if nil == topic {
-		return nil, errors.New("can't find a topic with this ID")
-	}
-	if int(postID) > len(topic.Posts) {
-		return nil, errors.New("can't find post with this ID")
-	}
-
-	return &topic.Posts[postID-1], nil
-}
-
 func (store *Store) append(buf []byte) error {
 	_, err := store.dataFile.Write(buf)
 	if err != nil {
@@ -484,19 +477,30 @@ func (store *Store) append(buf []byte) error {
 }
 
 // DeletePost deletes/restores a post
-func (store *Store) DeletePost(topicID uint32, postID uint16) error {
+func (store *Store) DeletePost(topicID uint32, postID uint16) {
 	store.Lock()
 	defer store.Unlock()
-	post, err := store.findPost(topicID, postID)
-	if err != nil {
-		return err
+
+	topic := store.topicByIDUnlocked(topicID)
+	if nil == topic {
+		logger.Errorf("can't find topic ID: %d", topicID)
+		return
 	}
+	if int(postID) > len(topic.Posts) {
+		logger.Errorf("can't find post ID: %d", postID)
+		return
+	}
+
+	post := &topic.Posts[postID-1]
+
 	var p buffer
-	if err = store.append(p.WriteByte(OP_DELETE).WriteUInt32(topicID).WriteUInt16(postID).Bytes()); err != nil {
-		return err
+	if err := store.append(p.WriteByte(OP_DELETE).WriteUInt32(topicID).WriteUInt16(postID).Bytes()); err != nil {
+		logger.Errorf("DeletePost: %v", err)
+		return
 	}
+
 	post.IsDeleted = !post.IsDeleted
-	return nil
+	return
 }
 
 func (store *Store) moveTopicToFront(topic *Topic) {
@@ -577,7 +581,7 @@ func (store *Store) addNewPost(msg, user string, ipAddr [8]byte, topic *Topic, n
 
 func (store *Store) BuildArchivePath(topicID uint32) string {
 	id1, id2 := int(topicID)/100000, int(topicID)/1000
-	return filepath.Join(store.dataDir, "archive", store.forumName, strconv.Itoa(id1), strconv.Itoa(id2), strconv.Itoa(int(topicID)))
+	return filepath.Join("data", "archive", strconv.Itoa(id1), strconv.Itoa(id2), strconv.Itoa(int(topicID)))
 }
 
 func archive(topic *Topic, saveToPath string) error {

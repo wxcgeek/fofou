@@ -2,26 +2,25 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
 	atom "github.com/kjk/atomgenerator"
 )
 
-func buildForumURL(r *http.Request, forum *Forum) string {
-	return fmt.Sprintf("http://%s/%s", r.Host, forum.ForumUrl)
-}
-
-func buildTopicURL(r *http.Request, forum *Forum, p *Post) string {
-	return fmt.Sprintf("http://%s/%s/topic?id=%d&post=%d", r.Host, forum.ForumUrl, p.Topic.ID, p.ID)
-}
-
-func buildTopicID(r *http.Request, forum *Forum, p *Post) string {
-	pubDateStr := time.Unix(int64(p.CreatedAt), 0).Format("2006-01-02")
-	url := fmt.Sprintf("/%s/topic?id=%d&post=%d", forum.ForumUrl, p.Topic.ID, p.ID)
-	return fmt.Sprintf("tag:%s,%s:%s", r.Host, pubDateStr, url)
-}
+//func buildForumURL(r *http.Request, forum *Forum) string {
+//	return fmt.Sprintf("http://%s/", r.Host)
+//}
+//
+//func buildTopicURL(r *http.Request, forum *Forum, p *Post) string {
+//	return fmt.Sprintf("http://%s/topic?id=%d&post=%d", r.Host, p.Topic.ID, p.ID)
+//}
+//
+//func buildTopicID(r *http.Request, forum *Forum, p *Post) string {
+//	pubDateStr := time.Unix(int64(p.CreatedAt), 0).Format("2006-01-02")
+//	url := fmt.Sprintf("/%s/topic?id=%d&post=%d", forum.ForumUrl, p.Topic.ID, p.ID)
+//	return fmt.Sprintf("tag:%s,%s:%s", r.Host, pubDateStr, url)
+//}
 
 func handleRSS(forum *Forum, w http.ResponseWriter, r *http.Request) {
 	topics, _ := forum.Store.GetTopics(25, 0, false)
@@ -36,8 +35,8 @@ func handleRSS(forum *Forum, w http.ResponseWriter, r *http.Request) {
 	}
 
 	feed := &atom.Feed{
-		Title:   forum.Title,
-		Link:    buildForumURL(r, forum),
+		Title: forum.Title,
+		//Link:    buildForumURL(r, forum),
 		PubDate: pubTime,
 	}
 
@@ -45,10 +44,10 @@ func handleRSS(forum *Forum, w http.ResponseWriter, r *http.Request) {
 		msgStr := msgToHtml(p.Message())
 		//id := fmt.Sprintf("tag:forums.fofou.org,1999:%s-topic-%d-post-%d", forum.ForumUrl, p.Topic.Id, p.Id)
 		e := &atom.Entry{
-			Id:      buildTopicID(r, forum, p),
+			//Id:      buildTopicID(r, forum, p),
 			Title:   p.Topic.Subject,
 			PubDate: time.Unix(int64(p.CreatedAt), 0),
-			Link:    buildTopicURL(r, forum, p),
+			//Link:    buildTopicURL(r, forum, p),
 			Content: msgStr,
 		}
 		feed.AddEntry(e)
