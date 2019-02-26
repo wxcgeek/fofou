@@ -322,6 +322,9 @@ func adminOpCode(forum *Forum, msg string) bool {
 		case "free-reply":
 			forum.Store.OperateTopic(uint32(vint), OP_FREEREPLY)
 			opcode = true
+		case "sage":
+			forum.Store.OperateTopic(uint32(vint), OP_SAGE)
+			opcode = true
 		case "block-ip":
 			forum.Store.BlockIP(v)
 			opcode = true

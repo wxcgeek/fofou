@@ -7,6 +7,31 @@
     <script src="/s/jquery-1.12.4.min.js"></script>
 </head>
 
+    <script>
+        function _submit(btn, msg) {
+            btn ? $(btn).prop('disabled', 'true') : 0;
+            var form = msg ? { 'message' : msg } : {
+                'subject': $('#subject').val(),
+                'message': $('#message').val(),
+                'token': grecaptcha.getResponse(),
+            };
+            $.post('/api', form, function(resp) {
+                try {
+                    resp = JSON.parse(resp);
+                    if (resp.success) {
+                        location.reload();
+                        return;
+                    }
+                    alert("发生错误：\ncode: " + resp.error);
+                } catch (e) {
+                    alert("发生错误：\n" + e);
+                }
+            }).always(function() {
+                btn ? $(btn).prop('disabled', '') : 0;
+            });
+        }
+    </script>
+
 <body>
 <div id="container"> 
     <div class="header">

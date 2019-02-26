@@ -523,12 +523,11 @@ func (store *Store) DeletePost(topicID uint32, postID uint16) error {
 
 	var p buffer
 	if err := store.append(p.WriteByte(OP_DELETE).WriteUInt32(topicID).WriteUInt16(postID).Bytes()); err != nil {
-		logger.Errorf("DeletePost: %v", err)
-		return
+		return err
 	}
 
 	post.IsDeleted = !post.IsDeleted
-	return
+	return nil
 }
 
 func (store *Store) moveTopicToFront(topic *Topic) {

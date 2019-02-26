@@ -23,7 +23,7 @@
 		<tr>
 			<td>&nbsp;</td>
 			<td class="buttons">
-                <button onclick='submit(this)'>提交</button>
+                <button onclick='_submit(this)'>提交</button>
 			</td>
 			
 			<td class="buttons" style="text-align: right">
@@ -39,27 +39,6 @@
 
 	<input type="file" multiple="multiple" id="select-images" style="display: none" onchange="updateState()"/>
 	<script>
-        function submit(btn) {
-            $(btn).prop('disabled', 'true');
-            var form = {
-                'subject': $('#subject').val(),
-                'message': $('#message').val(),
-                'token': grecaptcha.getResponse(),
-            };
-            $.post('/api', form, function(resp) {
-                try {
-                    resp = JSON.parse(resp);
-                    if (resp.success) {
-                        location.reload();
-                        return;
-                    }
-                    alert(resp.error);
-                } catch (e) {
-                }
-            }).always(function() {
-                $(btn).prop('disabled', '');
-            });
-        }
 		function updateState() {
 			var files = $('#select-images').get(0).files;
 			if (files.length > 0) {
