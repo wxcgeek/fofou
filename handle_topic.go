@@ -3,36 +3,9 @@ package main
 
 import (
 	"net/http"
-	"regexp"
-	"strings"
 
 	"github.com/kjk/u"
 )
-
-// TODO: this is simplistic but work for me, http://net.tutsplus.com/tutorials/other/8-regular-expressions-you-should-know/
-// has more elaborate regex for extracting urls
-var urlRx = regexp.MustCompile(`(https?://[[:^space:]]+|<|\n| |` + "```[\\s\\S]+```" + `)`)
-
-func msgToHtml(s string) string {
-	return urlRx.ReplaceAllStringFunc(s, func(in string) string {
-		switch in {
-		case " ":
-			return "&nbsp;"
-		case "\n":
-			return "<br>"
-		case "<":
-			return "&lt;"
-		default:
-			if strings.HasPrefix(in, "```") {
-				return "<code>" + strings.Replace(in[3:len(in)-3], "<", "&lt;", -1) + "</code>"
-			} else if strings.HasSuffix(in, ".png") || strings.HasSuffix(in, ".jpg") || strings.HasSuffix(in, ".gif") {
-				return "<img class=image alt='" + in + "' src='" + in + "'/>"
-			} else {
-				return "<a href='" + in + "' target=_blank>" + in + "</a>"
-			}
-		}
-	})
-}
 
 // url: /{forum}/topic?id=${id}
 func handleTopic(forum *Forum, topicID int, w http.ResponseWriter, r *http.Request) {
@@ -48,7 +21,7 @@ func handleTopic(forum *Forum, topicID int, w http.ResponseWriter, r *http.Reque
 			}
 		}
 
-		logger.Noticef("handleTopic(): didn't find topic with id %d, referer: %q", topicID, getReferer(r))
+		logger.Noticef("handleTopic(): didn't find topic with id %d, referer: %q", topicID, r.Referer())
 		http.Redirect(w, r, "/", 302)
 		return
 	}

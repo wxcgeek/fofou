@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,6 +28,7 @@ const (
 	OP_BLOCKIP   = 'B'
 	OP_BLOCKUSER = 'U'
 	OP_STICKY    = 'S'
+	OP_SAGE      = 's'
 	OP_LOCK      = 'L'
 	OP_ARCHIVE   = 'A'
 	OP_PURGE     = 'X'
@@ -57,7 +59,28 @@ func (p *Post) Message() string {
 	return p.message
 }
 
-func (p *Post) MessageHTML() string { return msgToHtml(p.Message()) }
+var urlRx = regexp.MustCompile(`(https?://[[:^space:]]+|<|\n| |` + "```[\\s\\S]+```" + `)`)
+
+func (p *Post) MessageHTML() string {
+	return urlRx.ReplaceAllStringFunc(p.Message(), func(in string) string {
+		switch in {
+		case " ":
+			return "&nbsp;"
+		case "\n":
+			return "<br>"
+		case "<":
+			return "&lt;"
+		default:
+			if strings.HasPrefix(in, "```") {
+				return "<code>" + strings.Replace(in[3:len(in)-3], "<", "&lt;", -1) + "</code>"
+			} else if strings.HasSuffix(in, ".png") || strings.HasSuffix(in, ".jpg") || strings.HasSuffix(in, ".gif") {
+				return "<img class=image alt='" + in + "' src='" + in + "'/>"
+			} else {
+				return "<a href='" + in + "' target=_blank>" + in + "</a>"
+			}
+		}
+	})
+}
 
 func (p *Post) IPAddress() string { return IPAddress(p.IP) }
 
@@ -70,6 +93,7 @@ type Topic struct {
 	Locked     bool
 	Archived   bool
 	FreeReply  bool
+	Saged      bool
 	CreatedAt  uint32
 	ModifiedAt uint32
 	Subject    string
@@ -263,7 +287,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 			} else {
 				store.markBlockedOrUnblocked("u" + str)
 			}
-		case OP_STICKY, OP_ARCHIVE, OP_LOCK, OP_PURGE, OP_FREEREPLY:
+		case OP_STICKY, OP_ARCHIVE, OP_LOCK, OP_PURGE, OP_FREEREPLY, OP_SAGE:
 			topicID, err := r.ReadUInt32()
 			panicif(err != nil, err)
 
@@ -279,6 +303,8 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 				t.Locked = !t.Locked
 			case OP_FREEREPLY:
 				t.FreeReply = !t.FreeReply
+			case OP_SAGE:
+				t.Saged = !t.Saged
 			case OP_ARCHIVE, OP_PURGE:
 				t.Prev.Next = t.Next
 				t.Next.Prev = t.Prev
@@ -403,6 +429,10 @@ func (store *Store) OperateTopic(topicID uint32, action byte) {
 		if err = store.append(p.WriteByte(OP_FREEREPLY).WriteUInt32(topicID).Bytes()); err == nil {
 			t.FreeReply = !t.FreeReply
 		}
+	case OP_SAGE:
+		if err = store.append(p.WriteByte(OP_SAGE).WriteUInt32(topicID).Bytes()); err == nil {
+			t.Saged = !t.Saged
+		}
 	case OP_PURGE:
 		if err = store.append(p.WriteByte(OP_PURGE).WriteUInt32(topicID).Bytes()); err == nil {
 			t.Prev.Next = t.Next
@@ -477,18 +507,16 @@ func (store *Store) append(buf []byte) error {
 }
 
 // DeletePost deletes/restores a post
-func (store *Store) DeletePost(topicID uint32, postID uint16) {
+func (store *Store) DeletePost(topicID uint32, postID uint16) error {
 	store.Lock()
 	defer store.Unlock()
 
 	topic := store.topicByIDUnlocked(topicID)
 	if nil == topic {
-		logger.Errorf("can't find topic ID: %d", topicID)
-		return
+		return fmt.Errorf("can't find topic ID: %d", topicID)
 	}
 	if int(postID) > len(topic.Posts) {
-		logger.Errorf("can't find post ID: %d", postID)
-		return
+		return fmt.Errorf("can't find post ID: %d", postID)
 	}
 
 	post := &topic.Posts[postID-1]
@@ -504,6 +532,10 @@ func (store *Store) DeletePost(topicID uint32, postID uint16) {
 }
 
 func (store *Store) moveTopicToFront(topic *Topic) {
+	if topic.Saged {
+		return
+	}
+
 	root := store.rootTopic.Next
 	if !topic.Sticky {
 		for ; root != store.endTopic; root = root.Next {

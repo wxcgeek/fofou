@@ -2,11 +2,11 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -38,20 +38,6 @@ func httpErrorf(w http.ResponseWriter, format string, args ...interface{}) {
 		msg = fmt.Sprintf(format, args...)
 	}
 	http.Error(w, msg, http.StatusBadRequest)
-}
-
-func ipAddrToInternal(ipAddr string) (v [8]byte) {
-	ip := net.ParseIP(ipAddr)
-	if len(ip) == 0 {
-		return
-	}
-	ipv4 := ip.To4()
-	if len(ipv4) == 0 {
-		copy(v[:], ip)
-		return
-	}
-	copy(v[4:], ipv4[:3])
-	return
 }
 
 type buffer struct {
@@ -296,43 +282,54 @@ func setSecureCookie(w http.ResponseWriter, username string) {
 }
 
 func adminOpCode(forum *Forum, msg string) bool {
-	if !strings.HasPrefix(msg, "!!") {
-		return false
-	}
-	msg = msg[2:]
-	parts := strings.Split(msg, "=")
-	if len(parts) != 2 {
-		return false
+	r := bufio.NewReader(strings.NewReader(msg))
+	opcode := false
+	for {
+		line, _, err := r.ReadLine()
+		if err != nil {
+			break
+		}
+
+		msg := string(line)
+		if !strings.HasPrefix(msg, "!!") {
+			break
+		}
+
+		parts := strings.Split(msg[2:], "=")
+		if len(parts) != 2 {
+			break
+		}
+
+		v := parts[1]
+		vint, _ := strconv.ParseInt(v, 10, 64)
+		switch parts[0] {
+		case "cookie-moat":
+			forum.NoMoreNewUsers = v == "true"
+			opcode = true
+		case "delete":
+			topicID, postID := uint32(vint>>16), uint16(vint)
+			forum.Store.DeletePost(topicID, postID)
+			opcode = true
+		case "stick":
+			forum.Store.OperateTopic(uint32(vint), OP_STICKY)
+			opcode = true
+		case "lock":
+			forum.Store.OperateTopic(uint32(vint), OP_LOCK)
+			opcode = true
+		case "purge":
+			forum.Store.OperateTopic(uint32(vint), OP_PURGE)
+			opcode = true
+		case "free-reply":
+			forum.Store.OperateTopic(uint32(vint), OP_FREEREPLY)
+			opcode = true
+		case "block-ip":
+			forum.Store.BlockIP(v)
+			opcode = true
+		case "block-user":
+			forum.Store.BlockUser(v)
+			opcode = true
+		}
 	}
 
-	v := parts[1]
-	vint, _ := strconv.ParseInt(v, 10, 64)
-	switch parts[0] {
-	case "cookie-moat":
-		forum.NoMoreNewUsers = v == "true"
-		return true
-	case "delete":
-		topicID, postID := uint32(vint>>16), uint16(vint)
-		forum.Store.DeletePost(topicID, postID)
-		return true
-	case "stick":
-		forum.Store.OperateTopic(uint32(vint), OP_STICKY)
-		return true
-	case "lock":
-		forum.Store.OperateTopic(uint32(vint), OP_LOCK)
-		return true
-	case "purge":
-		forum.Store.OperateTopic(uint32(vint), OP_PURGE)
-		return true
-	case "free-reply":
-		forum.Store.OperateTopic(uint32(vint), OP_FREEREPLY)
-		return true
-	case "block-ip":
-		forum.Store.BlockIP(v)
-		return true
-	case "block-user":
-		forum.Store.BlockUser(v)
-		return true
-	}
-	return false
+	return opcode
 }

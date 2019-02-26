@@ -90,8 +90,7 @@ func createNewPost(forum *Forum, topic *Topic, w http.ResponseWriter, r *http.Re
 
 }
 
-// url: /{forum}/newpost[?topicId={topicId}]
-func handleNewPost(forum *Forum, w http.ResponseWriter, r *http.Request) {
+func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	badRequest := func() { writeSimpleJSON(w, "success", false, "error", "bad-request") }
 	internalError := func() { writeSimpleJSON(w, "success", false, "error", "internal-error") }
 
@@ -115,7 +114,7 @@ func handleNewPost(forum *Forum, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !forum.IsAdmin(userName) {
-		recaptcha := strings.TrimSpace(r.FormValue("g-recaptcha-response"))
+		recaptcha := strings.TrimSpace(r.FormValue("token"))
 		if recaptcha == "" {
 			badRequest()
 			return

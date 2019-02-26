@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"path/filepath"
 	"runtime"
 	"time"
 
@@ -50,11 +49,9 @@ func (f *Forum) IsAdmin(id string) bool { return f.AdminLoginName == id }
 
 // NewForum creates new forum
 func NewForum(config *ForumConfig) *Forum {
-	sidebarTmplPath := filepath.Join("data/topbar.html")
-	panicif(!u.PathExists(sidebarTmplPath), "topbar template %s doesn't exist", sidebarTmplPath)
-	topbarBuf, _ := ioutil.ReadFile(sidebarTmplPath)
-
 	forum := &Forum{ForumConfig: config}
+
+	topbarBuf, _ := ioutil.ReadFile("data/topbar.html")
 	forum.TopbarHTML = string(topbarBuf)
 
 	store := NewStore("data/main.txt")
@@ -63,10 +60,6 @@ func NewForum(config *ForumConfig) *Forum {
 	forum.Store = store
 	store.MaxLiveTopics = forum.MaxLiveTopics
 	return forum
-}
-
-func getReferer(r *http.Request) string {
-	return r.Header.Get("Referer")
 }
 
 func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {

@@ -20,9 +20,6 @@ type TopicDisplay struct {
 func handleForum(w http.ResponseWriter, r *http.Request) {
 
 	switch r.FormValue("t") {
-	case "new":
-		handleNewPost(forum, w, r)
-		return
 	case "list":
 		handleList(forum, w, r)
 		return

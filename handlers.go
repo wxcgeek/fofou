@@ -34,7 +34,7 @@ func handleViewRaw(forum *Forum, w http.ResponseWriter, r *http.Request) {
 func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName string) {
 	filePath := filepath.Join(dir, fileName)
 	if !u.PathExists(filePath) {
-		logger.Noticef("serveFileFromDir() file %q doesn't exist, referer: %q", fileName, getReferer(r))
+		logger.Noticef("serveFileFromDir() file %q doesn't exist, referer: %q", fileName, r.Referer())
 	}
 	http.ServeFile(w, r, filePath)
 }
@@ -57,7 +57,7 @@ func initHTTPServer() *http.Server {
 	smux.HandleFunc("/robots.txt", handleRobotsTxt)
 	smux.HandleFunc("/logs", handleLogs)
 	smux.HandleFunc("/s/", makeTimingHandler(handleStatic))
-	//smux.HandleFunc("/api", makeTimingHandler(handleNewPost))
+	smux.HandleFunc("/api", makeTimingHandler(handleNewPost))
 	smux.HandleFunc("/", makeTimingHandler(handleForum))
 	return &http.Server{Handler: smux}
 }
