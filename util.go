@@ -5,13 +5,26 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/sha256"
+	"encoding/base32"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
+	"math"
+	"math/rand"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
+)
+
+var (
+	stdTimeFormat  = "2006-01-02 15:04:05"
+	urlRx          = regexp.MustCompile(`(https?://[[:^space:]]+|<|\n| |` + "```[\\s\\S]+```" + `)`)
+	base32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567").WithPadding('1')
+	default8Bytes  = [8]byte{}
 )
 
 func panicif(cond bool, args ...interface{}) {
@@ -197,88 +210,131 @@ func (b *buffer) ReadString() (string, error) {
 	return string(str), nil
 
 }
-func (b *buffer) ReadStringBytes() ([]byte, error) {
-	b.postmp = b.pos
-	p := bytes.Buffer{}
-
-	for {
-		v, err := b.ReadByte()
-		if err != nil {
-			return nil, err
-		}
-		p.WriteByte(v)
-		if v == 0 {
-			break
-		}
-	}
-
-	return p.Bytes(), nil
-
-}
 
 func (b *buffer) LastStringCheckpoint() int { return b.postmp }
 
 func (b *buffer) LastByteCheckpoint() int { return b.pos }
 
-func IPAddress(ip [8]byte) string {
-	buf := bytes.Buffer{}
-	for i := 0; i < len(ip); i += 2 {
-		buf.WriteString(fmt.Sprintf("%x:", int(ip[i])*256+int(ip[i+1])))
+func format8Bytes(b [8]byte) (string, string) {
+	buf, bufid := bytes.Buffer{}, bytes.Buffer{}
+
+	if b[0] == 0 && b[1] == 0 && b[2] == 0 && b[3] == 0 && b[7] == 0 {
+		buf.WriteString(fmt.Sprintf("%d.%d.%d.", b[4], b[5], b[6]))
+	} else {
+		for i := 0; i < len(b); i += 2 {
+			buf.WriteString(fmt.Sprintf("%x:", int(b[i])*256+int(b[i+1])))
+		}
 	}
-	buf.Truncate(buf.Len() - 1)
-	return buf.String()
+	buf.WriteString("x")
+
+	if b[0] == 'a' && b[1] == ':' {
+		bufid.WriteString(string(b[:]))
+	} else {
+		base64.NewEncoder(base64.URLEncoding, &bufid).Write(b[:])
+	}
+	return buf.String(), bufid.String()
+}
+
+func parse8Bytes(str string) (b [8]byte) {
+	if strings.HasSuffix(str, ".x") {
+		parts := strings.Split(str, ".")
+		if len(parts) == 4 {
+			first := func(a int64, e error) byte { return byte(a) }
+			b[4] = first(strconv.ParseInt(parts[0], 10, 8))
+			b[5] = first(strconv.ParseInt(parts[1], 10, 8))
+			b[6] = first(strconv.ParseInt(parts[2], 10, 8))
+		}
+		return
+	}
+	if strings.HasSuffix(str, ":x") {
+		parts := strings.Split(str, ":")
+		if len(parts) == 4 {
+			first := func(a uint64, e error) (byte, byte) { return byte(a >> 8), byte(a) }
+			b[0], b[1] = first(strconv.ParseUint(parts[0], 10, 64))
+			b[2], b[3] = first(strconv.ParseUint(parts[1], 10, 64))
+			b[4], b[5] = first(strconv.ParseUint(parts[2], 10, 64))
+			b[6], b[7] = first(strconv.ParseUint(parts[3], 10, 64))
+		}
+		return
+	}
+	if strings.HasPrefix(str, "a:") {
+		copy(b[:], str)
+		return
+	}
+	base64.URLEncoding.Decode(b[:], []byte(str))
+	return
 }
 
 const _salt = "testsalt123456"
-const _password = "testpassword"
 
-func getSecureCookie(r *http.Request) string {
-	uid, err := r.Cookie("uid")
-	if err != nil {
-		return ""
-	}
-
-	parts := strings.Split(uid.Value, "|")
-	if len(parts) != 2 {
-		return ""
-	}
-
-	if strings.HasPrefix(parts[0], "a:") {
-		if parts[1] == _password {
-			return parts[0]
-		}
-	}
-
-	x := sha256.Sum256([]byte(parts[0] + _salt))
-	for i := 0; i < 16; i++ {
-		x = sha256.Sum256(x[:])
-	}
-
-	if fmt.Sprintf("%x", x) == parts[1] {
-		return parts[0]
-	}
-
-	return ""
+type User struct {
+	ID     [8]byte
+	N      int
+	Posts  int
+	noTest bool
 }
 
-func setSecureCookie(w http.ResponseWriter, username string) {
-	x := sha256.Sum256([]byte(username + _salt))
+func (u *User) IsValid() bool { return u.ID != default8Bytes }
+
+func getUser(r *http.Request) User {
+	uid, err := r.Cookie("uid")
+	if err != nil {
+		return User{}
+	}
+
+	if len(uid.Value) < 48 {
+		return User{}
+	}
+
+	user := uid.Value[:len(uid.Value)-48]
+	hash := uid.Value[len(uid.Value)-48:]
+
+	x := sha256.Sum256([]byte(user + _salt))
 	for i := 0; i < 16; i++ {
 		x = sha256.Sum256(x[:])
 	}
 
-	v := username + "|" + fmt.Sprintf("%x", x)
-	if strings.HasPrefix(username, "a:") {
-		v = username + "|" + _password
+	if base32Encoding.EncodeToString(x[:30]) != hash {
+		return User{}
+	}
+
+	u := User{}
+	json.Unmarshal([]byte(user), &u)
+
+	{
+		x, n := u.Posts, u.N
+		if n >= 5 && n <= 20 {
+			// tan((y - 0.5 - 0.01) * pi) = n - x
+			// if x < n, then there is a high chance that this user needs a test (recaptcha)
+			p := math.Atan(float64(n-x))/math.Pi + 0.5 + 0.01
+			u.noTest = rand.New(rand.NewSource(time.Now().UnixNano())).Float64() >= p
+		}
+	}
+	return u
+}
+
+func setUser(w http.ResponseWriter, u User) {
+	u.Posts++
+	buf, _ := json.Marshal(&u)
+	user := string(buf)
+
+	x := sha256.Sum256([]byte(user + _salt))
+	for i := 0; i < 16; i++ {
+		x = sha256.Sum256(x[:])
 	}
 
 	cookie := &http.Cookie{
 		Name:    "uid",
-		Value:   v,
+		Value:   user + base32Encoding.EncodeToString(x[:30]),
 		Path:    "/",
 		Expires: time.Now().AddDate(1, 0, 0),
 	}
-	http.SetCookie(w, cookie)
+
+	if w != nil {
+		http.SetCookie(w, cookie)
+	} else {
+		fmt.Println(cookie.Value)
+	}
 }
 
 func adminOpCode(forum *Forum, msg string) bool {
@@ -325,14 +381,33 @@ func adminOpCode(forum *Forum, msg string) bool {
 		case "sage":
 			forum.Store.OperateTopic(uint32(vint), OP_SAGE)
 			opcode = true
-		case "block-ip":
-			forum.Store.BlockIP(v)
-			opcode = true
-		case "block-user":
-			forum.Store.BlockUser(v)
+		case "block":
+			forum.Store.Block(parse8Bytes(v))
 			opcode = true
 		}
 	}
 
 	return opcode
 }
+
+// returns 5 ~ 20
+//func weightMessage(store *Store, msg string) int {
+//	ln := 0
+//	s := 0
+//	for _, r := range msg {
+//		if r < 128 {
+//			ln++
+//			s++
+//		} else {
+//			ln += 2
+//			if r < 0x2e00 {
+//				s += 2
+//			}
+//		}
+//	}
+//
+//	factor := 1.0
+//	if s >= ln*3/4 {
+//		factor = 2.0
+//	}
+//}

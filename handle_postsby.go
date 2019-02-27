@@ -18,7 +18,7 @@ func handleList(forum *Forum, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isAdmin := forum.IsAdmin(getSecureCookie(r))
+	isAdmin := forum.IsAdmin(getUser(r).ID)
 	maxTopics := 50
 	if count := r.FormValue("count"); isAdmin && count != "" {
 		maxTopics, _ = strconv.Atoi(count)

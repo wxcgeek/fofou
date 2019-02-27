@@ -15,12 +15,9 @@ import (
 )
 
 var (
-	httpAddr     = flag.String("addr", ":5010", "HTTP server address")
-	inProduction = flag.String("production", "", "production domain")
-	cookieName   = "ckie"
-)
-
-var (
+	httpAddr      = flag.String("addr", ":5010", "HTTP server address")
+	makeID        = flag.String("make", "", "Make an ID")
+	inProduction  = flag.String("production", "", "production domain")
 	logger        *ServerLogger
 	forum         *Forum
 	alwaysLogTime = true
@@ -45,7 +42,7 @@ type Forum struct {
 	Store *Store
 }
 
-func (f *Forum) IsAdmin(id string) bool { return f.AdminLoginName == id }
+func (f *Forum) IsAdmin(id [8]byte) bool { return f.AdminLoginName == string(id[:]) }
 
 // NewForum creates new forum
 func NewForum(config *ForumConfig) *Forum {
@@ -115,6 +112,13 @@ func main() {
 	}
 	if config.MinMessageLen == 0 {
 		config.MinMessageLen = 3
+	}
+
+	if *makeID != "" {
+		u := User{}
+		copy(u.ID[:], *makeID)
+		setUser(nil, u)
+		return
 	}
 
 	start := time.Now()

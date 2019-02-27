@@ -11,7 +11,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,10 +24,9 @@ const (
 	OP_TOPIC     = 'T'
 	OP_POST      = 'P'
 	OP_DELETE    = 'D'
-	OP_BLOCKIP   = 'B'
-	OP_BLOCKUSER = 'U'
+	OP_BLOCK     = 'B'
 	OP_STICKY    = 'S'
-	OP_SAGE      = 's'
+	OP_SAGE      = 'G'
 	OP_LOCK      = 'L'
 	OP_ARCHIVE   = 'A'
 	OP_PURGE     = 'X'
@@ -36,33 +34,19 @@ const (
 )
 
 type Post struct {
-	message    string
-	rawMessage []byte
-	User       string
-	IP         [8]byte
-	CreatedAt  uint32
-	ID         uint16
-	IsDeleted  bool
-	Topic      *Topic // for convenience, we link to the topic this post belongs to
+	Message   string
+	user      [8]byte
+	ip        [8]byte
+	CreatedAt uint32
+	ID        uint16
+	IsDeleted bool
+	Topic     *Topic
 }
-
-const stdTimeFormat = "2006-01-02 15:04:05"
 
 func (p *Post) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
 
-func (p *Post) Message() string {
-	if p.message == "" {
-		var b buffer
-		b.SetReader(bytes.NewReader(p.rawMessage))
-		p.message, _ = b.ReadString()
-	}
-	return p.message
-}
-
-var urlRx = regexp.MustCompile(`(https?://[[:^space:]]+|<|\n| |` + "```[\\s\\S]+```" + `)`)
-
 func (p *Post) MessageHTML() string {
-	return urlRx.ReplaceAllStringFunc(p.Message(), func(in string) string {
+	return urlRx.ReplaceAllStringFunc(p.Message, func(in string) string {
 		switch in {
 		case " ":
 			return "&nbsp;"
@@ -82,9 +66,11 @@ func (p *Post) MessageHTML() string {
 	})
 }
 
-func (p *Post) IPAddress() string { return IPAddress(p.IP) }
+func (p *Post) IP() string { i, _ := format8Bytes(p.ip); return i }
 
 func (p *Post) LongID() uint64 { return uint64(p.Topic.ID)<<16 + uint64(p.ID) }
+
+func (p *Post) User() string { return base32Encoding.EncodeToString(p.user[:6])[:10] }
 
 // Topic describes topic
 type Topic struct {
@@ -111,23 +97,13 @@ type Store struct {
 	sync.RWMutex
 
 	MaxLiveTopics int
-
-	dataFilePath string
-	rootTopic    *Topic
-	endTopic     *Topic
-	topicsCount  uint32
-
-	blocked  map[string]bool
-	dataFile *os.File
-}
-
-func stringIndex(arr []string, el string) int {
-	for i, s := range arr {
-		if s == el {
-			return i
-		}
-	}
-	return -1
+	dataFilePath  string
+	rootTopic     *Topic
+	endTopic      *Topic
+	topicsCount   uint32
+	AvgPostLen    uint32
+	blocked       map[[8]byte]bool
+	dataFile      *os.File
 }
 
 // IsDeleted returns true if topic is deleted
@@ -186,10 +162,10 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	ipAddrInternal, err := r.Read8Bytes()
 	panicif(err != nil, "invalid IP")
 
-	userName, err := r.ReadString()
+	userName, err := r.Read8Bytes()
 	panicif(err != nil, "invalid username")
 
-	message, err := r.ReadStringBytes()
+	message, err := r.ReadString()
 	panicif(err != nil, "invalid message body")
 
 	t, ok := topicIDToTopic[topicID]
@@ -200,17 +176,17 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	panicif(realPostID >= 65536, "too many posts (65536)")
 
 	return Post{
-		ID:         uint16(realPostID),
-		CreatedAt:  createdOnSeconds,
-		User:       userName,
-		IP:         ipAddrInternal,
-		IsDeleted:  false,
-		Topic:      t,
-		rawMessage: message,
+		ID:        uint16(realPostID),
+		CreatedAt: createdOnSeconds,
+		user:      userName,
+		ip:        ipAddrInternal,
+		IsDeleted: false,
+		Topic:     t,
+		Message:   message,
 	}
 }
 
-func (store *Store) markBlockedOrUnblocked(term string) {
+func (store *Store) markBlockedOrUnblocked(term [8]byte) {
 	if store.blocked[term] {
 		delete(store.blocked, term)
 	} else {
@@ -274,19 +250,16 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 			} else {
 				t.ModifiedAt = post.CreatedAt
 			}
+
 			store.moveTopicToFront(t)
 		case OP_DELETE:
 			post, err := findPostToDelUndel(r, topicIDToTopic)
 			panicif(err != nil, err)
 			post.IsDeleted = !post.IsDeleted
-		case OP_BLOCKIP, OP_BLOCKUSER:
-			str, err := r.ReadString()
+		case OP_BLOCK:
+			str, err := r.Read8Bytes()
 			panicif(err != nil, "invalid string")
-			if op == OP_BLOCKIP {
-				store.markBlockedOrUnblocked("b" + str)
-			} else {
-				store.markBlockedOrUnblocked("u" + str)
-			}
+			store.markBlockedOrUnblocked(str)
 		case OP_STICKY, OP_ARCHIVE, OP_LOCK, OP_PURGE, OP_FREEREPLY, OP_SAGE:
 			topicID, err := r.ReadUInt32()
 			panicif(err != nil, err)
@@ -334,7 +307,7 @@ func NewStore(path string) *Store {
 		dataFilePath:  path,
 		rootTopic:     &Topic{},
 		endTopic:      &Topic{},
-		blocked:       make(map[string]bool),
+		blocked:       make(map[[8]byte]bool),
 		MaxLiveTopics: 10000,
 	}
 
@@ -365,7 +338,7 @@ func NewStore(path string) *Store {
 					subject := base64.StdEncoding.EncodeToString(r.Fetch(16))
 					msg := base64.StdEncoding.EncodeToString(r.Fetch(r.Intn(64) + 64))
 					msg = strings.Repeat(msg, 4)
-					userName := "abcdefgh"
+					userName := [8]byte{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'}
 					ipAddr := [8]byte{}
 
 					if r.Intn(10) == 1 {
@@ -564,21 +537,20 @@ func (store *Store) moveTopicToFront(topic *Topic) {
 
 var errTooManyPosts = fmt.Errorf("topic already has 65535 posts")
 
-func (store *Store) addNewPost(msg, user string, ipAddr [8]byte, topic *Topic, newTopic bool) error {
+func (store *Store) addNewPost(msg string, user [8]byte, ipAddr [8]byte, topic *Topic, newTopic bool) error {
 	nextID := len(topic.Posts) + 1
 	if nextID >= 65536 {
 		return errTooManyPosts
 	}
 
-	user = strings.Replace(user, "|", "", -1)
 	p := &Post{
 		ID:        uint16(nextID),
 		CreatedAt: uint32(time.Now().Unix()),
-		User:      user,
-		IP:        ipAddr,
+		user:      user,
+		ip:        ipAddr,
 		IsDeleted: false,
 		Topic:     topic,
-		message:   msg,
+		Message:   msg,
 	}
 
 	var topicStr buffer
@@ -593,7 +565,7 @@ func (store *Store) addNewPost(msg, user string, ipAddr [8]byte, topic *Topic, n
 	topicStr.WriteUInt16(uint16(p.ID))
 	topicStr.WriteUInt32(p.CreatedAt)
 	topicStr.Write8Bytes(ipAddr)
-	topicStr.WriteString(user)
+	topicStr.Write8Bytes(user)
 	topicStr.WriteString(msg)
 
 	if err := store.append(topicStr.Bytes()); err != nil {
@@ -627,7 +599,7 @@ func archive(topic *Topic, saveToPath string) error {
 			continue
 		}
 
-		buf.WriteByte(OP_POST).WriteUInt32(topic.ID).WriteUInt16(p.ID).WriteUInt32(p.CreatedAt).Write8Bytes(p.IP).WriteString(p.User).WriteString(p.Message())
+		buf.WriteByte(OP_POST).WriteUInt32(topic.ID).WriteUInt16(p.ID).WriteUInt32(p.CreatedAt).Write8Bytes(p.ip).Write8Bytes(p.user).WriteString(p.Message)
 	}
 
 	u.CreateDirForFileMust(saveToPath)
@@ -665,7 +637,7 @@ func (store *Store) Archive() {
 }
 
 // CreateNewTopic creates a new topic
-func (store *Store) CreateNewTopic(subject, msg, user string, ipAddr [8]byte) (uint32, error) {
+func (store *Store) CreateNewTopic(subject, msg string, user [8]byte, ipAddr [8]byte) (uint32, error) {
 	store.Lock()
 	defer store.Unlock()
 
@@ -692,7 +664,7 @@ func (store *Store) CreateNewTopic(subject, msg, user string, ipAddr [8]byte) (u
 }
 
 // AddPostToTopic adds a post to a topic
-func (store *Store) AddPostToTopic(topicID uint32, msg, user string, ipAddr [8]byte) error {
+func (store *Store) AddPostToTopic(topicID uint32, msg string, user [8]byte, ipAddr [8]byte) error {
 	store.Lock()
 	defer store.Unlock()
 
@@ -711,36 +683,22 @@ func (store *Store) AddPostToTopic(topicID uint32, msg, user string, ipAddr [8]b
 }
 
 // BlockIP blocks/unblocks IP address
-func (store *Store) BlockIP(ipAddrInternal string) {
+func (store *Store) Block(term [8]byte) {
 	store.Lock()
 	defer store.Unlock()
-	if len(ipAddrInternal) == 0 {
+	if term == default8Bytes {
 		return
 	}
 	var p buffer // := fmt.Sprintf("B%s\n", ipAddrInternal)
-	if err := store.append(p.WriteByte(OP_BLOCKIP).WriteString(ipAddrInternal).Bytes()); err == nil {
-		store.markBlockedOrUnblocked("b" + ipAddrInternal)
-	}
-}
-
-// BlockUser blocks/unblocks user
-func (store *Store) BlockUser(username string) {
-	store.Lock()
-	defer store.Unlock()
-	var p buffer // := fmt.Sprintf("B%s\n", ipAddrInternal)
-	if err := store.append(p.WriteByte(OP_BLOCKUSER).WriteString(username).Bytes()); err == nil {
-		store.markBlockedOrUnblocked("u" + username)
+	if err := store.append(p.WriteByte(OP_BLOCK).Write8Bytes(term).Bytes()); err == nil {
+		store.markBlockedOrUnblocked(term)
 	}
 }
 
 // IsBlocked checks if the term is blocked
-func (store *Store) IsBlocked(term string) bool {
+func (store *Store) IsBlocked(term [8]byte) bool {
 	store.RLock()
 	defer store.RUnlock()
-	if len(term) == 9 && term[0] == 'b' {
-		//     bAABBCCDD /32          bAABBCC /24                bAABBC /20                 bAABB /16
-		return store.blocked[term] || store.blocked[term[:7]] || store.blocked[term[:6]] || store.blocked[term[:5]]
-	}
 	return store.blocked[term]
 }
 
@@ -761,7 +719,7 @@ func (store *Store) getPostsBy(term string, max int, ip, name bool) ([]Post, int
 	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
 		for _, post := range topic.Posts {
 			if ip {
-				if strings.Contains(IPAddress(post.IP), term) {
+				if strings.Contains(post.IP(), term) {
 					total++
 					if total <= max {
 						res = append(res, post)
@@ -769,7 +727,7 @@ func (store *Store) getPostsBy(term string, max int, ip, name bool) ([]Post, int
 				}
 			}
 			if name {
-				if strings.HasPrefix(post.User, term) {
+				if strings.HasPrefix(post.User(), term) {
 					total++
 					if total <= max {
 						res = append(res, post)

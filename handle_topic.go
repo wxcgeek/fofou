@@ -26,7 +26,7 @@ func handleTopic(forum *Forum, topicID int, w http.ResponseWriter, r *http.Reque
 		return
 	}
 NEXT:
-	isAdmin := forum.IsAdmin(getSecureCookie(r))
+	isAdmin := forum.IsAdmin(getUser(r).ID)
 	if topic.IsDeleted() && !isAdmin {
 		http.Redirect(w, r, "/", 302)
 		return

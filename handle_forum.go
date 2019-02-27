@@ -45,8 +45,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("handleForum(): forum: %q, from: %d\n", forum.ForumUrl, from)
 
 	nTopicsMax := 50
-	cookie := getSecureCookie(r)
-	isAdmin := forum.IsAdmin(cookie)
+	isAdmin := forum.IsAdmin(getUser(r).ID)
 	withDeleted := isAdmin
 	topics, newFrom := forum.Store.GetTopics(nTopicsMax, from, withDeleted)
 	prevTo := from - nTopicsMax
@@ -62,7 +61,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		}
 		d := &TopicDisplay{
 			Topic:     *t,
-			CreatedBy: t.Posts[0].User,
+			CreatedBy: t.Posts[0].User(),
 		}
 		nComments := len(t.Posts) - 1
 		d.CommentsCount = nComments

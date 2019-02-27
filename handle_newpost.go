@@ -3,7 +3,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
 	"net"
@@ -106,14 +105,14 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ipAddr := getIPAddress(r)
-	userName := getSecureCookie(r)
-	if forum.Store.IsBlocked("b" + IPAddress(ipAddr)) {
-		logger.Noticef("blocked a post from IP %s", IPAddress(ipAddr))
+	user := getUser(r)
+	if forum.Store.IsBlocked(ipAddr) {
+		logger.Noticef("blocked a post from IP: %s", ipAddr)
 		badRequest()
 		return
 	}
 
-	if !forum.IsAdmin(userName) {
+	if !forum.IsAdmin(user.ID) {
 		recaptcha := strings.TrimSpace(r.FormValue("token"))
 		if recaptcha == "" {
 			badRequest()
@@ -147,15 +146,18 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	msg := strings.TrimSpace(r.FormValue("message"))
 
 	// validate the fields
-	if userName == "" {
+	if !user.IsValid() {
 		if forum.NoMoreNewUsers && !topic.FreeReply {
 			writeSimpleJSON(w, "success", false, "error", "no-more-new-users")
 			return
 		}
-		userName = base64.URLEncoding.EncodeToString(randG.Fetch(6))
+		copy(user.ID[:], randG.Fetch(8))
+		if user.ID[1] == ':' {
+			user.ID[1]++
+		}
 	}
 
-	if forum.IsAdmin(userName) && adminOpCode(forum, msg) {
+	if forum.IsAdmin(user.ID) && adminOpCode(forum, msg) {
 		writeSimpleJSON(w, "success", true, "admin-operation", msg)
 		return
 	}
@@ -182,16 +184,16 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setSecureCookie(w, userName)
+	setUser(w, user)
 
-	if forum.Store.IsBlocked("u" + userName) {
-		logger.Noticef("blocked a post from user %s", userName)
+	if forum.Store.IsBlocked(user.ID) {
+		logger.Noticef("blocked a post from user %s", user.ID)
 		badRequest()
 		return
 	}
 
 	if topic == nil {
-		topicID, err := forum.Store.CreateNewTopic(subject, msg, userName, ipAddr)
+		topicID, err := forum.Store.CreateNewTopic(subject, msg, user.ID, ipAddr)
 		if err != nil {
 			logger.Errorf("createNewPost(): store.CreateNewPost() failed with %s", err)
 			internalError()
@@ -201,7 +203,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := forum.Store.AddPostToTopic(topic.ID, msg, userName, ipAddr); err != nil {
+	if err := forum.Store.AddPostToTopic(topic.ID, msg, user.ID, ipAddr); err != nil {
 		logger.Errorf("createNewPost(): store.AddPostToTopic() failed with %s", err)
 		internalError()
 		return

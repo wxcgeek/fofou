@@ -140,8 +140,7 @@ func (l *ServerLogger) GetNotices() []*TimestampedMsg {
 
 // url: /logs
 func handleLogs(w http.ResponseWriter, r *http.Request) {
-	cookie := getSecureCookie(r)
-	isAdmin := cookie == "coyove" // only I can see the logs
+	isAdmin := getUser(r).ID == ":coyove" // only I can see the logs
 
 	m := &runtime.MemStats{}
 	runtime.ReadMemStats(m)
