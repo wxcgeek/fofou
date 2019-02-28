@@ -1,48 +1,10 @@
-{{ template "header.html" . }}
-{{template "newpost.html" . }}
+{{template "header.html" .}}
 
-  {{ $isAdmin := .IsAdmin }}
+{{if not .Topic.Archived}}
+{{if not .Topic.Locked}}
+    {{template "newpost.html" .}}
+{{end}}
+{{end}}
 
-	<div class="contents">
-		<div class="posts">
-			<h3 style="margin-bottom:-4px;">
-				{{if .Archived}}<b>[存档]</b>{{end}}
-				{{if .Locked}}<b>[锁定]</b>{{end}}
-				{{ .Subject }}
-			</h3>
-
-			{{ range .Posts }}
-			<div class="post-container" id="post-{{.ID}}">
-				<div>{{ .MessageHTML }}</div>
-				<div class="signature">
-                    <a class="no" href="#post-{{.ID}}" style="text-decoration:none;color:black">#{{.ID}}</a>
-					{{ if $isAdmin }}
-                    <a href="/list?q={{.User}}">{{.User}}</a> {{ .Date}}
-					{{ else }}
-                        {{.User}} {{.Date}}
-					{{ end }}
-
-					{{ if $isAdmin }}
-						<br/>From:
-						<a href="/list?q={{.IP}}">{{ .IP}}</a>
-						<a href="/?t=raw&tid={{.Topic.ID}}&pid={{.ID}}">raw</a>
-						<a href="/?t=del&tid={{.Topic.ID}}&pid={{.ID}}">{{ if .IsDeleted }}restore{{ else }}delete{{end}}</a>
-					{{ end }}
-				</div>
-			</div>
-			{{ end }}
-
-			{{if not .Archived}}
-			{{if not .Locked}}
-			<div class="buttons">
-                <a accesskey="r" href="/?t=new&tid={{.Topic.ID}}">新回复</a>
-				<a accesskey="t" href="/">
-					<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAB9SURBVGhD7dUhEsRAEMPA/f+ncyxAqVsbGamrxDx4jqSPB/3D3aqoPeBuVdQecLcqag+4WyVJ0lX7OLhbFbUH3K2K2gPuVkXtAXerJEm6ah8Hd6ui9oC7VVF7wN2qqD3gbpUkSVft4+BuVdQecLcqag+4WxW1B9ytkvQ65wdVKB3/xGUOgQAAAABJRU5ErkJggg=="> 返回主题列表
-				</a>
-			</div>
-			{{end}}
-			{{end}}
-		</div>
-	</div>
-
-{{ template "footer.html" .}}
+{{template "topic1.html" .}}
+{{template "footer.html" .}}

@@ -4,9 +4,10 @@ package main
 import (
 	"net/http"
 	"strconv"
+
+	"github.com/coyove/fofou/server"
 )
 
-// url: /{forum}/postsBy?[user=${userNameInternal}][ip=${ipInternal}]
 func handleList(w http.ResponseWriter, r *http.Request) {
 	store := forum.Store
 	query := parse8Bytes(r.FormValue("q"))
@@ -21,32 +22,21 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	isBlocked := store.IsBlocked(query)
 
 	model := struct {
-		Forum
-		Posts      []Post
+		*Forum
+		*Topic
 		TotalCount int
 		IsAdmin    bool
 		Query      string
 		Blocked    map[string]bool
 		IsBlocked  bool
 	}{
-		Forum:      *forum,
-		Posts:      posts,
+		Forum:      forum,
+		Topic:      &Topic{Posts: posts},
 		TotalCount: total,
 		IsAdmin:    isAdmin,
 		IsBlocked:  isBlocked,
 		Query:      r.FormValue("q"),
 	}
 
-	if isAdmin {
-		model.Blocked = make(map[string]bool)
-		forum.Store.RLock()
-		for k := range forum.Store.blocked {
-			a, b := format8Bytes(k)
-			model.Blocked[a] = true
-			model.Blocked[b] = true
-		}
-		forum.Store.RUnlock()
-	}
-
-	ExecTemplate(w, tmplPosts, model)
+	server.Render(w, server.TmplPosts, model)
 }

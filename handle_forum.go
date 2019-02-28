@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/coyove/fofou/server"
 )
 
 // TopicDisplay describes a topic
@@ -72,5 +74,5 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		IsAdmin: isAdmin,
 	}
 
-	ExecTemplate(w, tmplForum, model)
+	server.Render(w, server.TmplForum, model)
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/coyove/fofou/server"
 	"github.com/kjk/u"
 )
 
@@ -23,7 +24,7 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		logger.Noticef("handleTopic(): didn't find topic with id %d, referer: %q", topicID, r.Referer())
+		forum.Notice("handleTopic(): didn't find topic with id %d, referer: %q", topicID, r.Referer())
 		http.Redirect(w, r, "/", 302)
 		return
 	}
@@ -45,5 +46,5 @@ NEXT:
 		TopicID: topicID,
 		IsAdmin: isAdmin,
 	}
-	ExecTemplate(w, tmplTopic, model)
+	server.Render(w, server.TmplTopic, model)
 }

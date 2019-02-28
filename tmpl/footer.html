@@ -8,5 +8,12 @@
 </div>
 </div>
 
+    <script>
+        (function() {
+            var s = JSON.parse(localStorage.getItem("fold") || '{}');
+            for (var id in s) _togglePost(id)
+        })()
+    </script>
+
 </body>
 </html>

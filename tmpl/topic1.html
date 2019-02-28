@@ -1,0 +1,42 @@
+<div class="topic">
+    {{if .Topic.ID}}
+    <div class="subject">
+        <div class="title">
+            <span>
+                No.{{.Topic.ID}} 
+                {{.Subject}}
+            </span>
+            <span>
+                [<a href="/topic?id={{.Topic.ID}}">回复</a>]
+            </span>
+        </div>
+        <div>
+            <span>
+                {{if .Archived}}[存档]{{end}}
+                {{if .Locked}}[锁定]{{end}}
+                {{if .Sticky}}[置顶]{{end}}
+                {{if .Saged}}[SAGE]{{end}}
+                {{if .FreeReply}}[自由回复]{{end}}
+                共 {{len .Posts}} 条回复
+            </span>
+        </div>
+    </div>
+    {{end}}
+    {{range .Topic.Posts}}
+    <div class="post" id="post-{{.LongID}}">
+        <div class="info">
+            <span class="toggle" onclick="_togglePost({{.LongID}})">[-]</span>
+            <a class="no" href="#post-{{.LongID}}">#{{.ID}}</a>
+            {{.Date}}
+            <a href="/list?q={{.User}}" target="_blank">{{.User}}</a>
+
+            {{ if $.IsAdmin }}
+            <br/>From:
+            <a href="/list?q={{.IP}}" target="_blank">{{.IP}}</a>
+            <a href="/?t=del&tid={{.Topic.ID}}&pid={{.ID}}">{{ if .IsDeleted }}restore{{ else }}delete{{end}}</a>
+            {{ end }}
+        </div>
+        <div class="message">{{.MessageHTML}}</div>
+    </div>
+    {{end}}
+</div>

@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/coyove/fofou/server"
 	"github.com/kjk/u"
 )
 
@@ -18,7 +19,6 @@ var (
 	httpAddr      = flag.String("addr", ":5010", "HTTP server address")
 	makeID        = flag.String("make", "", "Make an ID")
 	inProduction  = flag.String("production", "", "production domain")
-	logger        *ServerLogger
 	forum         *Forum
 	alwaysLogTime = true
 )
@@ -39,23 +39,19 @@ type ForumConfig struct {
 // Forum describes forum
 type Forum struct {
 	*ForumConfig
-	Store *Store
+	*Store
 }
 
-func (f *Forum) IsAdmin(id [8]byte) bool { return f.AdminLoginName == string(id[:]) }
+func (f *Forum) IsAdmin(id [8]byte) bool { return id[0] == 'a' && id[1] == ':' }
 
 // NewForum creates new forum
-func NewForum(config *ForumConfig) *Forum {
+func NewForum(config *ForumConfig, logger *server.Logger) *Forum {
 	forum := &Forum{ForumConfig: config}
 
 	topbarBuf, _ := ioutil.ReadFile("data/topbar.html")
 	forum.TopbarHTML = string(topbarBuf)
 
-	store := NewStore("data/main.txt")
-	a, b := store.PostsCount()
-	logger.Noticef("%d topics, %d visible topics, %d posts", store.TopicsCount(), a, b)
-	forum.Store = store
-	store.MaxLiveTopics = forum.MaxLiveTopics
+	forum.Store = NewStore("data/main.txt", config.MaxLiveTopics, logger)
 	return forum
 }
 
@@ -76,7 +72,7 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 			if len(r.URL.RawQuery) > 0 {
 				url = fmt.Sprintf("%s?%s", url, r.URL.RawQuery)
 			}
-			logger.Noticef("%q took %f seconds to serve", url, duration.Seconds())
+			forum.Notice("%q took %f seconds to serve", url, duration.Seconds())
 		}
 	}
 }
@@ -84,6 +80,7 @@ func makeTimingHandler(fn func(http.ResponseWriter, *http.Request)) http.Handler
 func main() {
 	u.CreateDirIfNotExists("data")
 	u.CreateDirIfNotExists("data/archive")
+	u.CreateDirIfNotExists("data/images")
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
@@ -93,7 +90,6 @@ func main() {
 	}
 
 	useStdout := *inProduction == ""
-	logger = NewServerLogger(256, 256, useStdout)
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -122,12 +118,14 @@ func main() {
 	}
 
 	start := time.Now()
-	forum = NewForum(&config)
-	fmt.Printf("loaded all in %.2fs\n", time.Now().Sub(start).Seconds())
+	forum = NewForum(&config, server.NewLogger(256, 256, useStdout))
+	vt, p := forum.PostsCount()
+	forum.Notice("%d topics, %d visible topics, %d posts", forum.TopicsCount(), vt, p)
+	forum.Notice("loaded all in %.2fs", time.Now().Sub(start).Seconds())
 
 	srv := initHTTPServer()
 	srv.Addr = *httpAddr
-	logger.Noticef("running on %s\n", srv.Addr)
+	forum.Notice("running on %s", srv.Addr)
 	if err := srv.ListenAndServe(); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %s\n", err)
 	}

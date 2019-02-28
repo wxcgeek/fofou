@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -10,13 +10,16 @@ import (
 )
 
 var (
-	tmplMain      = "main.html"
-	tmplForum     = "forum.html"
-	tmplTopic     = "topic.html"
-	tmplPosts     = "posts.html"
-	tmplNewPost   = "newpost.html"
-	tmplLogs      = "logs.html"
-	templateNames = [...]string{tmplMain, tmplForum, tmplTopic, tmplPosts, tmplNewPost, tmplLogs, "footer.html", "header.html", "forumnav.html"}
+	TmplMain    = "main.html"
+	TmplForum   = "forum.html"
+	TmplTopic   = "topic.html"
+	TmplPosts   = "posts.html"
+	TmplNewPost = "newpost.html"
+	TmplLogs    = "logs.html"
+)
+
+var (
+	templateNames = []string{TmplMain, TmplForum, TmplTopic, TmplPosts, TmplNewPost, TmplLogs, "footer.html", "header.html", "forumnav.html", "topic1.html"}
 	templatePaths []string
 	templates     *template.Template
 	tmplMutex     sync.RWMutex
@@ -27,6 +30,7 @@ func init() {
 		templatePaths = append(templatePaths, filepath.Join("tmpl", name))
 	}
 
+	templates = template.Must(template.ParseFiles(templatePaths...))
 	go func() {
 		for range time.Tick(time.Second * 2) {
 			tmplMutex.Lock()
@@ -36,18 +40,14 @@ func init() {
 	}()
 }
 
-func ExecTemplate(w http.ResponseWriter, templateName string, model interface{}) bool {
+func Render(w http.ResponseWriter, templateName string, model interface{}) {
 	tmplMutex.RLock()
-
 	var buf bytes.Buffer
 	if err := templates.ExecuteTemplate(&buf, templateName, model); err != nil {
-		logger.Errorf("failed to execute template %q, error: %s", templateName, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		tmplMutex.RUnlock()
-		return false
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-
-	w.Write(buf.Bytes())
 	tmplMutex.RUnlock()
-	return true
+	w.Write(buf.Bytes())
 }

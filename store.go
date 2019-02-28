@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/coyove/common/rand"
+	"github.com/coyove/fofou/server"
 	"github.com/kjk/u"
 )
 
@@ -96,6 +97,7 @@ func (p *Topic) LastDate() string { return time.Unix(int64(p.ModifiedAt), 0).For
 // Store describes store
 type Store struct {
 	sync.RWMutex
+	*server.Logger
 
 	MaxLiveTopics int
 	dataFilePath  string
@@ -307,13 +309,14 @@ func (store *Store) verifyTopics() {
 }
 
 // NewStore creates a new store
-func NewStore(path string) *Store {
+func NewStore(path string, maxLiveTopics int, logger *server.Logger) *Store {
 	store := &Store{
 		dataFilePath:  path,
 		rootTopic:     &Topic{},
 		endTopic:      &Topic{},
 		blocked:       make(map[[8]byte]bool),
-		MaxLiveTopics: 10000,
+		MaxLiveTopics: maxLiveTopics,
+		Logger:        logger,
 	}
 
 	store.rootTopic.Next = store.endTopic
@@ -347,9 +350,9 @@ func NewStore(path string) *Store {
 					ipAddr := [8]byte{}
 
 					if r.Intn(10) == 1 {
-						curTopicId, _ = store.CreateNewTopic(subject, msg, userName, ipAddr)
+						curTopicId, _ = store.CreateNewTopic(subject, msg, "", userName, ipAddr)
 					} else if curTopicId > 0 {
-						store.AddPostToTopic(uint32(r.Intn(int(curTopicId))+1), msg, userName, ipAddr)
+						store.AddPostToTopic(uint32(r.Intn(int(curTopicId))+1), msg, "", userName, ipAddr)
 					}
 					wg.Done()
 				}()
@@ -372,7 +375,7 @@ func LoadSingleTopicInStore(path string) (*Topic, error) {
 
 	var err error
 	if err = store.loadDB(path, true); err != nil {
-		logger.Errorf("LoadSingleTopicInStore: %s", err)
+		store.Error("LoadSingleTopicInStore: %s", err)
 		return nil, err
 	}
 
@@ -418,7 +421,7 @@ func (store *Store) OperateTopic(topicID uint32, action byte) {
 		}
 	}
 	if err != nil {
-		logger.Errorf("OperateTopic(): %v", err)
+		store.Error("OperateTopic(): %v", err)
 	}
 }
 
@@ -478,9 +481,6 @@ func (store *Store) TopicByID(id uint32) *Topic {
 
 func (store *Store) append(buf []byte) error {
 	_, err := store.dataFile.Write(buf)
-	if err != nil {
-		logger.Errorf("append() error: %s\n", err)
-	}
 	return err
 }
 
@@ -647,7 +647,7 @@ func (store *Store) Archive() {
 			info.WriteString(fmt.Sprintf(" %d(%v)", t.ID, err))
 		}
 	}
-	logger.Notice(info.String())
+	store.Notice(info.String())
 }
 
 // CreateNewTopic creates a new topic

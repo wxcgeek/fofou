@@ -3,11 +3,16 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -85,10 +90,6 @@ func writeSimpleJSON(w http.ResponseWriter, args ...interface{}) {
 	w.Write(p.Bytes())
 }
 
-func createNewPost(forum *Forum, topic *Topic, w http.ResponseWriter, r *http.Request) {
-
-}
-
 func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	badRequest := func() { writeSimpleJSON(w, "success", false, "error", "bad-request") }
 	internalError := func() { writeSimpleJSON(w, "success", false, "error", "internal-error") }
@@ -98,7 +99,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	topicID, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("topic")))
 	if topicID > 0 {
 		if topic = forum.Store.TopicByID(uint32(topicID)); topic == nil {
-			logger.Noticef("handleNewPost(): invalid topic ID: %d\n", topicID)
+			forum.Notice("invalid topic ID: %d\n", topicID)
 			badRequest()
 			return
 		}
@@ -107,11 +108,12 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	ipAddr := getIPAddress(r)
 	user := getUser(r)
 	if forum.Store.IsBlocked(ipAddr) {
-		logger.Noticef("blocked a post from IP: %s", ipAddr)
+		forum.Notice("blocked a post from IP: %s", ipAddr)
 		badRequest()
 		return
 	}
 
+	// if user didn't pass the dice test, we will challenge him/her
 	if !user.noTest {
 		recaptcha := strings.TrimSpace(r.FormValue("token"))
 		if recaptcha == "" {
@@ -124,7 +126,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 			"response": []string{recaptcha},
 		})
 		if err != nil {
-			logger.Errorf("recaptcha error: %v", err)
+			forum.Error("recaptcha error: %v", err)
 			internalError()
 			return
 		}
@@ -136,7 +138,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(buf, &recaptchaResult)
 
 		if r, _ := recaptchaResult["success"].(bool); !r {
-			logger.Errorf("recaptcha failed: %v", string(buf))
+			forum.Error("recaptcha failed: %v", string(buf))
 			writeSimpleJSON(w, "success", false, "error", "recaptcha-failed")
 			return
 		}
@@ -187,20 +189,37 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	setUser(w, user)
 
 	if forum.Store.IsBlocked(user.ID) {
-		logger.Noticef("blocked a post from user %s", user.ID)
+		forum.Notice("blocked a post from user %s", user.ID)
 		badRequest()
 		return
 	}
 
-	image, _, err := r.FormFile("image")
-	if err != nil {
+	image, imageInfo, err := r.FormFile("image")
+	if err == nil {
 		defer image.Close()
 	}
 
+	imagePath := ""
+	if image != nil && imageInfo != nil {
+		ext := filepath.Ext(imageInfo.Filename)
+		hash := sha1.Sum([]byte(imageInfo.Filename))
+		t := time.Now().Format("2006-01-02")
+		imagePath = fmt.Sprintf("%s/%x.%s", t, hash, ext)
+		os.MkdirAll("data/images/"+t, 0755)
+		if of, err := os.Create("data/images/" + imagePath); err == nil {
+			defer of.Close()
+			io.Copy(of, image)
+		} else {
+			writeSimpleJSON(w, "success", false, "error", "image-disk-error")
+			forum.Error("copy image to dest: %v", err)
+			return
+		}
+	}
+
 	if topic == nil {
-		topicID, err := forum.Store.CreateNewTopic(subject, msg, user.ID, ipAddr)
+		topicID, err := forum.Store.CreateNewTopic(subject, msg, imagePath, user.ID, ipAddr)
 		if err != nil {
-			logger.Errorf("createNewPost(): store.CreateNewPost() failed with %s", err)
+			forum.Error("createNewPost(): store.CreateNewPost() failed with %s", err)
 			internalError()
 			return
 		}
@@ -208,8 +227,8 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := forum.Store.AddPostToTopic(topic.ID, msg, user.ID, ipAddr); err != nil {
-		logger.Errorf("createNewPost(): store.AddPostToTopic() failed with %s", err)
+	if err := forum.Store.AddPostToTopic(topic.ID, msg, imagePath, user.ID, ipAddr); err != nil {
+		forum.Error("createNewPost(): store.AddPostToTopic() failed with %s", err)
 		internalError()
 		return
 	}

@@ -1,32 +1,15 @@
 {{ template "header.html" . }}
 
-  {{ $isAdmin := .IsAdmin }}
+<div class="contents">
+    <div style="margin: 4px 0">
 
-	<div class="contents">
-		<div class="posts">
-            <div style="margin: 4px 0">
-			
-                Total <b>{{ .TotalCount }}</b> posts from <b>{{ .Query }}</b>
-                {{if $isAdmin}}
-                    (<a href="/?t=block&u={{.Query}}">{{if .IsBlocked}}unblock{{else}}block{{end}} user</a>)
-                {{end}}.
-		    </div>
+        Total <b>{{ .TotalCount }}</b> posts from <b>{{ .Query }}</b>
+        {{if $.IsAdmin}}
+        (<a href="/?t=block&u={{.Query}}">{{if .IsBlocked}}unblock{{else}}block{{end}} user</a>)
+        {{end}}.
+    </div>
 
-			{{ range .Posts }}
-			<div class="post-container">
-				<h3>{{ .Topic.Subject }}</h3>
-				<div>{{ .MessageHTML }}</div>
-				<div class="signature">
-						{{ .User}} {{ .Date }}
-
-					{{ if $isAdmin }}
-						<br/> From: {{.IP}}
-						<a href="/delete?topicId={{.Topic.ID}}&postId={{.ID}}">{{ if .IsDeleted }}restore{{ else }}delete{{end}}</a>
-					{{ end }}
-				</div>
-			</div>
-			{{ end }}
-		</div>
-	</div>
+    {{template "topic1.html" .}}
+</div>
 
 {{ template "footer.html" }}

@@ -8,6 +8,20 @@
     </head>
 
     <script>
+        function _togglePost(id) {
+            var p = $("#post-" + id + " .toggle"), c = p.prop("fold");
+            var m = $("#post-" + id + " .message");
+            var s = JSON.parse(localStorage.getItem("fold") || '{}');
+            p.prop("fold", !c).text(c ? "[-]" : "[+]");
+            if (c) {
+                m.show().parent().removeClass("fold");
+                delete s[id];
+            } else {
+                m.hide().parent().addClass("fold");
+                s[id] = new Date().getTime();
+            }
+            localStorage.setItem("fold", JSON.stringify(s));
+        }
         function _submit(btn, msg) {
             btn ? $(btn).prop('disabled', 'true') : 0;
             var form = new FormData();
@@ -16,7 +30,7 @@
             } else {
                 form.append('subject', $('#subject').val());
                 form.append('message', $('#message').val());
-                form.append('image', $('#select-image').val());
+                form.append('image', $('#select-image').get(0).files[0]);
                 form.append('topic', window.TOPIC_ID || 0);
                 form.append('token', grecaptcha.getResponse());
             }
@@ -24,7 +38,7 @@
             xhr.onreadystatechange = function(e) {
                 if ( 4 == this.readyState ) {
                     try {
-                        var resp = xhr.resposneText;
+                        var resp = xhr.responseText;
                         resp = JSON.parse(resp);
                         if (resp.success) {
                             location.reload();
@@ -33,7 +47,7 @@
                         alert("发生错误：\ncode: " + resp.error);
                     } catch (ex) {
                         alert("发生错误：\n" + ex);
-                        console.error(e);
+                        console.error(resp);
                     }
 
                 }
