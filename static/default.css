@@ -70,179 +70,22 @@ code {
 	font-family: "Lucida Console", Monaco, monospace;
 }
 
-/*******************************************************************************
- * Form layout
- ******************************************************************************/
+table#newpost th, table#newpost td {
+    padding: 2px;
+}
 
-table.form {
-	font-weight: normal;
+table#newpost th {
+    white-space: nowrap;
+    width: 1px;
+}
+
+table#newpost textarea, table#newpost input {
 	width: 100%;
-	margin: 4px 0;
+    resize: vertical;
 } 
 
-table.form td {
-	padding: 2px;
+table#newpost {
+    min-width: 350px;
 }
 
-table.form th {
-	font-size:			11px;
-	font-weight:		bold;
-	padding-right:		1.5em;
-	text-align:			left;
-	vertical-align:		top;
-	white-space: 		nowrap;
-	width: 1px;
-}
-
-table.form #Subject, table.form textarea {
-	width: 100%;
-	resize: vertical;
-	border: dotted 1px #999;
-}
-
-/*******************************************************************************
- * Topics layout
- ******************************************************************************/
-
-table.topics {
-	font-weight: normal;
-	width: 49%;
-	float:left;
-}
-
-tr.topic {
-	padding: 3px 0;
-}
-
-@media (max-width:640px) { 
-	table.topics {
-		width: 100%;
-	}
-}
-
-td.info em { font-size: 80%; font-family: "Lucida Console", Monaco, monospace; }
-td.no { text-align: right; white-space: nowrap; width: 1px }
-td.info span { font-size: 80%; color: rgb(170, 170, 170); }
-table.topics a { text-decoration: none; }
-table.topics a:hover { text-decoration: underline; }
-table.topics a.deleted { text-decoration: line-through; }
-table.topics a.deleted:hover { text-decoration: line-through underline; }
-
-/*******************************************************************************
- * Posts layout
- ******************************************************************************/
-
-div.posts {
-	font-weight:		normal;
-}
-
-div.posts div.post {
-	width: 100%;
-	padding-top: 0.5em;
-	word-break: break-word;
-    word-wrap: break-word;
-}
-
-div.posts div.post .image {
-	border: none;
-	max-height: 600px;
-	width: 100%;
-	max-width: 600px;
-}
-
-div.posts div.post-container {
-	border-bottom: dashed 1px #ccc;
-	margin: 0 -4px;
-	padding: 4px 4px;
-}
-
-div.posts div.deleted {
-	text-decoration: line-through;
-}
-
-div.posts div.signature {
-	padding-top: 1em;
-	text-align: right;
-	font-style: italic;
-	width: 100%;
-}
-
-div.posts div.signature .no {
-	margin-right: 6px;
-}
-
-div.posts div.info {
-	padding-top: 		1.8em;
-	font-size:			10px;
-	float: left;
-}
-
-
-/*******************************************************************************
- * General layout
- ******************************************************************************/
-
-h2 {
-	font-size:			18px;
-	font-weight:		bold;
-	color:				#676677;
-	width:				100%;
-	margin:			4px 0px;
-}
-
-h3 {
-	font-size:			18px;
-	font-weight:		bold;
-	margin:			4px 0 0;
-	padding: 0;
-}
-
-.buttons { 
-	clear: all;
-	margin: 4px 0;
-}
-.buttons a, .buttons input, .buttons button {
-    text-decoration: none;
-	color: black;
-	cursor: pointer;
-    padding: 4px 8px;
-    display: inline-block;
-    border-radius: 2px;
-    border: solid 1px rgb(166,166,166);
-	background: linear-gradient(#DBDBDB, #CCC);
-	background: -webkit-linear-gradient(#DBDBDB, #CCC);
-	background: -moz-linear-gradient(#DBDBDB, #CCC);
-	background: -o-linear-gradient(#DBDBDB, #CCC);
-	background-color: #DBDBDB;
-	position: relative;
-	line-height: 1.5em;
-}
-.buttons a:hover, .buttons input:hover, .buttons button:hover {
-	background: linear-gradient(#DFDFDF, #DBDBDB);
-	background: -webkit-linear-gradient(#DFDFDF, #DBDBDB);
-	background: -moz-linear-gradient(#DFDFDF, #DBDBDB);
-	background: -o-linear-gradient(#DFDFDF, #DBDBDB);
-	background-color: #DFDFDF;
-}
-.buttons a:active, .buttons input:active, .buttons button:active {
-	background: linear-gradient(#CCC, #DBDBDB);
-	background: -webkit-linear-gradient(#CCC, #DBDBDB);
-	background: -moz-linear-gradient(#CCC, #DBDBDB);
-	background: -o-linear-gradient(#CCC, #DBDBDB);
-	background-color: #CCC;
-} 
-.buttons a[disabled], .buttons input:disabled, .buttons button:disabled {
-	color: #ABABAB;
-}
-.buttons a img {
-	vertical-align: text-top;
-	display: inline-block;
-	border: none;
-	width: 16px;
-	height: 16px;
-}
-
-div.topbar {
-	padding: 4px 0;
-}
 

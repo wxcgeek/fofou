@@ -95,8 +95,8 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 	var topic *Topic
 
-	if topicIDStr := strings.TrimSpace(r.FormValue("tid")); topicIDStr != "" {
-		topicID, _ := strconv.Atoi(topicIDStr)
+	topicID, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("topic")))
+	if topicID > 0 {
 		if topic = forum.Store.TopicByID(uint32(topicID)); topic == nil {
 			logger.Noticef("handleNewPost(): invalid topic ID: %d\n", topicID)
 			badRequest()
@@ -112,10 +112,10 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !forum.IsAdmin(user.ID) {
+	if !user.noTest {
 		recaptcha := strings.TrimSpace(r.FormValue("token"))
 		if recaptcha == "" {
-			badRequest()
+			writeSimpleJSON(w, "success", false, "error", "recaptcha-needed")
 			return
 		}
 
@@ -151,7 +151,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 			writeSimpleJSON(w, "success", false, "error", "no-more-new-users")
 			return
 		}
-		copy(user.ID[:], randG.Fetch(8))
+		copy(user.ID[:], randG.Fetch(6))
 		if user.ID[1] == ':' {
 			user.ID[1]++
 		}
@@ -190,6 +190,11 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		logger.Noticef("blocked a post from user %s", user.ID)
 		badRequest()
 		return
+	}
+
+	image, _, err := r.FormFile("image")
+	if err != nil {
+		defer image.Close()
 	}
 
 	if topic == nil {

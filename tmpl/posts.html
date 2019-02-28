@@ -1,27 +1,15 @@
 {{ template "header.html" . }}
 
   {{ $isAdmin := .IsAdmin }}
-  {{ $forumUrl := .ForumUrl }}
 
 	<div class="contents">
 		<div class="posts">
             <div style="margin: 4px 0">
-			{{ if .IPAddr }}
-			    Total <b>{{ .TotalCount }}</b> posts from IP <b>{{ .IPAddr }}</b>
-				{{if $isAdmin}}
-                    ({{range $k, $v := .Blocked}}
-                    <a href="/{{$forumUrl}}?t=block&ip={{$k}}">unblock {{$v}}</a>
-                    {{end}})
-                    (<a href="/{{$forumUrl}}?t=block&ip={{.IPAddr}}">{{if .IPBlocked}}unblock{{else}}block{{end}} {{.IPAddr}}</a>)
-                {{end}}.
-			{{ end }}
-
-			{{ if .User }}
-                Total <b>{{ .TotalCount }}</b> posts from <b>{{ .User }}</b>
+			
+                Total <b>{{ .TotalCount }}</b> posts from <b>{{ .Query }}</b>
                 {{if $isAdmin}}
-                    (<a href="/{{$forumUrl}}?t=block&u={{.User}}">{{if .UserBlocked}}unblock{{else}}block{{end}} user</a>)
+                    (<a href="/?t=block&u={{.Query}}">{{if .IsBlocked}}unblock{{else}}block{{end}} user</a>)
                 {{end}}.
-			{{ end }}
 		    </div>
 
 			{{ range .Posts }}
@@ -32,8 +20,8 @@
 						{{ .User}} {{ .Date }}
 
 					{{ if $isAdmin }}
-						<br/> From: {{ .IPAddress }}
-						<a href="/{{$forumUrl}}/delete?topicId={{.Topic.ID}}&postId={{.ID}}">{{ if .IsDeleted }}restore{{ else }}delete{{end}}</a>
+						<br/> From: {{.IP}}
+						<a href="/delete?topicId={{.Topic.ID}}&postId={{.ID}}">{{ if .IsDeleted }}restore{{ else }}delete{{end}}</a>
 					{{ end }}
 				</div>
 			</div>

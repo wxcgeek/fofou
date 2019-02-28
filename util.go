@@ -230,7 +230,7 @@ func format8Bytes(b [8]byte) (string, string) {
 	if b[0] == 'a' && b[1] == ':' {
 		bufid.WriteString(string(b[:]))
 	} else {
-		base64.NewEncoder(base64.URLEncoding, &bufid).Write(b[:])
+		base64.NewEncoder(base64.URLEncoding, &bufid).Write(b[:6])
 	}
 	return buf.String(), bufid.String()
 }
@@ -299,7 +299,8 @@ func getUser(r *http.Request) User {
 	}
 
 	u := User{}
-	json.Unmarshal([]byte(user), &u)
+	buf, _ := base32Encoding.DecodeString(user)
+	json.Unmarshal(buf, &u)
 
 	{
 		x, n := u.Posts, u.N
@@ -316,7 +317,7 @@ func getUser(r *http.Request) User {
 func setUser(w http.ResponseWriter, u User) {
 	u.Posts++
 	buf, _ := json.Marshal(&u)
-	user := string(buf)
+	user := base32Encoding.EncodeToString(buf)
 
 	x := sha256.Sum256([]byte(user + _salt))
 	for i := 0; i < 16; i++ {

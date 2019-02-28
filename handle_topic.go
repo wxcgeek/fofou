@@ -3,12 +3,14 @@ package main
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/kjk/u"
 )
 
 // url: /{forum}/topic?id=${id}
-func handleTopic(forum *Forum, topicID int, w http.ResponseWriter, r *http.Request) {
+func handleTopic(w http.ResponseWriter, r *http.Request) {
+	topicID, _ := strconv.Atoi(r.FormValue("id"))
 	topic := forum.Store.TopicByID(uint32(topicID))
 	if nil == topic {
 		path := forum.Store.BuildArchivePath(uint32(topicID))

@@ -4,67 +4,46 @@ package main
 import (
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 // url: /{forum}/postsBy?[user=${userNameInternal}][ip=${ipInternal}]
-func handleList(forum *Forum, w http.ResponseWriter, r *http.Request) {
+func handleList(w http.ResponseWriter, r *http.Request) {
 	store := forum.Store
-	userInternal := strings.TrimSpace(r.FormValue("u"))
-	ipAddrInternal := strings.TrimSpace(r.FormValue("ip"))
-	if userInternal == "" && ipAddrInternal == "" {
-		logger.Noticef("handlePostsBy(): missing both user and ip")
-		http.Redirect(w, r, "/", 302)
-		return
-	}
-
+	query := parse8Bytes(r.FormValue("q"))
 	isAdmin := forum.IsAdmin(getUser(r).ID)
 	maxTopics := 50
+
 	if count := r.FormValue("count"); isAdmin && count != "" {
 		maxTopics, _ = strconv.Atoi(count)
 	}
 
-	var total int
-	var posts []Post
-	if userInternal != "" {
-		posts, total = store.GetPostsByUserInternal(userInternal, maxTopics)
-	} else {
-		posts, total = store.GetPostsByIPInternal(ipAddrInternal, maxTopics)
-	}
-
-	ipBlocked, userBlocked := false, store.IsBlocked("u"+userInternal)
-	if ipAddrInternal != "" {
-		ipBlocked = store.IsBlocked("b" + ipAddrInternal)
-	}
+	posts, total := store.GetPostsBy(query, maxTopics)
+	isBlocked := store.IsBlocked(query)
 
 	model := struct {
 		Forum
-		Posts       []Post
-		TotalCount  int
-		IsAdmin     bool
-		User        string
-		IPAddr      string
-		Blocked     map[string]string
-		IPBlocked   bool
-		UserBlocked bool
+		Posts      []Post
+		TotalCount int
+		IsAdmin    bool
+		Query      string
+		Blocked    map[string]bool
+		IsBlocked  bool
 	}{
-		Forum:       *forum,
-		Posts:       posts,
-		TotalCount:  total,
-		IsAdmin:     isAdmin,
-		User:        userInternal,
-		IPAddr:      ipAddrInternal,
-		UserBlocked: userBlocked,
-		IPBlocked:   ipBlocked,
+		Forum:      *forum,
+		Posts:      posts,
+		TotalCount: total,
+		IsAdmin:    isAdmin,
+		IsBlocked:  isBlocked,
+		Query:      r.FormValue("q"),
 	}
 
 	if isAdmin {
-		model.Blocked = make(map[string]string)
+		model.Blocked = make(map[string]bool)
 		forum.Store.RLock()
 		for k := range forum.Store.blocked {
-			if k[0] == 'b' {
-				model.Blocked[k[1:]] = k[1:]
-			}
+			a, b := format8Bytes(k)
+			model.Blocked[a] = true
+			model.Blocked[b] = true
 		}
 		forum.Store.RUnlock()
 	}

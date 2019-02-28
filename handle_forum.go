@@ -18,22 +18,6 @@ type TopicDisplay struct {
 }
 
 func handleForum(w http.ResponseWriter, r *http.Request) {
-
-	switch r.FormValue("t") {
-	case "list":
-		handleList(forum, w, r)
-		return
-	case "rss":
-		handleRSS(forum, w, r)
-		return
-	default:
-		topicID, _ := strconv.Atoi(r.FormValue("tid"))
-		if topicID > 0 {
-			handleTopic(forum, topicID, w, r)
-			return
-		}
-	}
-
 	fromStr := strings.TrimSpace(r.FormValue("from"))
 	from := 0
 	if "" != fromStr {

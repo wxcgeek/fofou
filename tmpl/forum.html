@@ -17,7 +17,7 @@
             <td>
             {{if $v.Sticky}}<b>[置顶]</b>{{end}}
             {{if $v.Locked}}<b>[锁定]</b>{{end}}
-            <a class="{{$v.TopicLinkClass}}" href="/?tid={{$v.ID}}">{{ $v.Subject }} </a>
+            <a class="{{$v.TopicLinkClass}}" href="/topic?id={{$v.ID}}">{{ $v.Subject }} </a>
             </td>
             </tr>
             <tr>

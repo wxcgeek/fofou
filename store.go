@@ -35,6 +35,7 @@ const (
 
 type Post struct {
 	Message   string
+	Image     string
 	user      [8]byte
 	ip        [8]byte
 	CreatedAt uint32
@@ -70,7 +71,7 @@ func (p *Post) IP() string { i, _ := format8Bytes(p.ip); return i }
 
 func (p *Post) LongID() uint64 { return uint64(p.Topic.ID)<<16 + uint64(p.ID) }
 
-func (p *Post) User() string { return base32Encoding.EncodeToString(p.user[:6])[:10] }
+func (p *Post) User() string { _, i := format8Bytes(p.user); return i }
 
 // Topic describes topic
 type Topic struct {
@@ -165,6 +166,9 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	userName, err := r.Read8Bytes()
 	panicif(err != nil, "invalid username")
 
+	image, err := r.ReadString()
+	panicif(err != nil, "invalid image refer")
+
 	message, err := r.ReadString()
 	panicif(err != nil, "invalid message body")
 
@@ -183,6 +187,7 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 		IsDeleted: false,
 		Topic:     t,
 		Message:   message,
+		Image:     image,
 	}
 }
 
@@ -474,7 +479,7 @@ func (store *Store) TopicByID(id uint32) *Topic {
 func (store *Store) append(buf []byte) error {
 	_, err := store.dataFile.Write(buf)
 	if err != nil {
-		fmt.Printf("appendString() error: %s\n", err)
+		logger.Errorf("append() error: %s\n", err)
 	}
 	return err
 }
@@ -537,7 +542,7 @@ func (store *Store) moveTopicToFront(topic *Topic) {
 
 var errTooManyPosts = fmt.Errorf("topic already has 65535 posts")
 
-func (store *Store) addNewPost(msg string, user [8]byte, ipAddr [8]byte, topic *Topic, newTopic bool) error {
+func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, topic *Topic, newTopic bool) error {
 	nextID := len(topic.Posts) + 1
 	if nextID >= 65536 {
 		return errTooManyPosts
@@ -551,6 +556,7 @@ func (store *Store) addNewPost(msg string, user [8]byte, ipAddr [8]byte, topic *
 		IsDeleted: false,
 		Topic:     topic,
 		Message:   msg,
+		Image:     image,
 	}
 
 	var topicStr buffer
@@ -566,6 +572,7 @@ func (store *Store) addNewPost(msg string, user [8]byte, ipAddr [8]byte, topic *
 	topicStr.WriteUInt32(p.CreatedAt)
 	topicStr.Write8Bytes(ipAddr)
 	topicStr.Write8Bytes(user)
+	topicStr.WriteString(image)
 	topicStr.WriteString(msg)
 
 	if err := store.append(topicStr.Bytes()); err != nil {
@@ -599,7 +606,14 @@ func archive(topic *Topic, saveToPath string) error {
 			continue
 		}
 
-		buf.WriteByte(OP_POST).WriteUInt32(topic.ID).WriteUInt16(p.ID).WriteUInt32(p.CreatedAt).Write8Bytes(p.ip).Write8Bytes(p.user).WriteString(p.Message)
+		buf.WriteByte(OP_POST).
+			WriteUInt32(topic.ID).
+			WriteUInt16(p.ID).
+			WriteUInt32(p.CreatedAt).
+			Write8Bytes(p.ip).
+			Write8Bytes(p.user).
+			WriteString(p.Image).
+			WriteString(p.Message)
 	}
 
 	u.CreateDirForFileMust(saveToPath)
@@ -637,7 +651,7 @@ func (store *Store) Archive() {
 }
 
 // CreateNewTopic creates a new topic
-func (store *Store) CreateNewTopic(subject, msg string, user [8]byte, ipAddr [8]byte) (uint32, error) {
+func (store *Store) CreateNewTopic(subject, msg, image string, user [8]byte, ipAddr [8]byte) (uint32, error) {
 	store.Lock()
 	defer store.Unlock()
 
@@ -651,7 +665,7 @@ func (store *Store) CreateNewTopic(subject, msg string, user [8]byte, ipAddr [8]
 		Posts:   make([]Post, 0),
 	}
 
-	err := store.addNewPost(msg, user, ipAddr, topic, true)
+	err := store.addNewPost(msg, image, user, ipAddr, topic, true)
 	if err == nil {
 		store.topicsCount++
 	}
@@ -664,7 +678,7 @@ func (store *Store) CreateNewTopic(subject, msg string, user [8]byte, ipAddr [8]
 }
 
 // AddPostToTopic adds a post to a topic
-func (store *Store) AddPostToTopic(topicID uint32, msg string, user [8]byte, ipAddr [8]byte) error {
+func (store *Store) AddPostToTopic(topicID uint32, msg, image string, user [8]byte, ipAddr [8]byte) error {
 	store.Lock()
 	defer store.Unlock()
 
@@ -672,7 +686,7 @@ func (store *Store) AddPostToTopic(topicID uint32, msg string, user [8]byte, ipA
 	if topic == nil {
 		return errors.New("invalid topic ID")
 	}
-	err := store.addNewPost(msg, user, ipAddr, topic, false)
+	err := store.addNewPost(msg, image, user, ipAddr, topic, false)
 	if err == errTooManyPosts {
 		var p buffer
 		if err = store.append(p.WriteByte(OP_LOCK).WriteUInt32(topicID).Bytes()); err == nil {
@@ -696,42 +710,22 @@ func (store *Store) Block(term [8]byte) {
 }
 
 // IsBlocked checks if the term is blocked
-func (store *Store) IsBlocked(term [8]byte) bool {
+func (store *Store) IsBlocked(q [8]byte) bool {
 	store.RLock()
 	defer store.RUnlock()
-	return store.blocked[term]
+	return store.blocked[q]
 }
 
-// GetPostsByUserInternal returns posts by user
-func (store *Store) GetPostsByUserInternal(userNameInternal string, max int) ([]Post, int) {
-	return store.getPostsBy(userNameInternal, max, false, true)
-}
-
-// GetPostsByIPInternal returns posts from an ip address
-func (store *Store) GetPostsByIPInternal(ipAddrInternal string, max int) ([]Post, int) {
-	return store.getPostsBy(ipAddrInternal, max, true, false)
-}
-
-func (store *Store) getPostsBy(term string, max int, ip, name bool) ([]Post, int) {
+func (store *Store) GetPostsBy(q [8]byte, max int) ([]Post, int) {
 	store.RLock()
 	defer store.RUnlock()
 	res, total := make([]Post, 0), 0
 	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
 		for _, post := range topic.Posts {
-			if ip {
-				if strings.Contains(post.IP(), term) {
-					total++
-					if total <= max {
-						res = append(res, post)
-					}
-				}
-			}
-			if name {
-				if strings.HasPrefix(post.User(), term) {
-					total++
-					if total <= max {
-						res = append(res, post)
-					}
+			if post.ip == q || post.user == q {
+				total++
+				if total <= max {
+					res = append(res, post)
 				}
 			}
 		}

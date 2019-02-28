@@ -1,94 +1,102 @@
-    {{ if .TopicID }}
-        <input name="tid" value="{{ .TopicID }}" type="hidden">
-    {{ end }}
+<table cellspacing="0" id="newpost">
+    <tbody>
+        {{if not .TopicID}}
+        <tr>
+            <th><label for="subject">标题:</label></th>
+            <td>
+                <input maxlength="256" id="subject" type="edit">
+            </td>
+        </tr>
+        {{else}}
+        <script>
+            window.TOPIC_ID = {{.TopicID}}
+        </script>
+        {{end}}
 
-	<table class="form" cellspacing="0">
-		<tbody>
-		{{ if not .TopicID }}
-		<tr>
-			<th><label for="Subject">标题:</label></th>
-			<td colspan="2">
-				<input maxlength="256" id="subject" type="edit">
-			</td>
-		</tr>
-		{{ end }}
+        <tr>
+            <th>正文:</th>
+            <td>
+                <textarea id="message" rows="10" wrap="virtual"></textarea>
+            </td>
+        </tr>
 
-		<tr>
-			<th><label for="Message">正文:</label></th>
-			<td colspan="2">
-				<textarea id="message" rows="16" wrap="virtual"></textarea>
-			</td>
-		</tr>
+        <tr>
+            <th>图片:</th>
+            <td>
+                <input type="file" id="select-image" />
+            </td>
+        </tr>
 
-		<tr>
-			<td>&nbsp;</td>
-			<td class="buttons">
+        <tr>
+            <td></td>
+            <td>
+                <div class="g-recaptcha" data-sitekey="6LeNoZMUAAAAAOX2EGs8eewS_W73IqxWMtXFaZAq"/div>
+            </td>
+        </tr>
+
+        <tr>
+            <td>&nbsp;</td>
+            <td class="buttons">
                 <button onclick='_submit(this)'>提交</button>
-			</td>
-			
-			<td class="buttons" style="text-align: right">
-				<label id="indicator"></label>
-				<a id="select" href="javascript:document.getElementById('select-images').click()">选择图片</a>
-				<a id="upload" href="javascript:uplaodToSMMS()" style="display:none">上传sm.ms</a>
-			</td> 
-		</tr>
-		</tbody>
-	</table>
-    <script src="https://www.recaptcha.net/recaptcha/api.js" async defer></script>
-    <div class="g-recaptcha" data-sitekey="6LeNoZMUAAAAAOX2EGs8eewS_W73IqxWMtXFaZAq"></div>
+                <label id="indicator"></label>
+                <a id="select" href="javascript:document.getElementById('select-images').click()">选择图片</a>
+                <a id="upload" href="javascript:uplaodToSMMS()" style="display:none">上传sm.ms</a>
+            </td> 
+        </tr>
+    </tbody>
+</table>
+<script src="https://www.recaptcha.net/recaptcha/api.js" async defer></script>
+<script>
+    function updateState() {
+        var files = $('#select-images').get(0).files;
+        if (files.length > 0) {
+            $('#select').html('选择图片 (' + files.length + ')');
+            $('#upload').show();
+        } else {
+            $('#select').html('选择图片');
+            $('#upload').hide();
+        }
+    }
+function uplaodToSMMS() {
+    var input = document.getElementById('select-images'), select = document.getElementById('select');
+    var files = input.files;
+    var box = document.getElementById('Message');
+    var indicator = document.getElementById('indicator');
+    document.getElementById('upload').style.display = "none";
+    select.style.display = "none";
 
-	<input type="file" multiple="multiple" id="select-images" style="display: none" onchange="updateState()"/>
-	<script>
-		function updateState() {
-			var files = $('#select-images').get(0).files;
-			if (files.length > 0) {
-				$('#select').html('选择图片 (' + files.length + ')');
-				$('#upload').show();
-			} else {
-				$('#select').html('选择图片');
-                $('#upload').hide();
-			}
-		}
-		function uplaodToSMMS() {
-			var input = document.getElementById('select-images'), select = document.getElementById('select');
-			var files = input.files;
-			var box = document.getElementById('Message');
-			var indicator = document.getElementById('indicator');
-			document.getElementById('upload').style.display = "none";
-			select.style.display = "none";
+    var index = 0;
+    var handle = setInterval(function(){ indicator.innerHTML = ["⣾","⣽","⣻","⢿","⡿","⣟","⣯","⣷"][index++ % 8]; }, 100);
 
-			var index = 0;
-			var handle = setInterval(function(){ indicator.innerHTML = ["⣾","⣽","⣻","⢿","⡿","⣟","⣯","⣷"][index++ % 8]; }, 100);
+    var upload = function(idx) {
+        if (idx >= files.length) {
+            input.value = "";
+            indicator.innerHTML = "";
+            select.style.display = "";
+            clearInterval(handle);
+            updateState();
+            return;
+        }
 
-			var upload = function(idx) {
-				if (idx >= files.length) {
-					input.value = "";
-					indicator.innerHTML = "";
-					select.style.display = "";
-					clearInterval(handle);
-					updateState();
-					return;
-				}
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function(e) {
+            if ( 4 == this.readyState ) {
+                var resp = JSON.parse(xhr.responseText);
+                if (resp && resp.code == "success") {
+                    box.value += "\n" + resp.data.url;
+                } else {
+                    box.value += "\n*** FAILED *** " + files[idx].name;
+                }
+                upload(idx + 1);
+            }
+        };
+        xhr.open('post', "https://sm.ms/api/upload");
+        var form = new FormData();
+        form.append("smfile", files[idx]);
+        xhr.send(form);
+    };
 
-				var xhr = new XMLHttpRequest();
-				xhr.onreadystatechange = function(e) {
-					if ( 4 == this.readyState ) {
-						var resp = JSON.parse(xhr.responseText);
-						if (resp && resp.code == "success") {
-							box.value += "\n" + resp.data.url;
-						} else {
-							box.value += "\n*** FAILED *** " + files[idx].name;
-						}
-						upload(idx + 1);
-					}
-				};
-				xhr.open('post', "https://sm.ms/api/upload");
-				var form = new FormData();
-				form.append("smfile", files[idx]);
-				xhr.send(form);
-			};
-
-			upload(0);
-		}
-	</script>
+    upload(0);
+}
+</script>
 

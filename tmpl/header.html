@@ -1,39 +1,51 @@
 <!DOCTYPE html>
 <html>
-<head>
-	<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
-	<title>{{ .Title }}</title>
-	<link href="/s/default.css" rel="stylesheet" type="text/css">
-    <script src="/s/jquery-1.12.4.min.js"></script>
-</head>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+        <title>{{ .Title }}</title>
+        <link href="/s/default.css" rel="stylesheet" type="text/css">
+        <script src="/s/jquery-1.12.4.min.js"></script>
+    </head>
 
     <script>
         function _submit(btn, msg) {
             btn ? $(btn).prop('disabled', 'true') : 0;
-            var form = msg ? { 'message' : msg } : {
-                'subject': $('#subject').val(),
-                'message': $('#message').val(),
-                'token': grecaptcha.getResponse(),
-            };
-            $.post('/api', form, function(resp) {
-                try {
-                    resp = JSON.parse(resp);
-                    if (resp.success) {
-                        location.reload();
-                        return;
+            var form = new FormData();
+            if (msg) {
+                form.append('message', msg);
+            } else {
+                form.append('subject', $('#subject').val());
+                form.append('message', $('#message').val());
+                form.append('image', $('#select-image').val());
+                form.append('topic', window.TOPIC_ID || 0);
+                form.append('token', grecaptcha.getResponse());
+            }
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function(e) {
+                if ( 4 == this.readyState ) {
+                    try {
+                        var resp = xhr.resposneText;
+                        resp = JSON.parse(resp);
+                        if (resp.success) {
+                            location.reload();
+                            return;
+                        }
+                        alert("发生错误：\ncode: " + resp.error);
+                    } catch (ex) {
+                        alert("发生错误：\n" + ex);
+                        console.error(e);
                     }
-                    alert("发生错误：\ncode: " + resp.error);
-                } catch (e) {
-                    alert("发生错误：\n" + e);
+
                 }
-            }).always(function() {
                 btn ? $(btn).prop('disabled', '') : 0;
-            });
+            };
+            xhr.open('post', "/api");
+            xhr.send(form);
         }
     </script>
 
-<body>
-<div id="container"> 
-    <div class="header">
-        <a class="item" href="/">主页</a>        
-    </div>
+    <body>
+        <div id="container"> 
+            <div class="header">
+                <a class="item" href="/">主页</a>        
+            </div>

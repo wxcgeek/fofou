@@ -140,7 +140,7 @@ func (l *ServerLogger) GetNotices() []*TimestampedMsg {
 
 // url: /logs
 func handleLogs(w http.ResponseWriter, r *http.Request) {
-	isAdmin := getUser(r).ID == ":coyove" // only I can see the logs
+	isAdmin := forum.IsAdmin(getUser(r).ID)
 
 	m := &runtime.MemStats{}
 	runtime.ReadMemStats(m)
@@ -163,7 +163,6 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 
 	if r.FormValue("show") != "" {
 		model.Header = &r.Header
-		model.Header.Add("RealIp", IPAddress(getIPAddress(r)))
 	}
 
 	ExecTemplate(w, tmplLogs, model)
