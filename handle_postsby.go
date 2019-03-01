@@ -12,8 +12,8 @@ import (
 func handleList(w http.ResponseWriter, r *http.Request) {
 	store := forum.Store
 	q := r.FormValue("q")
-	query := parse8Bytes(q)
-	isAdmin := forum.IsAdmin(getUser(r).ID)
+	query := server.Parse8Bytes(q)
+	isAdmin := server.GetUser(r).IsAdmin()
 	maxTopics := 50
 
 	if count := r.FormValue("count"); isAdmin && count != "" {
@@ -24,16 +24,16 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	isBlocked := store.IsBlocked(query)
 
 	model := struct {
-		*Forum
-		*Topic
+		server.Forum
+		server.Topic
 		TotalCount int
 		IsAdmin    bool
 		Query      string
 		Blocked    map[string]bool
 		IsBlocked  bool
 	}{
-		Forum: forum,
-		Topic: &Topic{
+		Forum: *forum,
+		Topic: server.Topic{
 			Posts:     posts,
 			Subject:   fmt.Sprintf("%s: %x", q, query),
 			T_IsAdmin: isAdmin,

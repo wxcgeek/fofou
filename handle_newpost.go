@@ -17,27 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coyove/common/rand"
+	"github.com/coyove/fofou/server"
 )
-
-// ModelNewPost represents a new post
-type ModelNewPost struct {
-	*Forum
-	TopicID        int
-	PrevCaptcha    string
-	PrevSubject    string
-	Token          string
-	SubjectError   bool
-	MessageError   bool
-	TokenError     bool
-	TopicLocked    bool
-	NoMoreNewUsers bool
-	PrevMessage    string
-	NameClass      string
-	PrevName       string
-}
-
-var randG = rand.New()
 
 func getIPAddress(r *http.Request) (v [8]byte) {
 	ipAddr := ""
@@ -94,7 +75,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	badRequest := func() { writeSimpleJSON(w, "success", false, "error", "bad-request") }
 	internalError := func() { writeSimpleJSON(w, "success", false, "error", "internal-error") }
 
-	var topic Topic
+	var topic server.Topic
 
 	topicID, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("topic")))
 	if topicID > 0 {
@@ -106,7 +87,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ipAddr := getIPAddress(r)
-	user := getUser(r)
+	user := server.GetUser(r)
 	if forum.Store.IsBlocked(ipAddr) {
 		forum.Notice("blocked a post from IP: %s", ipAddr)
 		badRequest()
@@ -114,7 +95,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// if user didn't pass the dice test, we will challenge him/her
-	if !user.noTest {
+	if !user.NoTest() {
 		recaptcha := strings.TrimSpace(r.FormValue("token"))
 		if recaptcha == "" {
 			writeSimpleJSON(w, "success", false, "error", "recaptcha-needed")
@@ -153,13 +134,13 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 			writeSimpleJSON(w, "success", false, "error", "no-more-new-users")
 			return
 		}
-		copy(user.ID[:], randG.Fetch(6))
+		copy(user.ID[:], forum.Rand.Fetch(6))
 		if user.ID[1] == ':' {
 			user.ID[1]++
 		}
 	}
 
-	if forum.IsAdmin(user.ID) && adminOpCode(forum, msg) {
+	if user.IsAdmin() && server.AdminOPCode(forum, msg) {
 		writeSimpleJSON(w, "success", true, "admin-operation", msg)
 		return
 	}
@@ -202,7 +183,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setUser(w, user)
+	server.SetUser(w, user)
 
 	imagePath := ""
 	if image != nil && imageInfo != nil {

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/coyove/fofou/server"
 	"github.com/kjk/u"
@@ -12,25 +14,6 @@ import (
 type ForumInfo struct {
 	ForumFullURL string
 	ForumTitle   string
-}
-
-// url: /{forum}/viewraw?topicId=${topicId}&postId=${postId}
-func handleViewRaw(forum *Forum, w http.ResponseWriter, r *http.Request) {
-	//topicID, _ := strconv.Atoi(r.FormValue("tid"))
-	//postID, _ := strconv.Atoi(r.FormValue("pid"))
-	//topic := forum.Store.TopicByID(uint32(topicID))
-	//if nil == topic {
-	//	forum.Notice("handleViewRaw(): didn't find topic with id %d, referer: %q", topicID, getReferer(r))
-	//	http.Redirect(w, r, fmt.Sprintf("/%s/", forum.ForumUrl), 302)
-	//	return
-	//}
-	//post := topic.Posts[postID-1]
-	//msg := post.Message()
-	//w.Header().Set("Content-Type", "text/plain")
-	//w.Write([]byte("****** Raw:\n"))
-	//w.Write([]byte(msg))
-	//w.Write([]byte("\n\n****** Converted:\n"))
-	//w.Write([]byte(msgToHtml(msg)))
 }
 
 func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName string) {
@@ -58,7 +41,7 @@ func handleRobotsTxt(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleLogs(w http.ResponseWriter, r *http.Request) {
-	if !forum.IsAdmin(getUser(r).ID) {
+	if !server.GetUser(r).IsAdmin() {
 		w.WriteHeader(403)
 		return
 	}
@@ -81,17 +64,38 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	server.Render(w, server.TmplLogs, model)
 }
 
-// // https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
+func preHandle(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !forum.IsReady() {
+			w.Write([]byte(fmt.Sprintf("%v Booting... %.1f%%", time.Now().Format(time.RFC1123), forum.LoadingProgress()*100)))
+			return
+		}
+
+		startTime := time.Now()
+
+		fn(w, r)
+
+		duration := time.Now().Sub(startTime)
+		if duration.Seconds() > 0.1 {
+			url := r.URL.Path
+			if len(r.URL.RawQuery) > 0 {
+				url = fmt.Sprintf("%s?%s", url, r.URL.RawQuery)
+			}
+			forum.Notice("%q took %f seconds to serve", url, duration.Seconds())
+		}
+	}
+}
+
 func initHTTPServer() *http.Server {
 	smux := &http.ServeMux{}
 	smux.HandleFunc("/favicon.ico", http.NotFound)
 	smux.HandleFunc("/robots.txt", handleRobotsTxt)
-	smux.HandleFunc("/logs", handleLogs)
-	smux.HandleFunc("/s/", makeTimingHandler(handleStatic))
-	smux.HandleFunc("/i/", makeTimingHandler(handleImage))
-	smux.HandleFunc("/api", makeTimingHandler(handleNewPost))
-	smux.HandleFunc("/list", makeTimingHandler(handleList))
-	smux.HandleFunc("/t/", makeTimingHandler(handleTopic))
-	smux.HandleFunc("/", makeTimingHandler(handleForum))
+	smux.HandleFunc("/logs", preHandle(handleLogs))
+	smux.HandleFunc("/s/", preHandle(handleStatic))
+	smux.HandleFunc("/i/", preHandle(handleImage))
+	smux.HandleFunc("/api", preHandle(handleNewPost))
+	smux.HandleFunc("/list", preHandle(handleList))
+	smux.HandleFunc("/t/", preHandle(handleTopic))
+	smux.HandleFunc("/", preHandle(handleForum))
 	return &http.Server{Handler: smux}
 }

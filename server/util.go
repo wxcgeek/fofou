@@ -1,5 +1,5 @@
 // This code is under BSD license. See license-bsd.txt
-package main
+package server
 
 import (
 	"bufio"
@@ -220,7 +220,7 @@ func (b *buffer) LastStringCheckpoint() int { return b.postmp }
 
 func (b *buffer) LastByteCheckpoint() int { return b.pos }
 
-func format8Bytes(b [8]byte) (string, string) {
+func Format8Bytes(b [8]byte) (string, string) {
 	buf, bufid := bytes.Buffer{}, bytes.Buffer{}
 
 	if b[0] == 0 && b[1] == 0 && b[2] == 0 && b[3] == 0 && b[7] == 0 {
@@ -240,7 +240,7 @@ func format8Bytes(b [8]byte) (string, string) {
 	return buf.String(), bufid.String()
 }
 
-func parse8Bytes(str string) (b [8]byte) {
+func Parse8Bytes(str string) (b [8]byte) {
 	if strings.HasSuffix(str, ".x") {
 		parts := strings.Split(str, ".")
 		if len(parts) == 4 {
@@ -272,18 +272,7 @@ func parse8Bytes(str string) (b [8]byte) {
 
 const _salt = "testsalt123456"
 
-type User struct {
-	ID     [8]byte
-	N      int
-	Posts  int
-	noTest bool
-}
-
-func (u *User) IsValid() bool { return u.ID != default8Bytes }
-
-func (u *User) IsAdmin() bool { return u.ID[0] == 'a' && u.ID[1] == ':' }
-
-func getUser(r *http.Request) User {
+func GetUser(r *http.Request) User {
 	uid, err := r.Cookie("uid")
 	if err != nil {
 		return User{}
@@ -325,7 +314,7 @@ func getUser(r *http.Request) User {
 	return u
 }
 
-func setUser(w http.ResponseWriter, u User) {
+func SetUser(w http.ResponseWriter, u User) {
 	u.Posts++
 	buf, _ := json.Marshal(&u)
 	user := base32Encoding.EncodeToString(buf)
@@ -349,7 +338,7 @@ func setUser(w http.ResponseWriter, u User) {
 	}
 }
 
-func adminOpCode(forum *Forum, msg string) bool {
+func AdminOPCode(forum *Forum, msg string) bool {
 	r := bufio.NewReader(strings.NewReader(msg))
 	opcode := false
 	for {
@@ -398,7 +387,7 @@ func adminOpCode(forum *Forum, msg string) bool {
 			forum.Store.OperateTopic(uint32(vint), OP_SAGE)
 			opcode = true
 		case "block":
-			forum.Store.Block(parse8Bytes(v))
+			forum.Store.Block(Parse8Bytes(v))
 			opcode = true
 		}
 	}

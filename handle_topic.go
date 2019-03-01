@@ -7,22 +7,18 @@ import (
 	"strconv"
 
 	"github.com/coyove/fofou/server"
-	"github.com/kjk/u"
 )
 
-// url: /{forum}/topic?id=${id}
+// url: /t/{tid}
 func handleTopic(w http.ResponseWriter, r *http.Request) {
 	topicID, _ := strconv.Atoi(r.URL.Path[len("/t/"):])
 	topic := forum.Store.TopicByID(uint32(topicID))
 	if topic.ID == 0 {
-		path := forum.Store.BuildArchivePath(uint32(topicID))
-		if u.PathExists(path) {
-			var err error
-			topic, err = LoadSingleTopicInStore(path)
-			if err == nil {
-				topic.Archived = true
-				goto NEXT
-			}
+		var err error
+		topic, err = forum.LoadArchivedTopic(uint32(topicID))
+		if err == nil {
+			topic.Archived = true
+			goto NEXT
 		}
 
 		forum.Notice("handleTopic(): didn't find topic with id %d, referer: %q", topicID, r.Referer())
@@ -30,13 +26,13 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 NEXT:
-	isAdmin := forum.IsAdmin(getUser(r).ID)
+	isAdmin := server.GetUser(r).IsAdmin()
 	if topic.IsDeleted() && !isAdmin {
 		http.Redirect(w, r, "/", 302)
 		return
 	}
 
-	pages := int(math.Ceil(float64(len(topic.Posts)) / float64(PostsPerPage)))
+	pages := int(math.Ceil(float64(len(topic.Posts)) / float64(server.PostsPerPage)))
 	p, _ := strconv.Atoi(r.FormValue("p"))
 	if p < 1 {
 		p = 1
@@ -47,16 +43,16 @@ NEXT:
 
 	topic.T_TotalPosts = uint16(len(topic.Posts) - 1)
 	topic.T_IsAdmin = isAdmin
-	topic.Posts = topic.Posts[(p-1)*PostsPerPage : int(math.Min(float64(p*PostsPerPage), float64(len(topic.Posts))))]
+	topic.Posts = topic.Posts[(p-1)*server.PostsPerPage : int(math.Min(float64(p*server.PostsPerPage), float64(len(topic.Posts))))]
 
 	model := struct {
-		*Forum
-		Topic
+		server.Forum
+		server.Topic
 		TopicID int
 		Pages   int
 		CurPage int
 	}{
-		Forum:   forum,
+		Forum:   *forum,
 		Topic:   topic,
 		TopicID: topicID,
 		Pages:   pages,

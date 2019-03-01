@@ -21,15 +21,14 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("handleForum(): forum: %q, from: %d\n", forum.ForumUrl, from)
 
 	nTopicsMax := 15
-	isAdmin := forum.IsAdmin(getUser(r).ID)
-	withDeleted := isAdmin
-	topics, newFrom := forum.Store.GetTopics(nTopicsMax, from, withDeleted)
+	isAdmin := server.GetUser(r).IsAdmin()
+	topics, newFrom := forum.GetTopics(nTopicsMax, from, isAdmin)
 	prevTo := from - nTopicsMax
 	if prevTo < 0 {
 		prevTo = 0
 	}
 
-	topicsDisplay := make([]Topic, 0)
+	topicsDisplay := make([]server.Topic, 0)
 
 	for _, t := range topics {
 		if t.IsDeleted() && !isAdmin {
@@ -45,11 +44,11 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 	}
 
 	model := struct {
-		Forum
+		server.Forum
 		NewFrom int
 		PrevTo  int
 		TopicID int
-		Topics  []Topic
+		Topics  []server.Topic
 	}{
 		Forum:   *forum,
 		Topics:  topicsDisplay,

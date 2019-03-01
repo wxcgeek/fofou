@@ -1,9 +1,7 @@
-// This code is in Public Domain. Take all the code you want, I'll just write more.
-package main
+package server
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -14,11 +12,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/coyove/common/rand"
-	"github.com/coyove/fofou/server"
-	"github.com/kjk/u"
 )
 
 const (
@@ -34,93 +31,21 @@ const (
 	OP_FREEREPLY = 'F'
 )
 
-type Post struct {
-	Message   string
-	Image     string
-	user      [8]byte
-	ip        [8]byte
-	CreatedAt uint32
-	ID        uint16
-	IsDeleted bool
-	Topic     *Topic
-}
-
-func (p *Post) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
-
-func (p *Post) MessageHTML() string {
-	return urlRx.ReplaceAllStringFunc(p.Message, func(in string) string {
-		switch in {
-		case " ":
-			return "&nbsp;"
-		case "\n":
-			return "<br>"
-		case "<":
-			return "&lt;"
-		default:
-			if strings.HasPrefix(in, "```") {
-				return "<code>" + strings.Replace(in[3:len(in)-3], "<", "&lt;", -1) + "</code>"
-			} else if strings.HasSuffix(in, ".png") || strings.HasSuffix(in, ".jpg") || strings.HasSuffix(in, ".gif") {
-				return "<img class=image alt='" + in + "' src='" + in + "'/>"
-			} else {
-				return "<a href='" + in + "' target=_blank>" + in + "</a>"
-			}
-		}
-	})
-}
-
-func (p *Post) IP() string { i, _ := format8Bytes(p.ip); return i }
-
-func (p *Post) LongID() uint64 { return uint64(p.Topic.ID)<<16 + uint64(p.ID) }
-
-func (p *Post) User() string { _, i := format8Bytes(p.user); return i }
-
-// Topic describes topic
-type Topic struct {
-	ID         uint32
-	Sticky     bool
-	Locked     bool
-	Archived   bool
-	FreeReply  bool
-	Saged      bool
-	CreatedAt  uint32
-	ModifiedAt uint32
-	Subject    string
-	Next       *Topic
-	Prev       *Topic
-	Posts      []Post
-
-	T_TotalPosts uint16
-	T_IsAdmin    bool
-	T_IsExpand   bool
-}
-
-func (p *Topic) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
-
-func (p *Topic) LastDate() string { return time.Unix(int64(p.ModifiedAt), 0).Format(stdTimeFormat) }
-
 // Store describes store
 type Store struct {
 	sync.RWMutex
-	*server.Logger
+	*Logger
 
 	MaxLiveTopics int
-	dataFilePath  string
-	rootTopic     *Topic
-	endTopic      *Topic
-	topicsCount   uint32
-	AvgPostLen    uint32
-	blocked       map[[8]byte]bool
-	dataFile      *os.File
-}
+	Rand          *rand.Rand
 
-// IsDeleted returns true if topic is deleted
-func (t *Topic) IsDeleted() bool {
-	for _, p := range t.Posts {
-		if !p.IsDeleted {
-			return false
-		}
-	}
-	return true
+	ready        uintptr
+	dataFilePath string
+	rootTopic    *Topic
+	endTopic     *Topic
+	topicsCount  uint32
+	blocked      map[[8]byte]bool
+	dataFile     *os.File
 }
 
 func findPostToDelUndel(r *buffer, topicIDToTopic map[uint32]*Topic) (*Post, error) {
@@ -197,6 +122,10 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	}
 }
 
+func (store *Store) LoadingProgress() float64 { return float64(atomic.LoadUintptr(&store.ready)) / 1000 }
+
+func (store *Store) IsReady() bool { return atomic.LoadUintptr(&store.ready) == 1000 }
+
 func (store *Store) markBlockedOrUnblocked(term [8]byte) {
 	if store.blocked[term] {
 		delete(store.blocked, term)
@@ -238,8 +167,11 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 		return nil
 	}
 
+	fsize := int(fhInfo.Size())
 	for {
-		print("\rloading %02d%% %d/%d", r.pos*100/int(fhInfo.Size()), r.pos, fhInfo.Size())
+		print("\rloading %02d%% %d/%d", r.pos*100/fsize, r.pos, fsize)
+		atomic.StoreUintptr(&store.ready, uintptr(r.pos*1000/fsize))
+
 		op, err := r.ReadByte()
 		if err != nil {
 			break
@@ -300,6 +232,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 	}
 
 	fh.Close()
+	atomic.StoreUintptr(&store.ready, 1000)
 	print("\n")
 	return nil
 }
@@ -307,18 +240,18 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 func (store *Store) verifyTopics() {
 	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
 		if 0 == len(topic.Posts) {
-			fmt.Printf("topics (%v) has no posts!\n", topic)
+			store.Notice("topics (%v) has no posts!\n", topic)
 		}
 	}
 }
 
-// NewStore creates a new store
-func NewStore(path string, maxLiveTopics int, logger *server.Logger) *Store {
+func NewStore(path string, maxLiveTopics int, logger *Logger) *Store {
 	store := &Store{
 		dataFilePath:  path,
 		rootTopic:     &Topic{},
 		endTopic:      &Topic{},
 		blocked:       make(map[[8]byte]bool),
+		Rand:          rand.New(),
 		MaxLiveTopics: maxLiveTopics,
 		Logger:        logger,
 	}
@@ -326,23 +259,30 @@ func NewStore(path string, maxLiveTopics int, logger *server.Logger) *Store {
 	store.rootTopic.Next = store.endTopic
 	store.endTopic.Prev = store.rootTopic
 
-	if u.PathExists(store.dataFilePath) {
-		store.loadDB(store.dataFilePath, false)
-	} else {
-		f, err := os.Create(store.dataFilePath)
-		panicif(err != nil, "can't create initial DB %s: %v", store.dataFilePath, err)
-		f.Close()
+	if _, err := os.Stat(path); err == nil {
+		go func() {
+			store.loadDB(store.dataFilePath, false)
+			store.verifyTopics()
+			store.dataFile, err = os.OpenFile(store.dataFilePath, os.O_APPEND|os.O_RDWR, 0666)
+			panicif(err != nil, "can't open DB %s: %v", store.dataFilePath, err)
+		}()
+
+		return store
 	}
 
-	var err error
-	store.verifyTopics()
+	f, err := os.Create(store.dataFilePath)
+	panicif(err != nil, "can't create initial DB %s: %v", store.dataFilePath, err)
+	f.Close()
+
 	store.dataFile, err = os.OpenFile(store.dataFilePath, os.O_APPEND|os.O_RDWR, 0666)
 	panicif(err != nil, "can't open DB %s: %v", store.dataFilePath, err)
 
+	store.ready = 1000
+
 	if false {
-		r := rand.New()
+		r := store.Rand
 		curTopicId := uint32(0)
-		for i := 0; i < 20; i++ {
+		for i := 0; i < 200; i++ {
 			wg := &sync.WaitGroup{}
 			for i := 0; i < 1000; i++ {
 				wg.Add(1)
@@ -368,8 +308,13 @@ func NewStore(path string, maxLiveTopics int, logger *server.Logger) *Store {
 	return store
 }
 
-func LoadSingleTopicInStore(path string) (Topic, error) {
-	store := &Store{
+func (store *Store) LoadArchivedTopic(topicID uint32) (Topic, error) {
+	path := store.buildArchivePath(uint32(topicID))
+	if _, err := os.Stat(path); err != nil {
+		return Topic{}, err
+	}
+
+	store = &Store{
 		rootTopic: &Topic{},
 		endTopic:  &Topic{},
 	}
@@ -577,8 +522,8 @@ func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, 
 	}
 
 	topicStr.WriteByte(OP_POST)
-	topicStr.WriteUInt32(uint32(topic.ID))
-	topicStr.WriteUInt16(uint16(p.ID))
+	topicStr.WriteUInt32(topic.ID)
+	topicStr.WriteUInt16(p.ID)
 	topicStr.WriteUInt32(p.CreatedAt)
 	topicStr.Write8Bytes(ipAddr)
 	topicStr.Write8Bytes(user)
@@ -599,14 +544,12 @@ func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, 
 	return nil
 }
 
-func (store *Store) BuildArchivePath(topicID uint32) string {
+func (store *Store) buildArchivePath(topicID uint32) string {
 	id1, id2 := int(topicID)/100000, int(topicID)/1000
-	return filepath.Join("data", "archive", strconv.Itoa(id1), strconv.Itoa(id2), strconv.Itoa(int(topicID)))
+	return filepath.Join(filepath.Dir(store.dataFilePath), "archive", strconv.Itoa(id1), strconv.Itoa(id2), strconv.Itoa(int(topicID)))
 }
 
 func archive(topic *Topic, saveToPath string) error {
-	topic.Prev.Next = topic.Next
-	topic.Next.Prev = topic.Prev
 
 	buf := &buffer{}
 	buf.WriteByte(OP_TOPIC).WriteUInt32(topic.ID).WriteString(topic.Subject)
@@ -626,8 +569,11 @@ func archive(topic *Topic, saveToPath string) error {
 			WriteString(p.Message)
 	}
 
-	u.CreateDirForFileMust(saveToPath)
-	return ioutil.WriteFile(saveToPath, buf.Bytes(), 0777)
+	// .CreateDirForFileMust(saveToPath)
+	if err := os.MkdirAll(filepath.Dir(saveToPath), 0755); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(saveToPath, buf.Bytes(), 0755)
 }
 
 func (store *Store) Archive() {
@@ -641,23 +587,20 @@ func (store *Store) Archive() {
 		}
 	}
 
-	info := &bytes.Buffer{}
-	info.WriteString("archive:")
 	for topic != store.endTopic.Prev && topic != store.endTopic {
 		t := store.endTopic.Prev
+		if err := archive(t, store.buildArchivePath(t.ID)); err != nil {
+			store.Error("failed to archive %d: %v", t.ID, err)
+			break
+		}
 		var p buffer
 		if err := store.append(p.WriteByte(OP_ARCHIVE).WriteUInt32(t.ID).Bytes()); err != nil {
-			info.WriteString(fmt.Sprintf(" %d(%v)", t.ID, err))
-			continue
+			store.Error("failed to archive %d: %v", t.ID, err)
+			break
 		}
-		err := archive(t, store.BuildArchivePath(t.ID))
-		if err == nil {
-			info.WriteString(fmt.Sprintf(" %d(ok)", t.ID))
-		} else {
-			info.WriteString(fmt.Sprintf(" %d(%v)", t.ID, err))
-		}
+		t.Prev.Next = t.Next
+		t.Next.Prev = t.Prev
 	}
-	store.Notice(info.String())
 }
 
 // CreateNewTopic creates a new topic
@@ -680,7 +623,7 @@ func (store *Store) CreateNewTopic(subject, msg, image string, user [8]byte, ipA
 		store.topicsCount++
 	}
 
-	if randG.Intn(64) == 0 {
+	if store.Rand.Intn(64) == 0 {
 		go store.Archive()
 	}
 
