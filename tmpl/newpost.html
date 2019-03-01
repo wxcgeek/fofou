@@ -42,6 +42,11 @@
                 <button onclick='_submit(this)'>{{if .TopicID}}回复{{else}}新主题{{end}}</button>
                 {{if .Forum.NoMoreNewUsers}}
                 当前未持有cookie的匿名用户无法发言
+                {{else}}
+                <script>
+                    var m = document.cookie.match(/'Posts':(\d+)/)[1];
+if (m) document.write("该ID的主题数: " + m);
+                </script>
                 {{end}}
             </td> 
         </tr>

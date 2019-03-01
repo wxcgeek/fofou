@@ -1,10 +1,12 @@
-package main
+package server
 
 import (
 	"testing"
 
 	"github.com/coyove/common/rand"
 )
+
+var _test = true
 
 const str = "hello world, 你好世界"
 

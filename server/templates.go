@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	TmplMain    = "main.html"
 	TmplForum   = "forum.html"
 	TmplTopic   = "topic.html"
 	TmplPosts   = "posts.html"
@@ -19,13 +18,14 @@ var (
 )
 
 var (
-	templateNames = []string{TmplMain, TmplForum, TmplTopic, TmplPosts, TmplNewPost, TmplLogs, "footer.html", "header.html", "forumnav.html", "topic1.html", "post1.html"}
+	templateNames = []string{TmplForum, TmplTopic, TmplPosts, TmplNewPost, TmplLogs, "footer.html", "header.html", "forumnav.html", "topic1.html", "post1.html"}
 	templatePaths []string
 	templates     *template.Template
 	tmplMutex     sync.RWMutex
 )
 
-func init() {
+func LoadTemplates() {
+
 	for _, name := range templateNames {
 		templatePaths = append(templatePaths, filepath.Join("tmpl", name))
 	}
