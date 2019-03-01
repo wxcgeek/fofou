@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"strings"
 	"time"
 )
@@ -111,3 +112,47 @@ func (u User) IsValid() bool { return u.ID != default8Bytes }
 func (u User) IsAdmin() bool { return u.ID[0] == 'a' && u.ID[1] == ':' }
 
 func (u User) NoTest() bool { return u.noTest }
+
+type SafeJSON struct {
+	bytes.Buffer
+}
+
+func (s *SafeJSON) Write(p []byte) (int, error) {
+	for _, v := range p {
+		if v == ',' {
+			s.Buffer.WriteByte('^')
+			continue
+		}
+		if v == '"' {
+			s.Buffer.WriteByte('\'')
+			continue
+		}
+		if bytes.IndexByte([]byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]{}:"), v) > -1 {
+			s.Buffer.WriteByte(v)
+			continue
+		}
+		if v == 0xa {
+			continue
+		}
+		panic(v)
+	}
+	return len(p), nil
+}
+
+func (s *SafeJSON) Read(p []byte) (int, error) {
+	n, err := s.Buffer.Read(p)
+	for i, v := range p[:n] {
+		if v == '^' {
+			p[i] = ','
+			continue
+		}
+		if v == '\'' {
+			p[i] = '"'
+			continue
+		}
+		if bytes.IndexByte([]byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]{}:"), v) > -1 {
+			continue
+		}
+	}
+	return n, err
+}

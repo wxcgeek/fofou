@@ -295,8 +295,9 @@ func GetUser(r *http.Request) User {
 	}
 
 	u := User{}
-	buf, _ := base32Encoding.DecodeString(user)
-	json.Unmarshal(buf, &u)
+	bufp := &SafeJSON{}
+	bufp.Buffer = *bytes.NewBuffer([]byte(user))
+	json.NewDecoder(bufp).Decode(&u)
 
 	{
 		x, n := u.Posts, u.N
@@ -316,8 +317,9 @@ func GetUser(r *http.Request) User {
 
 func SetUser(w http.ResponseWriter, u User) {
 	u.Posts++
-	buf, _ := json.Marshal(&u)
-	user := base32Encoding.EncodeToString(buf)
+	bufp := &SafeJSON{}
+	json.NewEncoder(bufp).Encode(&u)
+	user := bufp.String()
 
 	x := sha256.Sum256([]byte(user + _salt))
 	for i := 0; i < 16; i++ {

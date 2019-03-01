@@ -6,12 +6,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"runtime"
 	"time"
 
 	"github.com/coyove/common/rand"
 	"github.com/coyove/fofou/server"
-	"github.com/kjk/u"
 )
 
 var (
@@ -48,10 +48,8 @@ func NewForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
 }
 
 func main() {
-	u.CreateDirIfNotExists("data")
-	u.CreateDirIfNotExists("data/archive")
-	u.CreateDirIfNotExists("data/images")
-
+	os.MkdirAll("data/archive", 0755)
+	os.MkdirAll("data/images", 0755)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	flag.Parse()

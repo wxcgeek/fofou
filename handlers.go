@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/coyove/fofou/server"
-	"github.com/kjk/u"
 )
 
 type ForumInfo struct {
@@ -18,9 +17,6 @@ type ForumInfo struct {
 
 func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName string) {
 	filePath := filepath.Join(dir, fileName)
-	if !u.PathExists(filePath) {
-		forum.Notice("serveFileFromDir() file %q doesn't exist, referer: %q", fileName, r.Referer())
-	}
 	http.ServeFile(w, r, filePath)
 }
 
@@ -50,11 +46,13 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	runtime.ReadMemStats(m)
 
 	model := struct {
+		server.Forum
 		Errors  []*server.TimestampedMsg
 		Notices []*server.TimestampedMsg
 		Header  *http.Header
 		runtime.MemStats
 	}{
+		Forum:    *forum,
 		MemStats: *m,
 		Errors:   forum.GetErrors(),
 		Notices:  forum.GetNotices(),
@@ -96,6 +94,6 @@ func initHTTPServer() *http.Server {
 	smux.HandleFunc("/api", preHandle(handleNewPost))
 	smux.HandleFunc("/list", preHandle(handleList))
 	smux.HandleFunc("/t/", preHandle(handleTopic))
-	smux.HandleFunc("/", preHandle(handleForum))
+	smux.HandleFunc("/", preHandle(handleTopics))
 	return &http.Server{Handler: smux}
 }
