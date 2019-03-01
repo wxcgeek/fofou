@@ -1,13 +1,13 @@
 <div class="topic">
-    {{if .Topic.ID}}
+    {{if .ID}}
     <div class="subject">
         <div class="title">
             <span>
-                No.{{.Topic.ID}} 
+                No.{{.ID}} 
                 {{.Subject}}
             </span>
             <span>
-                [<a href="/topic?id={{.Topic.ID}}">回复</a>]
+                [<a href="/t/{{.ID}}">回复</a>]
             </span>
         </div>
         <div>
@@ -17,26 +17,40 @@
                 {{if .Sticky}}[置顶]{{end}}
                 {{if .Saged}}[SAGE]{{end}}
                 {{if .FreeReply}}[自由回复]{{end}}
-                共 {{len .Posts}} 条回复
+                共 {{.T_TotalPosts}} 条回复
             </span>
         </div>
     </div>
     {{end}}
-    {{range .Topic.Posts}}
+    {{range .Posts}}
     <div class="post" id="post-{{.LongID}}">
         <div class="info">
             <span class="toggle" onclick="_togglePost({{.LongID}})">[-]</span>
-            <a class="no" href="#post-{{.LongID}}">#{{.ID}}</a>
+            <a class="no" href="#post-{{.LongID}}">#{{.LongID}}</a>
             {{.Date}}
             <a href="/list?q={{.User}}" target="_blank">{{.User}}</a>
 
-            {{ if $.IsAdmin }}
-            <br/>From:
+            {{ if $.T_IsAdmin }}
+            <br/>IP:
             <a href="/list?q={{.IP}}" target="_blank">{{.IP}}</a>
-            <a href="/?t=del&tid={{.Topic.ID}}&pid={{.ID}}">{{ if .IsDeleted }}restore{{ else }}delete{{end}}</a>
+            <a href="javascript:_submit(null, '!!delete={{.LongID}}')">
+                {{if .IsDeleted}}
+                恢复删除
+                {{else}}
+                <span style="color:red">删除</span>
+                {{end}}
+            </a>
             {{ end }}
         </div>
-        <div class="message">{{.MessageHTML}}</div>
+        {{if .IsDeleted}}
+            {{if $.T_IsAdmin}}
+                {{template "post1.html" .}}
+            {{else}}
+                <div><s style="color: #aaa">已删除</s></div>
+            {{end}}
+        {{else}}
+            {{template "post1.html" .}}
+        {{end}}
     </div>
     {{end}}
 </div>

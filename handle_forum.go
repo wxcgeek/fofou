@@ -30,7 +30,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 	}
 	//fmt.Printf("handleForum(): forum: %q, from: %d\n", forum.ForumUrl, from)
 
-	nTopicsMax := 50
+	nTopicsMax := 15
 	isAdmin := forum.IsAdmin(getUser(r).ID)
 	withDeleted := isAdmin
 	topics, newFrom := forum.Store.GetTopics(nTopicsMax, from, withDeleted)
@@ -39,39 +39,31 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		prevTo = -1
 	}
 
-	topicsDisplay := make([]*TopicDisplay, 0)
+	topicsDisplay := make([]Topic, 0)
 
-	for i, t := range topics {
+	for _, t := range topics {
 		if t.IsDeleted() && !isAdmin {
 			continue
 		}
-		d := &TopicDisplay{
-			Topic:     *t,
-			CreatedBy: t.Posts[0].User(),
+		t.T_TotalPosts = uint16(len(t.Posts) - 1)
+		t.T_IsAdmin = isAdmin
+		if len(t.Posts) >= 5 {
+			t.Posts = t.Posts[len(t.Posts)-5:]
 		}
-		nComments := len(t.Posts) - 1
-		d.CommentsCount = nComments
-		d.No = 1 + i + from
-		if t.IsDeleted() {
-			d.TopicLinkClass = "deleted"
-		}
-
-		topicsDisplay = append(topicsDisplay, d)
+		topicsDisplay = append(topicsDisplay, t)
 	}
 
 	model := struct {
 		Forum
 		NewFrom int
 		PrevTo  int
-		IsAdmin bool
 		TopicID int
-		Topics  []*TopicDisplay
+		Topics  []Topic
 	}{
 		Forum:   *forum,
 		Topics:  topicsDisplay,
 		NewFrom: newFrom,
 		PrevTo:  prevTo,
-		IsAdmin: isAdmin,
 	}
 
 	server.Render(w, server.TmplForum, model)

@@ -27,6 +27,10 @@ var (
 	default8Bytes  = [8]byte{}
 )
 
+var (
+	PostsPerPage int = 20
+)
+
 func panicif(cond bool, args ...interface{}) {
 	if !cond {
 		return
@@ -276,6 +280,8 @@ type User struct {
 
 func (u *User) IsValid() bool { return u.ID != default8Bytes }
 
+func (u *User) IsAdmin() bool { return u.ID[0] == 'a' && u.ID[1] == ':' }
+
 func getUser(r *http.Request) User {
 	uid, err := r.Cookie("uid")
 	if err != nil {
@@ -310,6 +316,10 @@ func getUser(r *http.Request) User {
 			p := math.Atan(float64(n-x))/math.Pi + 0.5 + 0.01
 			u.noTest = rand.New(rand.NewSource(time.Now().UnixNano())).Float64() >= p
 		}
+	}
+
+	if u.IsAdmin() {
+		u.noTest = true
 	}
 	return u
 }

@@ -28,7 +28,7 @@
         <tr>
             <th>验证:</th>
             <td>
-                <div class="g-recaptcha" data-sitekey="6LeNoZMUAAAAAOX2EGs8eewS_W73IqxWMtXFaZAq"/div>
+                <div id="recaptcha">...</div>
             </td>
         </tr>
 
@@ -40,6 +40,15 @@
         </tr>
     </tbody>
 </table>
-<script src="https://www.recaptcha.net/recaptcha/api.js" async defer></script>
+<script src="https://www.recaptcha.net/recaptcha/api.js?onload=onloadRecaptcha&render=explicit" async defer></script>
+<script>
+    function onloadRecaptcha() {
+        $("#message").on('focus', function() {
+            if ($(this).prop('recaptcha')) return;
+            grecaptcha.render("recaptcha", {"sitekey": "6LeNoZMUAAAAAOX2EGs8eewS_W73IqxWMtXFaZAq", "theme": "light"});
+            $(this).prop('recaptcha', true);
+        });
+    }
+</script>
 
 

@@ -87,10 +87,25 @@ table#newpost {
     min-width: 350px;
 }
 
+div#paging span {
+    display: inline-block;
+    margin: 2px;
+    padding: 2px 6px;
+    border: solid 1px #aaa;
+    cursor: pointer;
+}
+
+div#paging span.current {
+    background: #888;
+    color: white;
+}
+
 div.topic {
     padding: 4px;
+    margin: 4px 0;
     border: solid 1px #aaa;
 	background-color: rgb(246, 246, 239);
+    display: table;
 }
 
 div.subject .title, div.subject .title * {
@@ -111,11 +126,17 @@ div.post .info a { color: black; }
 
 div.post .message {
     word-break: break-word;
-    white-space: pre-wrap;
     margin-top: 4px;
 }
 
 div.post .info .toggle {
 	font-family: "Lucida Console", Monaco, monospace;
     cursor: pointer;
+}
+
+div.post img.image {
+    max-width: 200px;
+    max-height: 200px;
+    float: left;
+    margin-right: 8px;
 }

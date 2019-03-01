@@ -2,6 +2,7 @@
 package main
 
 import (
+	"math"
 	"net/http"
 	"strconv"
 
@@ -11,9 +12,9 @@ import (
 
 // url: /{forum}/topic?id=${id}
 func handleTopic(w http.ResponseWriter, r *http.Request) {
-	topicID, _ := strconv.Atoi(r.FormValue("id"))
+	topicID, _ := strconv.Atoi(r.URL.Path[len("/t/"):])
 	topic := forum.Store.TopicByID(uint32(topicID))
-	if nil == topic {
+	if topic.ID == 0 {
 		path := forum.Store.BuildArchivePath(uint32(topicID))
 		if u.PathExists(path) {
 			var err error
@@ -35,16 +36,31 @@ NEXT:
 		return
 	}
 
+	pages := int(math.Ceil(float64(len(topic.Posts)) / float64(PostsPerPage)))
+	p, _ := strconv.Atoi(r.FormValue("p"))
+	if p < 1 {
+		p = 1
+	}
+	if p > pages {
+		p = pages
+	}
+
+	topic.T_TotalPosts = uint16(len(topic.Posts) - 1)
+	topic.T_IsAdmin = isAdmin
+	topic.Posts = topic.Posts[(p-1)*PostsPerPage : int(math.Min(float64(p*PostsPerPage), float64(len(topic.Posts))))]
+
 	model := struct {
 		*Forum
-		*Topic
+		Topic
 		TopicID int
-		IsAdmin bool
+		Pages   int
+		CurPage int
 	}{
 		Forum:   forum,
 		Topic:   topic,
 		TopicID: topicID,
-		IsAdmin: isAdmin,
+		Pages:   pages,
+		CurPage: p,
 	}
 	server.Render(w, server.TmplTopic, model)
 }

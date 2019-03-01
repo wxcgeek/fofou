@@ -7,4 +7,25 @@
 {{end}}
 
 {{template "topic1.html" .}}
+
+<div id="paging">
+</div>
+
+<script>
+var curPage = {{.CurPage}}, totalPages = {{.Pages}};
+var pages = [1];
+for (var i = curPage - 5; i <= curPage + 5; i++) {
+    if (i < 1 || i > totalPages) continue;
+    if (i !== pages[0]) pages.push(i);
+}
+if (pages[pages.length - 1] !== totalPages) pages.push(totalPages);
+pages.forEach(function(p) {
+    var el = $("<span>").text(p).addClass(p == curPage ? "current" : "");
+    el.on("click", function() {
+        location.href = "?p=" + this.innerText;
+    });
+    $("#paging").append(el);
+});
+</script>
+
 {{template "footer.html" .}}

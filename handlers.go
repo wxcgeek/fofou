@@ -91,7 +91,7 @@ func initHTTPServer() *http.Server {
 	smux.HandleFunc("/i/", makeTimingHandler(handleImage))
 	smux.HandleFunc("/api", makeTimingHandler(handleNewPost))
 	smux.HandleFunc("/list", makeTimingHandler(handleList))
-	smux.HandleFunc("/topic", makeTimingHandler(handleTopic))
+	smux.HandleFunc("/t/", makeTimingHandler(handleTopic))
 	smux.HandleFunc("/", makeTimingHandler(handleForum))
 	return &http.Server{Handler: smux}
 }

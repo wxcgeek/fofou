@@ -88,6 +88,9 @@ type Topic struct {
 	Next       *Topic
 	Prev       *Topic
 	Posts      []Post
+
+	T_TotalPosts uint16
+	T_IsAdmin    bool
 }
 
 func (p *Topic) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
@@ -346,7 +349,7 @@ func NewStore(path string, maxLiveTopics int, logger *server.Logger) *Store {
 					subject := base64.StdEncoding.EncodeToString(r.Fetch(16))
 					msg := base64.StdEncoding.EncodeToString(r.Fetch(r.Intn(64) + 64))
 					msg = strings.Repeat(msg, 4)
-					userName := [8]byte{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'}
+					userName := [8]byte{'a', 'b', 'c', 'd', 'e', 'f', 0, 0}
 					ipAddr := [8]byte{}
 
 					if r.Intn(10) == 1 {
@@ -364,7 +367,7 @@ func NewStore(path string, maxLiveTopics int, logger *server.Logger) *Store {
 	return store
 }
 
-func LoadSingleTopicInStore(path string) (*Topic, error) {
+func LoadSingleTopicInStore(path string) (Topic, error) {
 	store := &Store{
 		rootTopic: &Topic{},
 		endTopic:  &Topic{},
@@ -376,14 +379,14 @@ func LoadSingleTopicInStore(path string) (*Topic, error) {
 	var err error
 	if err = store.loadDB(path, true); err != nil {
 		store.Error("LoadSingleTopicInStore: %s", err)
-		return nil, err
+		return Topic{}, err
 	}
 
 	if store.rootTopic.Next == store.endTopic {
-		return nil, fmt.Errorf("no topic in %s", path)
+		return Topic{}, fmt.Errorf("no topic in %s", path)
 	}
 
-	return store.rootTopic.Next, nil
+	return *store.rootTopic.Next, nil
 }
 
 func (store *Store) OperateTopic(topicID uint32, action byte) {
@@ -443,15 +446,15 @@ func (store *Store) TopicsCount() int {
 }
 
 // GetTopics retuns topics
-func (store *Store) GetTopics(nMax, from int, withDeleted bool) ([]*Topic, int) {
-	res := make([]*Topic, 0, nMax)
+func (store *Store) GetTopics(nMax, from int, withDeleted bool) ([]Topic, int) {
+	res := make([]Topic, 0, nMax)
 	store.RLock()
 	defer store.RUnlock()
 
 	topic, i := store.rootTopic.Next, 0
 	for ; topic != store.endTopic; topic, i = topic.Next, i+1 {
 		if i >= from && i < from+nMax {
-			res = append(res, topic)
+			res = append(res, *topic)
 		} else if i >= from+nMax {
 			break
 		}
@@ -472,11 +475,14 @@ func (store *Store) topicByIDUnlocked(id uint32) *Topic {
 	return nil
 }
 
-// TopicByID returns topic given its id
-func (store *Store) TopicByID(id uint32) *Topic {
+func (store *Store) TopicByID(id uint32) Topic {
 	store.RLock()
 	defer store.RUnlock()
-	return store.topicByIDUnlocked(id)
+	t := store.topicByIDUnlocked(id)
+	if t == nil {
+		return Topic{}
+	}
+	return *t
 }
 
 func (store *Store) append(buf []byte) error {

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -10,7 +11,8 @@ import (
 
 func handleList(w http.ResponseWriter, r *http.Request) {
 	store := forum.Store
-	query := parse8Bytes(r.FormValue("q"))
+	q := r.FormValue("q")
+	query := parse8Bytes(q)
 	isAdmin := forum.IsAdmin(getUser(r).ID)
 	maxTopics := 50
 
@@ -30,12 +32,16 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 		Blocked    map[string]bool
 		IsBlocked  bool
 	}{
-		Forum:      forum,
-		Topic:      &Topic{Posts: posts},
+		Forum: forum,
+		Topic: &Topic{
+			Posts:     posts,
+			Subject:   fmt.Sprintf("%s: %x", q, query),
+			T_IsAdmin: isAdmin,
+		},
 		TotalCount: total,
 		IsAdmin:    isAdmin,
 		IsBlocked:  isBlocked,
-		Query:      r.FormValue("q"),
+		Query:      q,
 	}
 
 	server.Render(w, server.TmplPosts, model)

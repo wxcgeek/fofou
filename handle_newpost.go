@@ -94,11 +94,11 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	badRequest := func() { writeSimpleJSON(w, "success", false, "error", "bad-request") }
 	internalError := func() { writeSimpleJSON(w, "success", false, "error", "internal-error") }
 
-	var topic *Topic
+	var topic Topic
 
 	topicID, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("topic")))
 	if topicID > 0 {
-		if topic = forum.Store.TopicByID(uint32(topicID)); topic == nil {
+		if topic = forum.Store.TopicByID(uint32(topicID)); topic.ID == 0 {
 			forum.Notice("invalid topic ID: %d\n", topicID)
 			badRequest()
 			return
@@ -164,7 +164,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if topic == nil {
+	if topic.ID == 0 {
 		if tmp := []rune(subject); len(tmp) > forum.MaxSubjectLen {
 			tmp[forum.MaxSubjectLen-1], tmp[forum.MaxSubjectLen-2], tmp[forum.MaxSubjectLen-3] = '.', '.', '.'
 			subject = string(tmp[:forum.MaxSubjectLen])
@@ -181,7 +181,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if topic != nil && topic.Locked {
+	if topic.ID > 0 && topic.Locked {
 		writeSimpleJSON(w, "success", false, "error", "topic-locked")
 		return
 	}
@@ -216,7 +216,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if topic == nil {
+	if topic.ID == 0 {
 		topicID, err := forum.Store.CreateNewTopic(subject, msg, imagePath, user.ID, ipAddr)
 		if err != nil {
 			forum.Error("createNewPost(): store.CreateNewPost() failed with %s", err)
