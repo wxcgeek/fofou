@@ -13,6 +13,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -370,12 +371,16 @@ func adminOpCode(forum *Forum, msg string) bool {
 		v := parts[1]
 		vint, _ := strconv.ParseInt(v, 10, 64)
 		switch parts[0] {
-		case "cookie-moat":
-			forum.NoMoreNewUsers = v == "true"
+		case "moat":
+			switch v {
+			case "cookie":
+				forum.NoMoreNewUsers = !forum.NoMoreNewUsers
+			case "image":
+				forum.NoImageUpload = !forum.NoImageUpload
+			}
 			opcode = true
 		case "delete":
-			topicID, postID := uint32(vint>>16), uint16(vint)
-			forum.Store.DeletePost(topicID, postID)
+			forum.Store.DeletePost(uint64(vint), func(img string) { os.Remove("data/images/" + img) })
 			opcode = true
 		case "stick":
 			forum.Store.OperateTopic(uint32(vint), OP_STICKY)

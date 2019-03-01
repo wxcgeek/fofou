@@ -4,11 +4,9 @@
 
   <div class="contents"> 
     {{template "forumnav.html" .}}
-    <hr>
     <div class="topbar">
         {{.Forum.TopbarHTML}}
     </div>
-    <hr>
     <div class="topics-container">
         {{ range .Topics }}
         {{template "topic1.html" .}} 

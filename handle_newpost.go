@@ -171,23 +171,6 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if len(msg) > forum.MaxMessageLen {
-		// hard trunc
-		msg = msg[:forum.MaxMessageLen]
-	}
-
-	if len(msg) < forum.MinMessageLen {
-		writeSimpleJSON(w, "success", false, "error", "message-too-short")
-		return
-	}
-
-	if topic.ID > 0 && topic.Locked {
-		writeSimpleJSON(w, "success", false, "error", "topic-locked")
-		return
-	}
-
-	setUser(w, user)
-
 	if forum.Store.IsBlocked(user.ID) {
 		forum.Notice("blocked a post from user %s", user.ID)
 		badRequest()
@@ -198,6 +181,28 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		defer image.Close()
 	}
+
+	if image != nil && imageInfo != nil && forum.NoImageUpload {
+		writeSimpleJSON(w, "success", false, "error", "image-upload-disabled")
+		return
+	}
+
+	if len(msg) > forum.MaxMessageLen {
+		// hard trunc
+		msg = msg[:forum.MaxMessageLen]
+	}
+
+	if len(msg) < forum.MinMessageLen && image == nil {
+		writeSimpleJSON(w, "success", false, "error", "message-too-short")
+		return
+	}
+
+	if topic.ID > 0 && topic.Locked {
+		writeSimpleJSON(w, "success", false, "error", "topic-locked")
+		return
+	}
+
+	setUser(w, user)
 
 	imagePath := ""
 	if image != nil && imageInfo != nil {

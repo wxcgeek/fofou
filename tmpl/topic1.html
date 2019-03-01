@@ -2,13 +2,8 @@
     {{if .ID}}
     <div class="subject">
         <div class="title">
-            <span>
-                No.{{.ID}} 
-                {{.Subject}}
-            </span>
-            <span>
-                [<a href="/t/{{.ID}}">回复</a>]
-            </span>
+            No.{{.ID}} 
+            {{.Subject}}
         </div>
         <div>
             <span>
@@ -18,8 +13,30 @@
                 {{if .Saged}}[SAGE]{{end}}
                 {{if .FreeReply}}[自由回复]{{end}}
                 共 {{.T_TotalPosts}} 条回复
+                {{if .T_IsExpand}}
+                <span>
+                    , [<a href="/t/{{.ID}}" target="_blank">展开</a>]以查看更多
+                </span>
+                {{else}}
+                <title id="title-subject">{{.Subject}}</title>
+                <script>document.title = $("#title-subject").text()</script>
+                {{end}}
+
             </span>
         </div>
+        {{if .T_IsAdmin}}
+        <div>
+            <a href="javascript:_submit(null,'!!free-reply={{.ID}}')">自由回复</a>
+            <a href="javascript:_submit(null,'!!lock={{.ID}}')">锁定</a>
+            <a href="javascript:_submit(null,'!!stick={{.ID}}')">置顶</a>
+            <a href="javascript:_submit(null,'!!sage={{.ID}}')">SAGE</a>
+            &nbsp;&bull;&nbsp;
+            <a style="color:red" href="javascript:confirm()?_submit(null,'!!purge={{.ID}}'):0">永删</a>
+            &nbsp;&bull;&nbsp;
+            <a href="javascript:_submit(null,'!!moat=cookie')">MOAT</a>
+            <a href="javascript:_submit(null,'!!moat=image')">MOAT-i</a>
+        </div>
+        {{end}}
     </div>
     {{end}}
     {{range .Posts}}
@@ -43,13 +60,13 @@
             {{ end }}
         </div>
         {{if .IsDeleted}}
-            {{if $.T_IsAdmin}}
-                {{template "post1.html" .}}
-            {{else}}
-                <div><s style="color: #aaa">已删除</s></div>
-            {{end}}
+        {{if $.T_IsAdmin}}
+        <s>{{template "post1.html" .}}</s>
         {{else}}
-            {{template "post1.html" .}}
+        <div><s style="color: #aaa">已删除</s></div>
+        {{end}}
+        {{else}}
+        {{template "post1.html" .}}
         {{end}}
     </div>
     {{end}}

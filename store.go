@@ -91,6 +91,7 @@ type Topic struct {
 
 	T_TotalPosts uint16
 	T_IsAdmin    bool
+	T_IsExpand   bool
 }
 
 func (p *Topic) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
@@ -491,10 +492,12 @@ func (store *Store) append(buf []byte) error {
 }
 
 // DeletePost deletes/restores a post
-func (store *Store) DeletePost(topicID uint32, postID uint16) error {
+func (store *Store) DeletePost(postLongID uint64, onImageDelete func(string)) error {
 	store.Lock()
 	defer store.Unlock()
 
+	topicID := uint32(postLongID >> 16)
+	postID := uint16(postLongID)
 	topic := store.topicByIDUnlocked(topicID)
 	if nil == topic {
 		return fmt.Errorf("can't find topic ID: %d", topicID)
@@ -511,6 +514,7 @@ func (store *Store) DeletePost(topicID uint32, postID uint16) error {
 	}
 
 	post.IsDeleted = !post.IsDeleted
+	onImageDelete(post.Image)
 	return nil
 }
 

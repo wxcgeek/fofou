@@ -1,8 +1,6 @@
-<div class="buttons">
-{{ if gt .PrevTo 0 }}
+<div class="paging">
     <a href="/">首页</a>
-{{ end }}
-{{ if ne .PrevTo -1 }}
+{{ if gt .PrevTo 0 }}
     <a href="/?from={{ .PrevTo }}">上一页</a>
 {{ end }}
 {{ if .NewFrom }}

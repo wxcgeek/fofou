@@ -1,3 +1,5 @@
+<a class="newpost-click" href="#" onclick="$(this).hide();$('#newpost').show()">{{if .TopicID}}回复{{else}}新主题{{end}}</a>
+
 <table cellspacing="0" id="newpost">
     <tbody>
         {{if not .TopicID}}
@@ -18,12 +20,14 @@
             </td>
         </tr>
 
+        {{if not .Forum.NoImageUpload}}
         <tr>
             <th>图片:</th>
             <td>
                 <input type="file" id="select-image" />
             </td>
         </tr>
+        {{end}}
 
         <tr>
             <th>验证:</th>
@@ -35,11 +39,15 @@
         <tr>
             <td></td>
             <td>
-                <button onclick='_submit(this)'>提交</button>
+                <button onclick='_submit(this)'>{{if .TopicID}}回复{{else}}新主题{{end}}</button>
+                {{if .Forum.NoMoreNewUsers}}
+                当前未持有cookie的匿名用户无法发言
+                {{end}}
             </td> 
         </tr>
     </tbody>
 </table>
+
 <script src="https://www.recaptcha.net/recaptcha/api.js?onload=onloadRecaptcha&render=explicit" async defer></script>
 <script>
     function onloadRecaptcha() {
@@ -49,6 +57,8 @@
             $(this).prop('recaptcha', true);
         });
     }
+
+$('#newpost').hide();
 </script>
 
 

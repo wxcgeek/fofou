@@ -29,6 +29,7 @@ type ForumConfig struct {
 	TopbarHTML     string
 	AdminLoginName string
 	NoMoreNewUsers bool
+	NoImageUpload  bool
 	MaxLiveTopics  int
 	MaxSubjectLen  int
 	MaxMessageLen  int

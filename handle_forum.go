@@ -9,16 +9,6 @@ import (
 	"github.com/coyove/fofou/server"
 )
 
-// TopicDisplay describes a topic
-type TopicDisplay struct {
-	Topic
-	CommentsCount  int
-	No             int
-	CreatedBy      string
-	TopicLinkClass string
-	TopicURL       string
-}
-
 func handleForum(w http.ResponseWriter, r *http.Request) {
 	fromStr := strings.TrimSpace(r.FormValue("from"))
 	from := 0
@@ -36,7 +26,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 	topics, newFrom := forum.Store.GetTopics(nTopicsMax, from, withDeleted)
 	prevTo := from - nTopicsMax
 	if prevTo < 0 {
-		prevTo = -1
+		prevTo = 0
 	}
 
 	topicsDisplay := make([]Topic, 0)
@@ -47,6 +37,7 @@ func handleForum(w http.ResponseWriter, r *http.Request) {
 		}
 		t.T_TotalPosts = uint16(len(t.Posts) - 1)
 		t.T_IsAdmin = isAdmin
+		t.T_IsExpand = true
 		if len(t.Posts) >= 5 {
 			t.Posts = t.Posts[len(t.Posts)-5:]
 		}
