@@ -13,7 +13,7 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	store := forum.Store
 	q := r.FormValue("q")
 	query := server.Parse8Bytes(q)
-	isAdmin := server.GetUser(r).IsAdmin()
+	isAdmin := forum.GetUser(r).IsAdmin()
 	maxTopics := 50
 
 	if count := r.FormValue("count"); isAdmin && count != "" {

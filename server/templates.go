@@ -12,13 +12,14 @@ import (
 var (
 	TmplForum   = "forum.html"
 	TmplTopic   = "topic.html"
+	TmplTopic1  = "topic1.html"
 	TmplPosts   = "posts.html"
 	TmplNewPost = "newpost.html"
 	TmplLogs    = "logs.html"
 )
 
 var (
-	templateNames = []string{TmplForum, TmplTopic, TmplPosts, TmplNewPost, TmplLogs, "footer.html", "header.html", "forumnav.html", "topic1.html", "post1.html"}
+	templateNames = []string{TmplForum, TmplTopic, TmplTopic1, TmplPosts, TmplNewPost, TmplLogs, "footer.html", "header.html", "forumnav.html", "post1.html"}
 	templatePaths []string
 	templates     *template.Template
 	tmplMutex     sync.RWMutex

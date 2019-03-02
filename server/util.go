@@ -23,7 +23,7 @@ import (
 
 var (
 	stdTimeFormat  = "2006-01-02 15:04:05"
-	urlRx          = regexp.MustCompile(`(https?://[[:^space:]]+|<|\n| |` + "```[\\s\\S]+```" + `)`)
+	urlRx          = regexp.MustCompile(`(https?://[[:^space:]]+|<|\n| |` + "```[\\s\\S]+```" + `|>>\d+)`)
 	base32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567").WithPadding('1')
 	default8Bytes  = [8]byte{}
 )
@@ -48,14 +48,6 @@ func panicif(cond bool, args ...interface{}) {
 		msg = fmt.Sprintf("%v", args[0])
 	}
 	panic(msg)
-}
-
-func httpErrorf(w http.ResponseWriter, format string, args ...interface{}) {
-	msg := format
-	if len(args) > 0 {
-		msg = fmt.Sprintf(format, args...)
-	}
-	http.Error(w, msg, http.StatusBadRequest)
 }
 
 type buffer struct {
@@ -270,9 +262,7 @@ func Parse8Bytes(str string) (b [8]byte) {
 	return
 }
 
-const _salt = "testsalt123456"
-
-func GetUser(r *http.Request) User {
+func (f *Forum) GetUser(r *http.Request) User {
 	uid, err := r.Cookie("uid")
 	if err != nil {
 		return User{}
@@ -285,7 +275,7 @@ func GetUser(r *http.Request) User {
 	user := uid.Value[:len(uid.Value)-48]
 	hash := uid.Value[len(uid.Value)-48:]
 
-	x := sha256.Sum256([]byte(user + _salt))
+	x := sha256.Sum256([]byte(user + f.Salt))
 	for i := 0; i < 16; i++ {
 		x = sha256.Sum256(x[:])
 	}
@@ -315,13 +305,13 @@ func GetUser(r *http.Request) User {
 	return u
 }
 
-func SetUser(w http.ResponseWriter, u User) {
+func (f *Forum) SetUser(w http.ResponseWriter, u User) {
 	u.Posts++
 	bufp := &SafeJSON{}
 	json.NewEncoder(bufp).Encode(&u)
 	user := bufp.String()
 
-	x := sha256.Sum256([]byte(user + _salt))
+	x := sha256.Sum256([]byte(user + f.Salt))
 	for i := 0; i < 16; i++ {
 		x = sha256.Sum256(x[:])
 	}
@@ -371,7 +361,10 @@ func AdminOPCode(forum *Forum, msg string) bool {
 			}
 			opcode = true
 		case "delete":
-			forum.Store.DeletePost(uint64(vint), func(img string) { os.Remove("data/images/" + img) })
+			forum.Store.DeletePost(uint64(vint), func(img string) {
+				os.Remove("data/images/" + img)
+				os.Remove("data/images/" + img + ".thumb.jpg")
+			})
 			opcode = true
 		case "stick":
 			forum.Store.OperateTopic(uint32(vint), OP_STICKY)

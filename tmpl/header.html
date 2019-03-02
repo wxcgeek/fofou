@@ -8,6 +8,15 @@
     </head>
 
     <script>
+        function _ref(el, id) {
+            if ($(el).prop('expanded')) return;
+            $(el).prop("expanded", true);
+            $.get("/p/" + id, function (data) {
+                var div = $("<div>").addClass('ref');
+                div.html(data);
+                $(el).after(div);
+            });
+        }
         function _togglePost(id) {
             var p = $("#post-" + id + " .toggle"), c = p.prop("fold");
             var m = $("#post-" + id + " .message");
@@ -32,7 +41,9 @@
                 form.append('message', $('#message').val());
                 form.append('image', $('#select-image').get(0).files[0]);
                 form.append('topic', window.TOPIC_ID || 0);
-                form.append('token', grecaptcha.getResponse());
+                try {
+                    form.append('token', grecaptcha.getResponse());
+                } catch (ex) {}
             }
             var xhr = new XMLHttpRequest();
             xhr.onreadystatechange = function(e) {

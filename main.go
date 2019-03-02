@@ -62,6 +62,13 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 
 func handleImage(w http.ResponseWriter, r *http.Request) {
 	file := r.URL.Path[len("/i/"):]
+	if r.FormValue("thumb") == "1" {
+		path := "data/images/" + file + ".thumb.jpg"
+		if _, err := os.Stat(path); err == nil {
+			http.ServeFile(w, r, path)
+			return
+		}
+	}
 	serveFileFromDir(w, r, "data/images", file)
 }
 
@@ -71,7 +78,7 @@ func handleRobotsTxt(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleLogs(w http.ResponseWriter, r *http.Request) {
-	if !server.GetUser(r).IsAdmin() {
+	if !forum.GetUser(r).IsAdmin() {
 		w.WriteHeader(403)
 		return
 	}
@@ -155,7 +162,9 @@ func main() {
 	if *makeID != "" {
 		u := server.User{}
 		copy(u.ID[:], *makeID)
-		server.SetUser(nil, u)
+		forum = &server.Forum{}
+		forum.ForumConfig = &config
+		forum.SetUser(nil, u)
 		return
 	}
 
@@ -172,6 +181,7 @@ func main() {
 	smux.HandleFunc("/api", preHandle(handleNewPost))
 	smux.HandleFunc("/list", preHandle(handleList))
 	smux.HandleFunc("/t/", preHandle(handleTopic))
+	smux.HandleFunc("/p/", preHandle(handleRawPost))
 	smux.HandleFunc("/", preHandle(handleTopics))
 
 	srv := &http.Server{Handler: smux}

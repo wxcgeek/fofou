@@ -27,8 +27,12 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 NEXT:
-	isAdmin := server.GetUser(r).IsAdmin()
+	isAdmin := forum.GetUser(r).IsAdmin()
 	if topic.IsDeleted() && !isAdmin {
+		http.Redirect(w, r, "/", 302)
+		return
+	}
+	if len(topic.Posts) == 0 {
 		http.Redirect(w, r, "/", 302)
 		return
 	}
@@ -74,7 +78,7 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("handleForum(): forum: %q, from: %d\n", forum.ForumUrl, from)
 
 	nTopicsMax := 15
-	isAdmin := server.GetUser(r).IsAdmin()
+	isAdmin := forum.GetUser(r).IsAdmin()
 	topics, newFrom := forum.GetTopics(nTopicsMax, from, isAdmin)
 	prevTo := from - nTopicsMax
 	if prevTo < 0 {
@@ -110,4 +114,46 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	server.Render(w, server.TmplForum, model)
+}
+
+func handleRawPost(w http.ResponseWriter, r *http.Request) {
+	longID, _ := strconv.Atoi(r.URL.Path[len("/p/"):])
+	topicID, postID := uint32(longID>>16), uint16(longID)
+	topic := forum.Store.TopicByID(topicID)
+	if topic.ID == 0 {
+		var err error
+		topic, err = forum.LoadArchivedTopic(uint32(topicID))
+		if err == nil {
+			topic.Archived = true
+			goto NEXT
+		}
+		w.WriteHeader(404)
+		return
+	}
+NEXT:
+	isAdmin := forum.GetUser(r).IsAdmin()
+	if topic.IsDeleted() && !isAdmin {
+		w.WriteHeader(404)
+		return
+	}
+
+	if int(postID) > len(topic.Posts) || postID == 0 {
+		w.WriteHeader(404)
+		return
+	}
+
+	topic.T_TotalPosts = uint16(len(topic.Posts) - 1)
+	topic.T_IsExpand = true
+	topic.Posts = topic.Posts[postID-1 : postID]
+
+	model := struct {
+		server.Forum
+		server.Topic
+		TopicID int
+	}{
+		Forum:   *forum,
+		Topic:   topic,
+		TopicID: int(topicID),
+	}
+	server.Render(w, server.TmplTopic1, model)
 }

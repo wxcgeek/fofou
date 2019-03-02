@@ -1,4 +1,6 @@
-<a class="newpost-click" href="#" onclick="$(this).hide();$('#newpost').show()">{{if .TopicID}}回复{{else}}新主题{{end}}</a>
+<div style="margin: 4px 0">
+<button onclick="$(this).hide();$('#newpost').show()">{{if .TopicID}}回复主题{{else}}发布新主题{{end}}</button>
+</div>
 
 <table cellspacing="0" id="newpost">
     <tbody>
@@ -24,7 +26,7 @@
         <tr>
             <th>图片:</th>
             <td>
-                <input type="file" id="select-image" />
+                <input type="file" id="select-image"/>
             </td>
         </tr>
         {{end}}
@@ -39,15 +41,28 @@
         <tr>
             <td></td>
             <td>
-                <button onclick='_submit(this)'>{{if .TopicID}}回复{{else}}新主题{{end}}</button>
+                <button onclick='_submit(this)' id="submit-newpost">{{if .TopicID}}回复{{else}}新主题{{end}}</button>
                 {{if .Forum.NoMoreNewUsers}}
                 当前未持有cookie的匿名用户无法发言
-                {{else}}
-                <script>
-                    var m = document.cookie.match(/'Posts':(\d+)/)[1];
-if (m) document.write("该ID的主题数: " + m);
-                </script>
                 {{end}}
+                <script>
+                    var p = document.cookie.match(/'Posts':(\d+)/);
+                    var n = document.cookie.match(/'N':(\d+)/);
+if (p && n) {
+    // tan((y - 0.5 - 0.01) * pi) = n - x
+    var x = parseFloat(p[1]);
+    var n = parseFloat(n[1]);
+    var y = 1 - (Math.atan(n - x) / Math.PI + 0.5 + 0.01);
+    $('#submit-newpost').append(" (" + y.toFixed(2) + ")").focus();
+}
+
+function _reply(longid) {
+    $('#message').append("\n>>" + longid);
+    $([document.documentElement, document.body]).animate({
+        scrollTop: $('#newpost').show().offset().top
+    }, 500);
+}
+                </script>
             </td> 
         </tr>
     </tbody>
@@ -56,11 +71,13 @@ if (m) document.write("该ID的主题数: " + m);
 <script src="https://www.recaptcha.net/recaptcha/api.js?onload=onloadRecaptcha&render=explicit" async defer></script>
 <script>
     function onloadRecaptcha() {
-        $("#message").on('focus', function() {
+        function callback() {
             if ($(this).prop('recaptcha')) return;
             grecaptcha.render("recaptcha", {"sitekey": "6LeNoZMUAAAAAOX2EGs8eewS_W73IqxWMtXFaZAq", "theme": "light"});
             $(this).prop('recaptcha', true);
-        });
+        }
+        $("#message").on('focus',  callback);
+        $("#select-image").on('change', callback);
     }
 
 $('#newpost').hide();

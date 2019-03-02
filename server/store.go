@@ -279,7 +279,7 @@ func NewStore(path string, maxLiveTopics int, logger *Logger) *Store {
 
 	store.ready = 1000
 
-	if false {
+	if true {
 		r := store.Rand
 		curTopicId := uint32(0)
 		for i := 0; i < 200; i++ {

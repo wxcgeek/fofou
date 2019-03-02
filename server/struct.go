@@ -2,6 +2,8 @@ package server
 
 import (
 	"bytes"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -31,8 +33,9 @@ func (p *Post) MessageHTML() string {
 		default:
 			if strings.HasPrefix(in, "```") {
 				return "<code>" + strings.Replace(in[3:len(in)-3], "<", "&lt;", -1) + "</code>"
-			} else if strings.HasSuffix(in, ".png") || strings.HasSuffix(in, ".jpg") || strings.HasSuffix(in, ".gif") {
-				return "<img class=image alt='" + in + "' src='" + in + "'/>"
+			} else if strings.HasPrefix(in, ">>") {
+				longid, _ := strconv.Atoi(in[2:])
+				return fmt.Sprintf("<a href='javascript:void(0)' onclick='_ref(this, %d)'>%s</a>", longid, in)
 			} else {
 				return "<a href='" + in + "' target=_blank>" + in + "</a>"
 			}

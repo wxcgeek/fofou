@@ -72,6 +72,8 @@ func writeSimpleJSON(w http.ResponseWriter, args ...interface{}) {
 }
 
 func handleNewPost(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 4*1024*1024)
+
 	badRequest := func() { writeSimpleJSON(w, "success", false, "error", "bad-request") }
 	internalError := func() { writeSimpleJSON(w, "success", false, "error", "internal-error") }
 
@@ -87,9 +89,9 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ipAddr := getIPAddress(r)
-	user := server.GetUser(r)
-	if forum.Store.IsBlocked(ipAddr) {
-		forum.Notice("blocked a post from IP: %s", ipAddr)
+	user := forum.GetUser(r)
+	if forum.Store.IsBlocked(ipAddr) && !user.IsAdmin() {
+		forum.Notice("blocked a post from IP: %v", ipAddr)
 		badRequest()
 		return
 	}
@@ -136,7 +138,12 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		}
 		copy(user.ID[:], forum.Rand.Fetch(6))
 		if user.ID[1] == ':' {
-			user.ID[1]++
+			user.ID[1]++ // in case we get random bytes satrting with "a:"
+		}
+		if topic.ID == 0 {
+			user.N = forum.Rand.Intn(10) + 10
+		} else {
+			user.N = forum.Rand.Intn(5) + 5
 		}
 	}
 
@@ -153,7 +160,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if forum.Store.IsBlocked(user.ID) {
-		forum.Notice("blocked a post from user %s", user.ID)
+		forum.Notice("blocked a post from user %v", user.ID)
 		badRequest()
 		return
 	}
@@ -161,6 +168,11 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	image, imageInfo, err := r.FormFile("image")
 	if err == nil {
 		defer image.Close()
+	}
+
+	if err != nil && !strings.Contains(err.Error(), "no such file") {
+		writeSimpleJSON(w, "success", false, "error", "image-upload-failed")
+		return
 	}
 
 	if image != nil && imageInfo != nil && forum.NoImageUpload {
@@ -183,18 +195,21 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.SetUser(w, user)
+	forum.SetUser(w, user)
 
 	imagePath := ""
 	if image != nil && imageInfo != nil {
-		ext := filepath.Ext(imageInfo.Filename)
-		hash := sha1.Sum([]byte(imageInfo.Filename))
+		ext, hash := filepath.Ext(imageInfo.Filename), sha1.Sum([]byte(imageInfo.Filename))
 		t := time.Now().Format("2006-01-02")
-		imagePath = fmt.Sprintf("%s/%x.%s", t, hash, ext)
+		imagePath = fmt.Sprintf("%s/%x%s", t, hash, ext)
 		os.MkdirAll("data/images/"+t, 0755)
 		if of, err := os.Create("data/images/" + imagePath); err == nil {
 			defer of.Close()
-			io.Copy(of, image)
+			if _, err := io.Copy(of, image); err != nil {
+				writeSimpleJSON(w, "success", false, "error", "image-disk-error")
+				return
+			}
+			server.NaiveDownscale("data/images/"+imagePath, 200)
 		} else {
 			writeSimpleJSON(w, "success", false, "error", "image-disk-error")
 			forum.Error("copy image to dest: %v", err)
