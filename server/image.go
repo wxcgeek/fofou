@@ -7,10 +7,51 @@ import (
 	"math"
 	"os"
 	"strings"
+	"time"
 )
 
-func NaiveDownscale(path string, sizeBox int) error {
+type ImageQueue struct {
+	q       chan string
+	sizeBox int
+	*Logger
+}
+
+func NewImageQueue(l *Logger, sizeBox int) *ImageQueue {
+	iq := &ImageQueue{
+		q:       make(chan string, 256),
+		Logger:  l,
+		sizeBox: sizeBox,
+	}
+	go iq.job()
+	return iq
+}
+
+func (iq *ImageQueue) Push(path string) {
+	select {
+	case iq.q <- path:
+	default:
+	}
+}
+
+func (iq *ImageQueue) job() {
+	for {
+		select {
+		case path := <-iq.q:
+			err := naiveDownscale(path, iq.sizeBox)
+			if err != nil {
+				iq.Error("downscale %s: %v", path, err)
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+func naiveDownscale(path string, sizeBox int) error {
 	if strings.HasSuffix(path, ".gif") {
+		return nil
+	}
+
+	if _, err := os.Stat(path + ".thumb.jpg"); err == nil {
 		return nil
 	}
 

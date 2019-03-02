@@ -100,7 +100,6 @@ type Forum struct {
 	*ForumConfig
 	*Store
 	*Logger
-	TopbarHTML string
 }
 
 type User struct {

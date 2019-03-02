@@ -74,6 +74,11 @@ func writeSimpleJSON(w http.ResponseWriter, args ...interface{}) {
 func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 4*1024*1024)
 
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	badRequest := func() { writeSimpleJSON(w, "success", false, "error", "bad-request") }
 	internalError := func() { writeSimpleJSON(w, "success", false, "error", "internal-error") }
 
@@ -199,17 +204,18 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 	imagePath := ""
 	if image != nil && imageInfo != nil {
-		ext, hash := filepath.Ext(imageInfo.Filename), sha1.Sum([]byte(imageInfo.Filename))
+		ext, hash := strings.ToLower(filepath.Ext(imageInfo.Filename)), sha1.Sum([]byte(imageInfo.Filename))
+		if ext != ".png" && ext != ".gif" && ext != ".jpg" && ext != ".jpeg" {
+			writeSimpleJSON(w, "success", false, "error", "image-invalid-format")
+			return
+		}
 		t := time.Now().Format("2006-01-02")
 		imagePath = fmt.Sprintf("%s/%x%s", t, hash, ext)
 		os.MkdirAll("data/images/"+t, 0755)
 		if of, err := os.Create("data/images/" + imagePath); err == nil {
 			defer of.Close()
-			if _, err := io.Copy(of, image); err != nil {
-				writeSimpleJSON(w, "success", false, "error", "image-disk-error")
-				return
-			}
-			server.NaiveDownscale("data/images/"+imagePath, 200)
+			io.Copy(of, image)
+			iq.Push("data/images/" + imagePath)
 		} else {
 			writeSimpleJSON(w, "success", false, "error", "image-disk-error")
 			forum.Error("copy image to dest: %v", err)
@@ -218,9 +224,9 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if topic.ID == 0 {
-		topicID, err := forum.Store.CreateNewTopic(subject, msg, imagePath, user.ID, ipAddr)
+		topicID, err := forum.Store.NewTopic(subject, msg, imagePath, user.ID, ipAddr)
 		if err != nil {
-			forum.Error("createNewPost(): store.CreateNewPost() failed with %s", err)
+			forum.Error("failed to create new topic: %v", err)
 			internalError()
 			return
 		}
@@ -228,8 +234,8 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := forum.Store.AddPostToTopic(topic.ID, msg, imagePath, user.ID, ipAddr); err != nil {
-		forum.Error("createNewPost(): store.AddPostToTopic() failed with %s", err)
+	if err := forum.Store.NewPost(topic.ID, msg, imagePath, user.ID, ipAddr); err != nil {
+		forum.Error("failed to create new post to %d: %v", topic.ID, err)
 		internalError()
 		return
 	}

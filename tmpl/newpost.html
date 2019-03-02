@@ -54,6 +54,8 @@ if (p && n) {
     var n = parseFloat(n[1]);
     var y = 1 - (Math.atan(n - x) / Math.PI + 0.5 + 0.01);
     $('#submit-newpost').append(" (" + y.toFixed(2) + ")").focus();
+} else {
+    $('#submit-newpost').append(" (0.00)").focus();
 }
 
 function _reply(longid) {

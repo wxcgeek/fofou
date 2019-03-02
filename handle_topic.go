@@ -82,7 +82,7 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 	topics, newFrom := forum.GetTopics(nTopicsMax, from, isAdmin)
 	prevTo := from - nTopicsMax
 	if prevTo < 0 {
-		prevTo = 0
+		prevTo = -1
 	}
 
 	topicsDisplay := make([]server.Topic, 0)

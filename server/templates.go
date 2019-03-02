@@ -16,10 +16,11 @@ var (
 	TmplPosts   = "posts.html"
 	TmplNewPost = "newpost.html"
 	TmplLogs    = "logs.html"
+	TmplFooter  = "footer.html"
 )
 
 var (
-	templateNames = []string{TmplForum, TmplTopic, TmplTopic1, TmplPosts, TmplNewPost, TmplLogs, "footer.html", "header.html", "forumnav.html", "post1.html"}
+	templateNames = []string{TmplForum, TmplTopic, TmplTopic1, TmplPosts, TmplNewPost, TmplLogs, TmplFooter, "header.html", "forumnav.html", "post1.html"}
 	templatePaths []string
 	templates     *template.Template
 	tmplMutex     sync.RWMutex

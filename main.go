@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/coyove/common/rand"
@@ -21,14 +22,12 @@ var (
 	makeID       = flag.String("make", "", "Make an ID")
 	inProduction = flag.String("production", "", "production domain")
 	forum        *server.Forum
+	iq           *server.ImageQueue
 )
 
-// NewForum creates new forum
-func NewForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
-	topbarBuf, _ := ioutil.ReadFile("data/topbar.html")
+func newForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
 	forum := &server.Forum{
 		ForumConfig: config,
-		TopbarHTML:  string(topbarBuf),
 		Logger:      logger,
 	}
 
@@ -62,14 +61,19 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 
 func handleImage(w http.ResponseWriter, r *http.Request) {
 	file := r.URL.Path[len("/i/"):]
+	file = "data/images/" + file
+
 	if r.FormValue("thumb") == "1" {
-		path := "data/images/" + file + ".thumb.jpg"
+		path := file + ".thumb.jpg"
 		if _, err := os.Stat(path); err == nil {
 			http.ServeFile(w, r, path)
 			return
 		}
+		if !strings.HasSuffix(file, ".gif") {
+			iq.Push(file)
+		}
 	}
-	serveFileFromDir(w, r, "data/images", file)
+	http.ServeFile(w, r, file)
 }
 
 // url: /robots.txt
@@ -103,7 +107,7 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	server.Render(w, server.TmplLogs, model)
 }
 
-func preHandle(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
+func preHandle(fn func(http.ResponseWriter, *http.Request), footer bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !forum.IsReady() {
 			w.Write([]byte(fmt.Sprintf("%v Booting... %.1f%%", time.Now().Format(time.RFC1123), forum.LoadingProgress()*100)))
@@ -111,10 +115,12 @@ func preHandle(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 		}
 
 		startTime := time.Now()
-
 		fn(w, r)
-
 		duration := time.Now().Sub(startTime)
+		if footer {
+			server.Render(w, server.TmplFooter, struct{ RenderTime int64 }{duration.Nanoseconds() / 1e6})
+		}
+
 		if duration.Seconds() > 0.1 {
 			url := r.URL.Path
 			if len(r.URL.RawQuery) > 0 {
@@ -168,21 +174,22 @@ func main() {
 		return
 	}
 
-	forum = NewForum(&config, server.NewLogger(1024, 1024, useStdout))
+	forum = newForum(&config, server.NewLogger(1024, 1024, useStdout))
+	iq = server.NewImageQueue(forum.Logger, 200)
 
 	server.LoadTemplates()
 
 	smux := &http.ServeMux{}
 	smux.HandleFunc("/favicon.ico", http.NotFound)
 	smux.HandleFunc("/robots.txt", handleRobotsTxt)
-	smux.HandleFunc("/logs", preHandle(handleLogs))
-	smux.HandleFunc("/s/", preHandle(handleStatic))
-	smux.HandleFunc("/i/", preHandle(handleImage))
-	smux.HandleFunc("/api", preHandle(handleNewPost))
-	smux.HandleFunc("/list", preHandle(handleList))
-	smux.HandleFunc("/t/", preHandle(handleTopic))
-	smux.HandleFunc("/p/", preHandle(handleRawPost))
-	smux.HandleFunc("/", preHandle(handleTopics))
+	smux.HandleFunc("/logs", preHandle(handleLogs, true))
+	smux.HandleFunc("/s/", preHandle(handleStatic, false))
+	smux.HandleFunc("/i/", preHandle(handleImage, false))
+	smux.HandleFunc("/api", preHandle(handleNewPost, false))
+	smux.HandleFunc("/list", preHandle(handleList, true))
+	smux.HandleFunc("/t/", preHandle(handleTopic, true))
+	smux.HandleFunc("/p/", preHandle(handleRawPost, false))
+	smux.HandleFunc("/", preHandle(handleTopics, true))
 
 	srv := &http.Server{Handler: smux}
 	srv.Addr = *httpAddr

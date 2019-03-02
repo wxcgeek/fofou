@@ -279,7 +279,7 @@ func NewStore(path string, maxLiveTopics int, logger *Logger) *Store {
 
 	store.ready = 1000
 
-	if true {
+	if false {
 		r := store.Rand
 		curTopicId := uint32(0)
 		for i := 0; i < 200; i++ {
@@ -294,9 +294,9 @@ func NewStore(path string, maxLiveTopics int, logger *Logger) *Store {
 					ipAddr := [8]byte{}
 
 					if r.Intn(10) == 1 {
-						curTopicId, _ = store.CreateNewTopic(subject, msg, "", userName, ipAddr)
+						curTopicId, _ = store.NewTopic(subject, msg, "", userName, ipAddr)
 					} else if curTopicId > 0 {
-						store.AddPostToTopic(uint32(r.Intn(int(curTopicId))+1), msg, "", userName, ipAddr)
+						store.NewPost(uint32(r.Intn(int(curTopicId))+1), msg, "", userName, ipAddr)
 					}
 					wg.Done()
 				}()
@@ -603,8 +603,7 @@ func (store *Store) Archive() {
 	}
 }
 
-// CreateNewTopic creates a new topic
-func (store *Store) CreateNewTopic(subject, msg, image string, user [8]byte, ipAddr [8]byte) (uint32, error) {
+func (store *Store) NewTopic(subject, msg, image string, user [8]byte, ipAddr [8]byte) (uint32, error) {
 	store.Lock()
 	defer store.Unlock()
 
@@ -630,8 +629,7 @@ func (store *Store) CreateNewTopic(subject, msg, image string, user [8]byte, ipA
 	return topic.ID, err
 }
 
-// AddPostToTopic adds a post to a topic
-func (store *Store) AddPostToTopic(topicID uint32, msg, image string, user [8]byte, ipAddr [8]byte) error {
+func (store *Store) NewPost(topicID uint32, msg, image string, user [8]byte, ipAddr [8]byte) error {
 	store.Lock()
 	defer store.Unlock()
 
