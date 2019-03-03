@@ -8,7 +8,7 @@
         <tr>
             <th><label for="subject">标题:</label></th>
             <td>
-                <input maxlength="256" id="subject" type="edit">
+                <input maxlength="256" id="subject" type="edit" placeholder="留空">
             </td>
         </tr>
         {{else}}
@@ -70,7 +70,7 @@ function _reply(longid) {
     </tbody>
 </table>
 
-<script src="https://www.recaptcha.net/recaptcha/api.js?onload=onloadRecaptcha&render=explicit" async defer></script>
+<script src="https://www.recaptcha.net/recaptcha/api.js?onload=onloadRecaptcha&render=explicit&hl=zh_CN" async defer></script>
 <script>
     function onloadRecaptcha() {
         function callback() {

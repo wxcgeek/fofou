@@ -101,11 +101,38 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !user.IsValid() {
+		if forum.NoMoreNewUsers && !topic.FreeReply {
+			writeSimpleJSON(w, "success", false, "error", "no-more-new-users")
+			return
+		}
+		copy(user.ID[:], forum.Rand.Fetch(6))
+		if user.ID[1] == ':' {
+			user.ID[1]++ // in case we get random bytes satrting with "a:"
+		}
+		if topic.ID == 0 {
+			user.N = forum.Rand.Intn(10) + 10
+		} else {
+			user.N = forum.Rand.Intn(5) + 5
+		}
+	}
+
 	// if user didn't pass the dice test, we will challenge him/her
 	if !user.NoTest() {
+		_testCount, _ := forum.BadUsers.Get(user.ID)
+		testCount, _ := _testCount.(int)
+		if testCount++; testCount > 10 {
+			forum.BadUsers.Remove(user.ID)
+			forum.Block(user.ID)
+			forum.Block(ipAddr)
+			badRequest()
+			return
+		}
+
 		recaptcha := strings.TrimSpace(r.FormValue("token"))
 		if recaptcha == "" {
 			writeSimpleJSON(w, "success", false, "error", "recaptcha-needed")
+			forum.BadUsers.Add(user.ID, testCount)
 			return
 		}
 
@@ -127,30 +154,17 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 		if r, _ := recaptchaResult["success"].(bool); !r {
 			forum.Error("recaptcha failed: %v", string(buf))
+			forum.BadUsers.Add(user.ID, testCount)
 			writeSimpleJSON(w, "success", false, "error", "recaptcha-failed")
 			return
 		}
 	}
+	forum.BadUsers.Remove(user.ID)
 
 	subject := strings.Replace(r.FormValue("subject"), "<", "&lt;", -1)
 	msg := strings.TrimSpace(r.FormValue("message"))
 
 	// validate the fields
-	if !user.IsValid() {
-		if forum.NoMoreNewUsers && !topic.FreeReply {
-			writeSimpleJSON(w, "success", false, "error", "no-more-new-users")
-			return
-		}
-		copy(user.ID[:], forum.Rand.Fetch(6))
-		if user.ID[1] == ':' {
-			user.ID[1]++ // in case we get random bytes satrting with "a:"
-		}
-		if topic.ID == 0 {
-			user.N = forum.Rand.Intn(10) + 10
-		} else {
-			user.N = forum.Rand.Intn(5) + 5
-		}
-	}
 
 	if user.IsAdmin() && server.AdminOPCode(forum, msg) {
 		writeSimpleJSON(w, "success", true, "admin-operation", msg)

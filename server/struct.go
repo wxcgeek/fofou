@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/coyove/common/lru"
 )
 
 type Post struct {
@@ -100,6 +102,7 @@ type Forum struct {
 	*ForumConfig
 	*Store
 	*Logger
+	BadUsers *lru.Cache
 }
 
 type User struct {

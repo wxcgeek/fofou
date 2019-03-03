@@ -77,6 +77,7 @@ div#paging span, div.paging a {
 
 div#paging span.current {
     background: #888;
+    border-color: #666;
     color: white;
 }
 
@@ -86,7 +87,7 @@ div.topic {
     border: solid 1px #aaa;
 	background-color: rgb(246, 246, 239);
     display: table;
-    verflow: hidden;
+    overflow: hidden;
 }
 
 div.subject {
@@ -96,7 +97,11 @@ div.subject {
 }
 
 div.subject .title, div.subject .title * {
-    font-size: 18px;
+    font-size: 16px;
+}
+
+div.title-info {
+    line-height: 20px;
 }
 
 div.subject .title-id {

@@ -2,10 +2,15 @@
     {{if .ID}}
     <div class="subject">
         <div class="title">
-            <span class="title-id">No.{{.ID}}</span>
+            <span class="title-id"
+                style="{{if or .Archived .Locked}}background:#333;color:white{{end}}">
+                {{if .FreeReply}}&hearts;{{end}}
+                {{if .Sticky}}&Delta;{{end}}
+                No.{{.ID}}
+            </span>
             {{.Subject}}
         </div>
-        <div>
+        <div class="title-info">
             <span>
                 {{if .Archived}}<b>[存档]</b>{{end}}
                 {{if .Locked}}<b>[锁定]</b>{{end}}
@@ -18,8 +23,8 @@
                     , [ <a href="/t/{{.ID}}" target="_blank">展开</a> ] 以查看更多
                 </span>
                 {{else}}
-                <title id="title-subject">{{.Subject}}</title>
-                <script>document.title = $("#title-subject").text()</script>
+                <span id="title-subject" style="display:none">{{.Subject}}</span>
+                <script>document.title += " - " + $("#title-subject").text()</script>
                 {{end}}
 
             </span>

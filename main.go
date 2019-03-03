@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coyove/common/lru"
 	"github.com/coyove/common/rand"
 	"github.com/coyove/fofou/server"
 )
@@ -33,6 +34,7 @@ func newForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
 
 	start := time.Now()
 	forum.Store = server.NewStore("data/main.txt", config.MaxLiveTopics, logger)
+	forum.BadUsers = lru.NewCache(1024)
 
 	go func() {
 		for {
