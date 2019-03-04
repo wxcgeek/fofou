@@ -1,8 +1,6 @@
 package server
 
 import (
-	"bufio"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,86 +37,13 @@ type Store struct {
 	Rand          *rand.Rand
 
 	ready        uintptr
+	ptr          int64
 	dataFilePath string
 	rootTopic    *Topic
 	endTopic     *Topic
 	topicsCount  uint32
 	blocked      map[[8]byte]bool
 	dataFile     *os.File
-}
-
-func findPostToDelUndel(r *buffer, topicIDToTopic map[uint32]*Topic) (*Post, error) {
-	topicID, err1 := r.ReadUInt32()
-	postID, err2 := r.ReadUInt16()
-	panicif(err1 != nil || err2 != nil, "invalid post ID/topic ID")
-
-	topic, ok := topicIDToTopic[topicID]
-	if !ok {
-		return nil, fmt.Errorf("no topic with that ID")
-	}
-	if int(postID) > len(topic.Posts) {
-		return nil, fmt.Errorf("invalid post ID")
-	}
-	return &topic.Posts[postID-1], nil
-}
-
-// parse:
-// T$id|$subject
-func parseTopic(r *buffer) *Topic {
-	id, err := r.ReadUInt32()
-	panicif(err != nil, "invalid ID")
-
-	subject, err := r.ReadString()
-	panicif(err != nil, "invalid subject")
-
-	return &Topic{
-		ID:      id,
-		Subject: subject,
-		Posts:   make([]Post, 0),
-	}
-}
-
-// parse:
-// P1|1|1148874103|4b0af66e|Krzysztof Kowalczyk|message in ascii85 format
-func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
-	topicID, err := r.ReadUInt32()
-	panicif(err != nil, "invalid topic ID")
-
-	id, err := r.ReadUInt16()
-	panicif(err != nil, "invalid post ID")
-
-	createdOnSeconds, err := r.ReadUInt32()
-	panicif(err != nil, "invalid timestamp")
-
-	ipAddrInternal, err := r.Read8Bytes()
-	panicif(err != nil, "invalid IP")
-
-	userName, err := r.Read8Bytes()
-	panicif(err != nil, "invalid username")
-
-	image, err := r.ReadString()
-	panicif(err != nil, "invalid image refer")
-
-	message, err := r.ReadString()
-	panicif(err != nil, "invalid message body")
-
-	t, ok := topicIDToTopic[topicID]
-	panicif(!ok, "invalid topic ID")
-
-	realPostID := len(t.Posts) + 1
-	panicif(int(id) != realPostID, "invalid post ID: %d, topic ID: %d, expected post ID: %d\n", id, topicID, realPostID)
-	panicif(realPostID >= 65536, "too many posts (65536)")
-
-	return Post{
-		ID:        uint16(realPostID),
-		CreatedAt: createdOnSeconds,
-		user:      userName,
-		ip:        ipAddrInternal,
-		IsDeleted: false,
-		Topic:     t,
-		Message:   message,
-		Image:     image,
-	}
 }
 
 func (store *Store) LoadingProgress() float64 { return float64(atomic.LoadUintptr(&store.ready)) / 1000 }
@@ -132,206 +56,6 @@ func (store *Store) markBlockedOrUnblocked(term [8]byte) {
 	} else {
 		store.blocked[term] = true
 	}
-}
-
-func (store *Store) loadDB(path string, slient bool) (err error) {
-	fh, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-
-	topicIDToTopic := make(map[uint32]*Topic)
-	r := &buffer{}
-	r.SetReader(bufio.NewReaderSize(fh, 1024*1024*10))
-	print := func(f string, args ...interface{}) {
-		if !slient {
-			fmt.Printf(f, args...)
-		}
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			if slient {
-				err = fmt.Errorf("panic error: %v", r)
-			} else {
-				print("\npanic: %v\n", r)
-				panic(0)
-			}
-		}
-	}()
-
-	fhInfo, _ := fh.Stat()
-	if fhInfo.Size() == 0 {
-		fh.Close()
-		print("empty DB")
-		return nil
-	}
-
-	fsize := int(fhInfo.Size())
-	for {
-		print("\rloading %02d%% %d/%d", r.pos*100/fsize, r.pos, fsize)
-		atomic.StoreUintptr(&store.ready, uintptr(r.pos*1000/fsize))
-
-		op, err := r.ReadByte()
-		if err != nil {
-			break
-		}
-
-		switch op {
-		case OP_TOPIC:
-			t := parseTopic(r)
-			store.moveTopicToFront(t)
-			store.topicsCount++
-			panicif(topicIDToTopic[t.ID] != nil, "topic %d already existed", t.ID)
-			topicIDToTopic[t.ID] = t
-		case OP_POST:
-			post := parsePost(r, topicIDToTopic)
-			t := post.Topic
-			t.Posts = append(t.Posts, post)
-			if len(t.Posts) == 1 {
-				t.CreatedAt = post.CreatedAt
-			} else {
-				t.ModifiedAt = post.CreatedAt
-			}
-
-			store.moveTopicToFront(t)
-		case OP_DELETE:
-			post, err := findPostToDelUndel(r, topicIDToTopic)
-			panicif(err != nil, err)
-			post.IsDeleted = !post.IsDeleted
-		case OP_BLOCK:
-			str, err := r.Read8Bytes()
-			panicif(err != nil, "invalid string")
-			store.markBlockedOrUnblocked(str)
-		case OP_STICKY, OP_ARCHIVE, OP_LOCK, OP_PURGE, OP_FREEREPLY, OP_SAGE:
-			topicID, err := r.ReadUInt32()
-			panicif(err != nil, err)
-
-			t := topicIDToTopic[topicID]
-			panicif(t == nil, "can't find the topic to '%s': %d", string(op), topicID)
-
-			switch op {
-			case OP_STICKY:
-				if t.Sticky = !t.Sticky; t.Sticky {
-					store.moveTopicToFront(t)
-				}
-			case OP_LOCK:
-				t.Locked = !t.Locked
-			case OP_FREEREPLY:
-				t.FreeReply = !t.FreeReply
-			case OP_SAGE:
-				t.Saged = !t.Saged
-			case OP_ARCHIVE, OP_PURGE:
-				t.Prev.Next = t.Next
-				t.Next.Prev = t.Prev
-				delete(topicIDToTopic, t.ID)
-			}
-		default:
-			panic("unexpected line type")
-		}
-	}
-
-	fh.Close()
-	atomic.StoreUintptr(&store.ready, 1000)
-	print("\n")
-	return nil
-}
-
-func (store *Store) verifyTopics() {
-	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
-		if 0 == len(topic.Posts) {
-			store.Notice("topics (%v) has no posts!\n", topic)
-		}
-	}
-}
-
-func NewStore(path string, maxLiveTopics int, logger *Logger) *Store {
-	store := &Store{
-		dataFilePath:  path,
-		rootTopic:     &Topic{},
-		endTopic:      &Topic{},
-		blocked:       make(map[[8]byte]bool),
-		Rand:          rand.New(),
-		MaxLiveTopics: maxLiveTopics,
-		Logger:        logger,
-	}
-
-	store.rootTopic.Next = store.endTopic
-	store.endTopic.Prev = store.rootTopic
-
-	if _, err := os.Stat(path); err == nil {
-		go func() {
-			store.loadDB(store.dataFilePath, false)
-			store.verifyTopics()
-			store.dataFile, err = os.OpenFile(store.dataFilePath, os.O_APPEND|os.O_RDWR, 0666)
-			panicif(err != nil, "can't open DB %s: %v", store.dataFilePath, err)
-		}()
-
-		return store
-	}
-
-	f, err := os.Create(store.dataFilePath)
-	panicif(err != nil, "can't create initial DB %s: %v", store.dataFilePath, err)
-	f.Close()
-
-	store.dataFile, err = os.OpenFile(store.dataFilePath, os.O_APPEND|os.O_RDWR, 0666)
-	panicif(err != nil, "can't open DB %s: %v", store.dataFilePath, err)
-
-	store.ready = 1000
-
-	if false {
-		r := store.Rand
-		curTopicId := uint32(0)
-		for i := 0; i < 200; i++ {
-			wg := &sync.WaitGroup{}
-			for i := 0; i < 1000; i++ {
-				wg.Add(1)
-				go func() {
-					subject := base64.StdEncoding.EncodeToString(r.Fetch(16))
-					msg := base64.StdEncoding.EncodeToString(r.Fetch(r.Intn(64) + 64))
-					msg = strings.Repeat(msg, 4)
-					userName := [8]byte{'a', 'b', 'c', 'd', 'e', 'f', 0, 0}
-					ipAddr := [8]byte{}
-
-					if r.Intn(10) == 1 {
-						curTopicId, _ = store.NewTopic(subject, msg, "", userName, ipAddr)
-					} else if curTopicId > 0 {
-						store.NewPost(uint32(r.Intn(int(curTopicId))+1), msg, "", userName, ipAddr)
-					}
-					wg.Done()
-				}()
-			}
-			wg.Wait()
-			fmt.Println(i)
-		}
-	}
-	return store
-}
-
-func (store *Store) LoadArchivedTopic(topicID uint32) (Topic, error) {
-	path := store.buildArchivePath(uint32(topicID))
-	if _, err := os.Stat(path); err != nil {
-		return Topic{}, err
-	}
-
-	store = &Store{
-		rootTopic: &Topic{},
-		endTopic:  &Topic{},
-	}
-
-	store.rootTopic.Next = store.endTopic
-	store.endTopic.Prev = store.rootTopic
-
-	var err error
-	if err = store.loadDB(path, true); err != nil {
-		return Topic{}, err
-	}
-
-	if store.rootTopic.Next == store.endTopic {
-		return Topic{}, fmt.Errorf("no topic in %s", path)
-	}
-
-	return *store.rootTopic.Next, nil
 }
 
 func (store *Store) OperateTopic(topicID uint32, action byte) {
@@ -428,11 +152,6 @@ func (store *Store) TopicByID(id uint32) Topic {
 		return Topic{}
 	}
 	return *t
-}
-
-func (store *Store) append(buf []byte) error {
-	_, err := store.dataFile.Write(buf)
-	return err
 }
 
 // DeletePost deletes/restores a post

@@ -53,8 +53,8 @@ func panicif(cond bool, args ...interface{}) {
 type buffer struct {
 	p      bytes.Buffer
 	r      io.Reader
-	pos    int
-	postmp int
+	pos    int64
+	postmp int64
 	one    [1]byte
 }
 
@@ -208,9 +208,9 @@ func (b *buffer) ReadString() (string, error) {
 
 }
 
-func (b *buffer) LastStringCheckpoint() int { return b.postmp }
+func (b *buffer) LastStringCheckpoint() int { return int(b.postmp) }
 
-func (b *buffer) LastByteCheckpoint() int { return b.pos }
+func (b *buffer) LastByteCheckpoint() int { return int(b.pos) }
 
 func Format8Bytes(b [8]byte) (string, string) {
 	buf, bufid := bytes.Buffer{}, bytes.Buffer{}
