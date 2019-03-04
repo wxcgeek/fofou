@@ -22,7 +22,7 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 			goto NEXT
 		}
 
-		forum.Notice("handleTopic(): didn't find topic with id %d, referer: %q", topicID, r.Referer())
+		forum.Notice("can't find topic with id %d, referer: %q, err: %v", topicID, r.Referer(), err)
 		http.Redirect(w, r, "/", 302)
 		return
 	}

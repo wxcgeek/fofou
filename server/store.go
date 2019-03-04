@@ -324,7 +324,6 @@ func (store *Store) LoadArchivedTopic(topicID uint32) (Topic, error) {
 
 	var err error
 	if err = store.loadDB(path, true); err != nil {
-		store.Error("LoadSingleTopicInStore: %s", err)
 		return Topic{}, err
 	}
 
