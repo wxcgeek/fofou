@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+	"unsafe"
 )
 
 var (
@@ -26,6 +27,7 @@ var (
 	urlRx          = regexp.MustCompile(`(https?://[[:^space:]]+|<|\n| |` + "```[\\s\\S]+```" + `|>>\d+)`)
 	base32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567").WithPadding('1')
 	default8Bytes  = [8]byte{}
+	errInvalidHash = fmt.Errorf("corrupted string hash")
 )
 
 var (
@@ -152,18 +154,23 @@ func (b *buffer) WriteString(str string) *buffer {
 		queue = queue[:0]
 	}
 
+	h := byte(0)
 	for _, r := range str {
 		if r < 128 {
 			if len(queue) > 0 {
 				appendQueue()
 			}
 			b.p.WriteByte(byte(r))
-		} else {
-			queue = append(queue, byte(r>>8), byte(r))
-			if len(queue)/2 == 128 {
-				appendQueue()
-			}
+			h = crc8(h, byte(r))
+			continue
 		}
+
+		queue = append(queue, byte(r>>8), byte(r))
+		if len(queue)/2 == 128 {
+			appendQueue()
+		}
+
+		h = crc8(crc8(h, byte(r>>8)), byte(r))
 	}
 
 	if len(queue) > 0 {
@@ -171,12 +178,14 @@ func (b *buffer) WriteString(str string) *buffer {
 	}
 
 	b.p.WriteByte(0)
+	b.p.WriteByte(h)
 	return b
 }
 
 func (b *buffer) ReadString() (string, error) {
 	str := make([]byte, 0)
 	enc := make([]byte, 3)
+	h := byte(0)
 
 	b.postmp = b.pos
 	for {
@@ -190,6 +199,7 @@ func (b *buffer) ReadString() (string, error) {
 
 		if v < 128 {
 			str = append(str, v)
+			h = crc8(h, v)
 			continue
 		}
 
@@ -200,8 +210,18 @@ func (b *buffer) ReadString() (string, error) {
 				return "", err
 			}
 			n := utf8.EncodeRune(enc, rune(v0)<<8+rune(v1))
+			h = crc8(crc8(h, v0), v1)
 			str = append(str, enc[:n]...)
 		}
+	}
+
+	h2, err := b.ReadByte()
+	if err != nil {
+		return "", err
+	}
+
+	if h != h2 {
+		return "", errInvalidHash
 	}
 
 	return string(str), nil
@@ -268,26 +288,24 @@ func (f *Forum) GetUser(r *http.Request) User {
 		return User{}
 	}
 
-	if len(uid.Value) < 48 {
+	u := User{}
+	bufp := &SafeJSON{Buffer: bytes.NewBuffer([]byte(uid.Value))}
+	if err := json.NewDecoder(bufp).Decode(&u); err != nil {
 		return User{}
 	}
 
-	user := uid.Value[:len(uid.Value)-48]
-	hash := uid.Value[len(uid.Value)-48:]
+	user := [userStructSize + 32]byte{}
+	copy(user[:], (*(*[userStructSize]byte)(unsafe.Pointer(&u)))[:])
+	copy(user[userStructSize:], f.Salt[:])
 
-	x := sha256.Sum256([]byte(user + f.Salt))
+	x := sha256.Sum256(user[:])
 	for i := 0; i < 16; i++ {
 		x = sha256.Sum256(x[:])
 	}
 
-	if base32Encoding.EncodeToString(x[:30]) != hash {
+	if base32Encoding.EncodeToString(x[:30]) != u.Hash {
 		return User{}
 	}
-
-	u := User{}
-	bufp := &SafeJSON{}
-	bufp.Buffer = *bytes.NewBuffer([]byte(user))
-	json.NewDecoder(bufp).Decode(&u)
 
 	{
 		x, n := u.Posts, u.N
@@ -307,18 +325,22 @@ func (f *Forum) GetUser(r *http.Request) User {
 
 func (f *Forum) SetUser(w http.ResponseWriter, u User) {
 	u.Posts++
-	bufp := &SafeJSON{}
-	json.NewEncoder(bufp).Encode(&u)
-	user := bufp.String()
+	user := [userStructSize + 32]byte{}
+	copy(user[:], (*(*[userStructSize]byte)(unsafe.Pointer(&u)))[:])
+	copy(user[userStructSize:], f.Salt[:])
 
-	x := sha256.Sum256([]byte(user + f.Salt))
+	x := sha256.Sum256(user[:])
 	for i := 0; i < 16; i++ {
 		x = sha256.Sum256(x[:])
 	}
+	u.Hash = base32Encoding.EncodeToString(x[:30])
+
+	bufp := &SafeJSON{Buffer: &bytes.Buffer{}}
+	json.NewEncoder(bufp).Encode(&u)
 
 	cookie := &http.Cookie{
 		Name:    "uid",
-		Value:   user + base32Encoding.EncodeToString(x[:30]),
+		Value:   bufp.String(),
 		Path:    "/",
 		Expires: time.Now().AddDate(1, 0, 0),
 	}

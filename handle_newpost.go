@@ -110,10 +110,11 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		if user.ID[1] == ':' {
 			user.ID[1]++ // in case we get random bytes satrting with "a:"
 		}
+		user.T = time.Now().Unix()
 		if topic.ID == 0 {
-			user.N = forum.Rand.Intn(10) + 10
+			user.N = uint32(forum.Rand.Intn(10) + 10)
 		} else {
-			user.N = forum.Rand.Intn(5) + 5
+			user.N = uint32(forum.Rand.Intn(5) + 5)
 		}
 	}
 
@@ -162,7 +163,11 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	forum.BadUsers.Remove(user.ID)
 
 	subject := strings.Replace(r.FormValue("subject"), "<", "&lt;", -1)
-	msg := strings.TrimSpace(r.FormValue("message"))
+	msg, sage := strings.TrimSpace(r.FormValue("message")), false
+	if strings.HasPrefix(msg, "!!sage") {
+		sage = true
+		msg = msg[6:]
+	}
 
 	// validate the fields
 
@@ -243,6 +248,9 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 			forum.Error("failed to create new topic: %v", err)
 			internalError()
 			return
+		}
+		if sage {
+			forum.Store.OperateTopic(topicID, server.OP_SAGE)
 		}
 		writeSimpleJSON(w, "success", true, "topic", topicID)
 		return

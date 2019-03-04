@@ -292,7 +292,9 @@ func (store *Store) LoadArchivedTopic(topicID uint32) (Topic, error) {
 	return *store.rootTopic.Next, nil
 }
 
+// append writes data onto disk with WAL
 func (store *Store) append(buf []byte) error {
+	// append data uncommitted
 	_, err := store.dataFile.Seek(store.ptr, 0)
 	if err != nil {
 		return err
@@ -304,6 +306,8 @@ func (store *Store) append(buf []byte) error {
 	if err != nil {
 		return err
 	}
+
+	// start committing header
 	if _, err = store.dataFile.Seek(0, 0); err != nil {
 		return err
 	}
@@ -335,6 +339,7 @@ func (store *Store) append(buf []byte) error {
 		return err
 	}
 
+	// all clear
 	store.ptr = newptr
 	return nil
 }

@@ -68,3 +68,12 @@ func TestBufferError(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestCRC8(t *testing.T) {
+	if crc8Bytes([]byte("123456789")) != 0xf4 {
+		t.FailNow()
+	}
+	if crc8Bytes([]byte("https://crccalc.com/")) != 0x56 {
+		t.FailNow()
+	}
+}

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -161,8 +162,8 @@ func main() {
 	if config.MinMessageLen == 0 {
 		config.MinMessageLen = 3
 	}
-	if config.Salt == "" {
-		config.Salt = fmt.Sprintf("%x", rand.New().Fetch(16))
+	if bytes.Equal(config.Salt[:], make([]byte, 32)) {
+		copy(config.Salt[:], rand.New().Fetch(32))
 		buf, _ := json.Marshal(&config)
 		ioutil.WriteFile(configPath, buf, 0755)
 	}

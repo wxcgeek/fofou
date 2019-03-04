@@ -87,7 +87,7 @@ func (t *Topic) IsDeleted() bool {
 // ForumConfig is a static configuration of a single forum
 type ForumConfig struct {
 	Title          string
-	Salt           string
+	Salt           [32]byte
 	NoMoreNewUsers bool
 	NoImageUpload  bool
 	MaxLiveTopics  int
@@ -105,10 +105,14 @@ type Forum struct {
 	BadUsers *lru.Cache
 }
 
+const userStructSize = 8 + 4 + 4 + 8
+
 type User struct {
 	ID     [8]byte
-	N      int
-	Posts  int
+	N      uint32
+	Posts  uint32
+	T      int64
+	Hash   string
 	noTest bool
 }
 
@@ -119,7 +123,7 @@ func (u User) IsAdmin() bool { return u.ID[0] == 'a' && u.ID[1] == ':' }
 func (u User) NoTest() bool { return u.noTest }
 
 type SafeJSON struct {
-	bytes.Buffer
+	*bytes.Buffer
 }
 
 func (s *SafeJSON) Write(p []byte) (int, error) {
