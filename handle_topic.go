@@ -10,6 +10,11 @@ import (
 	"github.com/coyove/fofou/server"
 )
 
+type NewPost struct {
+	TopicID   int
+	PostToken string
+}
+
 // url: /t/{tid}
 func handleTopic(w http.ResponseWriter, r *http.Request) {
 	topicID, _ := strconv.Atoi(r.URL.Path[len("/t/"):])
@@ -53,16 +58,17 @@ NEXT:
 	model := struct {
 		server.Forum
 		server.Topic
-		TopicID int
+		NewPost
 		Pages   int
 		CurPage int
 	}{
 		Forum:   *forum,
 		Topic:   topic,
-		TopicID: topicID,
 		Pages:   pages,
 		CurPage: p,
 	}
+	model.TopicID = topicID
+	_, model.PostToken = forum.UUID()
 	server.Render(w, server.TmplTopic, model)
 }
 
@@ -102,9 +108,9 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 
 	model := struct {
 		server.Forum
+		NewPost
 		NewFrom int
 		PrevTo  int
-		TopicID int
 		Topics  []server.Topic
 	}{
 		Forum:   *forum,
@@ -113,6 +119,7 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 		PrevTo:  prevTo,
 	}
 
+	_, model.PostToken = forum.UUID()
 	server.Render(w, server.TmplForum, model)
 }
 

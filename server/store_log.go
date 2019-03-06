@@ -226,9 +226,7 @@ func NewStore(path string, maxLiveTopics int, logger *Logger) *Store {
 	go func() {
 		store.loadDB(store.dataFilePath, false)
 		for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
-			if 0 == len(topic.Posts) {
-				store.Notice("topics (%v) has no posts!\n", topic)
-			}
+			panicif(0 == len(topic.Posts), "topic %d has no posts!", topic.ID)
 		}
 		store.dataFile, err = os.OpenFile(store.dataFilePath, os.O_RDWR, 0666)
 		panicif(err != nil, "can't open DB %s: %v", store.dataFilePath, err)

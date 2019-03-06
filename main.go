@@ -22,7 +22,7 @@ import (
 var (
 	httpAddr     = flag.String("addr", ":5010", "HTTP server address")
 	makeID       = flag.String("make", "", "Make an ID")
-	inProduction = flag.String("production", "", "production domain")
+	inProduction = flag.Bool("production", false, "go for production")
 	forum        *server.Forum
 	iq           *server.ImageQueue
 )
@@ -36,6 +36,7 @@ func newForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
 	start := time.Now()
 	forum.Store = server.NewStore("data/main.txt", config.MaxLiveTopics, logger)
 	forum.BadUsers = lru.NewCache(1024)
+	forum.UUIDs = lru.NewCache(1024)
 
 	go func() {
 		for {
@@ -139,7 +140,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	flag.Parse()
-	useStdout := *inProduction == ""
+	logger := server.NewLogger(1024, 1024, !*inProduction)
 
 	var config server.ForumConfig
 	var configPath = "data/main.json"
@@ -162,6 +163,10 @@ func main() {
 	if config.MinMessageLen == 0 {
 		config.MinMessageLen = 3
 	}
+
+	configbuf, _ := json.MarshalIndent(&config, "", "  ")
+	logger.Notice("%s", string(configbuf))
+
 	if bytes.Equal(config.Salt[:], make([]byte, 32)) {
 		copy(config.Salt[:], rand.New().Fetch(32))
 		buf, _ := json.Marshal(&config)
@@ -177,10 +182,10 @@ func main() {
 		return
 	}
 
-	forum = newForum(&config, server.NewLogger(1024, 1024, useStdout))
+	forum = newForum(&config, logger)
 	iq = server.NewImageQueue(forum.Logger, 200)
 
-	server.LoadTemplates()
+	server.LoadTemplates(*inProduction)
 
 	smux := &http.ServeMux{}
 	smux.HandleFunc("/favicon.ico", http.NotFound)
@@ -190,6 +195,7 @@ func main() {
 	smux.HandleFunc("/i/", preHandle(handleImage, false))
 	smux.HandleFunc("/api", preHandle(handleNewPost, false))
 	smux.HandleFunc("/list", preHandle(handleList, true))
+	smux.HandleFunc("/rss.xml", preHandle(handleRSS, false))
 	smux.HandleFunc("/t/", preHandle(handleTopic, true))
 	smux.HandleFunc("/p/", preHandle(handleRawPost, false))
 	smux.HandleFunc("/", preHandle(handleTopics, true))

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -482,4 +483,20 @@ func stringCompare(s1 string, s2 string, m []uint32) (bool, []uint32) {
 	}
 
 	return false, m
+}
+
+func (f *Forum) UUID() (v [16]byte, s string) {
+	f.Rand.Read(v[:])
+	v[8] = (v[8] | 0x80) & 0xBF
+	v[6] = (v[6] | 0x40) & 0x4F
+	s = hex.EncodeToString(v[:])
+	return
+}
+
+func DecodeUUID(s string) (v [16]byte) {
+	if len(s) != 32 {
+		return
+	}
+	hex.Decode(v[:], *(*[]byte)(unsafe.Pointer(&s)))
+	return
 }

@@ -176,6 +176,14 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// simple mechanism to prevent double post only
+	uuid := server.DecodeUUID(r.FormValue("uuid"))
+	if _, existed := forum.UUIDs.Get(uuid); existed {
+		badRequest()
+		return
+	}
+	forum.UUIDs.Add(uuid, true)
+
 	if topic.ID == 0 {
 		if tmp := []rune(subject); len(tmp) > forum.MaxSubjectLen {
 			tmp[forum.MaxSubjectLen-1], tmp[forum.MaxSubjectLen-2], tmp[forum.MaxSubjectLen-3] = '.', '.', '.'

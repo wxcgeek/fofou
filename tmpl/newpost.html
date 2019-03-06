@@ -2,7 +2,7 @@
 <button onclick="$(this).hide();$('#newpost').show()">{{if .TopicID}}回复主题{{else}}发布新主题{{end}}</button>
 </div>
 
-<table cellspacing="0" id="newpost">
+<table cellspacing="0" id="newpost" uuid="{{.PostToken}}">
     <tbody>
         {{if not .TopicID}}
         <tr>
@@ -75,7 +75,7 @@ function _reply(longid) {
     function onloadRecaptcha() {
         function callback() {
             if ($(this).prop('recaptcha')) return;
-            grecaptcha.render("recaptcha", {"sitekey": "6LeNoZMUAAAAAOX2EGs8eewS_W73IqxWMtXFaZAq", "theme": "light"});
+            grecaptcha.render("recaptcha", {"sitekey": "{{.Forum.RecaptchaToken}}", "theme": "light"});
             $(this).prop('recaptcha', true);
         }
         $("#message").on('focus',  callback);

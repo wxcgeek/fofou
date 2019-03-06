@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/coyove/fofou/server"
 )
@@ -54,4 +56,36 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	model.QueryText = qt
 
 	server.Render(w, server.TmplPosts, model)
+}
+
+func handleRSS(w http.ResponseWriter, r *http.Request) {
+	xml := []string{
+		`<?xml version="1.0" encoding="UTF-8"?>`,
+		`<rss version="2.0"><channel>`,
+		`<title>`, forum.Title, `</title>`,
+		`<pubDate>`, time.Now().Format(time.RFC1123Z), `</pubDate>`,
+		`<link>`, forum.URL, `</link>`,
+	}
+
+	topics, _ := forum.GetTopics(20, 0, false)
+	for _, g := range topics {
+		var message string
+		if len(g.Posts) > 0 {
+			message = g.Posts[0].MessageHTML()
+		}
+
+		xml = append(xml,
+			`<item>`,
+			`<title>`, g.Subject, `</title>`,
+			`<pubDate>`, time.Unix(int64(g.CreatedAt), 0).Format(time.RFC1123Z), `</pubDate>`,
+			`<link>`, forum.URL, "/t/", strconv.FormatUint(uint64(g.ID), 10), `</link>`,
+			`<description>`, `<![CDATA[`, message, `]]>`, `</description>`,
+			`</item>`,
+		)
+	}
+
+	xml = append(xml, "</channel></rss>")
+
+	w.Header().Add("Content-Type", "application/xml")
+	w.Write([]byte(strings.Join(xml, "")))
 }

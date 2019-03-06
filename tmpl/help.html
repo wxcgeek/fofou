@@ -1,0 +1,75 @@
+<canvas id="zzz" width="300" height="100"></canvas>
+<script>
+    function drawCurve(canvas, p) {
+        var ctx = canvas.getContext('2d');
+        var len = 20;
+        var height = canvas.height, width = canvas.width - 30;
+        var delta = 4;
+        var h0 = height - delta * 2;
+        var points = [];
+        var calcY_ = function(x) { return 1 - (Math.atan(10 - x) / Math.PI + 0.5 + 0.01); }
+        var calcY = function(x) { return h0 - calcY_(x) * h0 + delta; }
+
+        ctx.strokeStyle = '#aaaaaa';
+        ctx.lineWidth = 0.5;
+        ctx.font = (height / 10) + "px Arial";
+        for (var x = 0; x < len; x += 0.125) {
+            var y0 = calcY(x);
+            var x0 = x * width / len;
+
+            points.push({x: x0, y: y0});
+
+            if (x % 2 == 0) {
+                ctx.beginPath();
+                ctx.moveTo(x0 + 1, 0);
+                ctx.lineTo(x0 + 1, height);
+                ctx.stroke();
+                ctx.fillText(x, x0 + 2, height - 3);
+            }
+        }
+
+        if (p >= len) p = len - 1;
+
+        ctx.strokeStyle = 'red';
+        ctx.beginPath();
+        x0 = p * width / len + 1, y0 = calcY(p);
+        ctx.moveTo(x0, 0);
+        ctx.lineTo(x0, height);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, y0);
+        ctx.setLineDash([3, 3]);
+        ctx.lineTo(width, y0);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.arc(x0, y0, 2, 0, 2 * Math.PI);
+        ctx.fillStyle = "#ff5e5e";
+        ctx.fill();
+
+        ctx.strokeStyle = '#000000';
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for(var i = 1; i < points.length-1; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.lineTo(width - 1, points[i].y);
+        ctx.lineTo(width - 1, height);
+        ctx.lineTo(0, height);
+        ctx.closePath();
+        ctx.fillStyle = "rgba(0, 188, 212, 0.1)";
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.textBaseline = "middle";
+        ctx.fillStyle="red";
+        ctx.fillText(calcY_(p).toFixed(2), width + 1, y0);
+
+        ctx.strokeStyle = '#000000';
+        ctx.strokeRect(1, 1, width - 2, height - 2);
+    }
+
+drawCurve(zzz, 333);
+</script>

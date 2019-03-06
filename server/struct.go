@@ -95,6 +95,8 @@ type ForumConfig struct {
 	MaxMessageLen  int
 	MinMessageLen  int
 	Recaptcha      string
+	RecaptchaToken string
+	URL            string
 }
 
 // Forum describes forum
@@ -103,6 +105,7 @@ type Forum struct {
 	*Store
 	*Logger
 	BadUsers *lru.Cache
+	UUIDs    *lru.Cache
 }
 
 const userStructSize = 8 + 4 + 4 + 8

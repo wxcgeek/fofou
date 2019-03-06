@@ -41,6 +41,7 @@
                 form.append('message', $('#message').val());
                 form.append('image', $('#select-image').get(0).files[0]);
                 form.append('topic', window.TOPIC_ID || 0);
+                form.append('uuid', $('#newpost').attr('uuid'));
                 try {
                     form.append('token', grecaptcha.getResponse());
                 } catch (ex) {}
@@ -86,4 +87,5 @@
             <div class="header">
                 <a class="item" href="/">主页</a>      
                 <a class="item" href="/list">搜索</a>
+                <a class="item" href="/rss.xml">RSS</a>
             </div>

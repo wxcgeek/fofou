@@ -26,7 +26,7 @@ var (
 	tmplMutex     sync.RWMutex
 )
 
-func LoadTemplates() {
+func LoadTemplates(prod bool) {
 
 	for _, name := range templateNames {
 		templatePaths = append(templatePaths, filepath.Join("tmpl", name))
@@ -34,9 +34,16 @@ func LoadTemplates() {
 
 	templates = template.Must(template.ParseFiles(templatePaths...))
 	go func() {
-		for range time.Tick(time.Second * 2) {
+		tick := 2
+		if prod {
+			tick = 10
+		}
+		for range time.Tick(time.Second * time.Duration(tick)) {
 			tmplMutex.Lock()
-			templates = template.Must(template.ParseFiles(templatePaths...))
+			t, err := template.ParseFiles(templatePaths...)
+			if err == nil {
+				templates = t
+			}
 			tmplMutex.Unlock()
 		}
 	}()
