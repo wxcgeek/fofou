@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -433,3 +434,52 @@ func AdminOPCode(forum *Forum, msg string) bool {
 //		factor = 2.0
 //	}
 //}
+
+func stringCompare(s1 string, s2 string, m []uint32) (bool, []uint32) {
+	if m == nil {
+		m = make([]uint32, 0, len(s2))
+		lastr := uint16(0)
+		for i, r := range s2 {
+			if r >= 0x41 && r <= 0x5a { // A-Z
+				r += 0x20 // a-z
+			}
+
+			if i > 0 {
+				m = append(m, uint32(lastr)<<16+uint32(uint16(r)))
+			}
+
+			if len(m) > 128 {
+				break
+			}
+
+			lastr = uint16(r)
+		}
+		sort.Slice(m, func(i, j int) bool { return m[i] < m[j] })
+	}
+
+	if len(m) == 0 {
+		return false, m
+	}
+
+	lastr := uint16(0)
+	score := 0
+	for i, r := range s1 {
+		if r >= 0x41 && r <= 0x5a { // A-Z
+			r += 0x20 // a-z
+		}
+
+		if i > 0 {
+			x := uint32(lastr)<<16 + uint32(uint16(r))
+			xi := sort.Search(len(m), func(i int) bool { return m[i] >= x })
+			if xi < len(m) && m[xi] == x {
+				score++
+				if score >= len(m)/2+1 {
+					return true, m
+				}
+			}
+		}
+		lastr = uint16(r)
+	}
+
+	return false, m
+}

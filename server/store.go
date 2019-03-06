@@ -385,17 +385,43 @@ func (store *Store) IsBlocked(q [8]byte) bool {
 	return store.blocked[q]
 }
 
-func (store *Store) GetPostsBy(q [8]byte, max int) ([]Post, int) {
+func (store *Store) GetPostsBy(q [8]byte, qtext string, max int, timeout int64) ([]Post, int) {
 	store.RLock()
 	defer store.RUnlock()
+
 	res, total := make([]Post, 0), 0
+	_, m := stringCompare("", qtext, nil)
+	start := time.Now().UnixNano()
+
 	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
+		if len(m) > 0 && len(topic.Posts) > 0 {
+			if time.Now().UnixNano()-start > timeout {
+				break
+			}
+
+			if r, _ := stringCompare(topic.Subject, "", m); r {
+				if total++; total <= max {
+					res = append(res, topic.Posts[0])
+				}
+				continue
+			}
+		}
+
 		for _, post := range topic.Posts {
-			if post.ip == q || post.user == q {
-				total++
-				if total <= max {
+			if len(m) > 0 {
+				if r, _ := stringCompare(post.Message, "", m); r {
+					if total++; total <= max {
+						res = append(res, post)
+					}
+				}
+			} else if post.ip == q || post.user == q {
+				if total++; total <= max {
 					res = append(res, post)
 				}
+			}
+
+			if len(m) > 0 && total > max {
+				break
 			}
 		}
 	}

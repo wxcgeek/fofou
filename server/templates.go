@@ -13,7 +13,7 @@ var (
 	TmplForum   = "forum.html"
 	TmplTopic   = "topic.html"
 	TmplTopic1  = "topic1.html"
-	TmplPosts   = "posts.html"
+	TmplPosts   = "list.html"
 	TmplNewPost = "newpost.html"
 	TmplLogs    = "logs.html"
 	TmplFooter  = "footer.html"

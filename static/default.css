@@ -10,14 +10,12 @@ body {
 	margin: 0;
 }
 
- .header .item {
+.header .item {
 	color:white;
 	display:inline-block;
 	zoom:1;
 	*display:inline;
-	margin:-4px 0;
-	padding:4px 8px;
-	border-left:solid 1px #889;
+	margin: 0 0 0 8px;
 	text-decoration: none;
 }
 
@@ -26,7 +24,9 @@ body {
 }
 
 .header {
-	background:#676677;padding:4px 0;color:white;
+	background:#676677;
+    padding: 4px 8px 4px 0;
+    color:white;
 	margin: -4px -4px 0 -4px;
 }
 

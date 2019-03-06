@@ -1,0 +1,36 @@
+{{template "header.html" .}}
+
+{{if not .Query}}
+<form method="GET" style="margin: 4px 0; line-height: 2.25em">
+    <input name="qt" value="{{html .QueryText}}" style="width:100%;max-width:250px"><br>
+    <select name="count" style="padding: 2px">
+        <option value="10">10 条</option>
+        <option value="20">20 条</option>
+        <option value="50" selected>50 条</option>
+        <option value="100">100 条</option>
+    </select>
+    <input type="submit" value="搜索">
+</form>
+{{end}}
+
+{{if or .Query .QueryText}}
+<div style="margin: 4px 0">
+    {{if .QueryText}}
+        {{if .TotalCount}}
+            搜索 "<b>{{.QueryText}}</b>" : 找到 <b>{{ .TotalCount }}</b> 条结果
+        {{else}}
+            搜索 "<b>{{.QueryText}}</b>" : 无结果
+        {{end}}
+    {{else}}
+        找到 <b>{{.TotalCount}}</b> 条活动记录: <b>{{.Query}}</b>
+        {{if $.IsAdmin}}
+            (<a href="javascript:_submit(null, '!!block={{.Query}}')">{{if .IsBlocked}}Unblock{{else}}Block{{end}}</a>)
+        {{end}}
+    {{end}}
+</div>
+
+{{if .TotalCount}}
+{{template "topic1.html" .}}
+{{end}}
+
+{{end}}

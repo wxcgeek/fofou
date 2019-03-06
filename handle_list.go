@@ -12,6 +12,24 @@ import (
 func handleList(w http.ResponseWriter, r *http.Request) {
 	store := forum.Store
 	q := r.FormValue("q")
+	qt := r.FormValue("qt")
+
+	model := struct {
+		server.Forum
+		server.Topic
+		TotalCount int
+		IsAdmin    bool
+		Query      string
+		QueryText  string
+		Blocked    map[string]bool
+		IsBlocked  bool
+	}{Forum: *forum}
+
+	if q == "" && qt == "" {
+		server.Render(w, server.TmplPosts, model)
+		return
+	}
+
 	query := server.Parse8Bytes(q)
 	isAdmin := forum.GetUser(r).IsAdmin()
 	maxTopics := 50
@@ -20,29 +38,20 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 		maxTopics, _ = strconv.Atoi(count)
 	}
 
-	posts, total := store.GetPostsBy(query, maxTopics)
+	posts, total := store.GetPostsBy(query, qt, maxTopics, 1e8 /* 100ms */)
 	isBlocked := store.IsBlocked(query)
 
-	model := struct {
-		server.Forum
-		server.Topic
-		TotalCount int
-		IsAdmin    bool
-		Query      string
-		Blocked    map[string]bool
-		IsBlocked  bool
-	}{
-		Forum: *forum,
-		Topic: server.Topic{
-			Posts:     posts,
-			Subject:   fmt.Sprintf("%s: %x", q, query),
-			T_IsAdmin: isAdmin,
-		},
-		TotalCount: total,
-		IsAdmin:    isAdmin,
-		IsBlocked:  isBlocked,
-		Query:      q,
+	model.Forum = *forum
+	model.Topic = server.Topic{
+		Posts:     posts,
+		Subject:   fmt.Sprintf("%s: %x", q, query),
+		T_IsAdmin: isAdmin,
 	}
+	model.TotalCount = total
+	model.IsAdmin = isAdmin
+	model.IsBlocked = isBlocked
+	model.Query = q
+	model.QueryText = qt
 
 	server.Render(w, server.TmplPosts, model)
 }

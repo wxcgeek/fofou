@@ -77,3 +77,7 @@ func TestCRC8(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestStringCompare(t *testing.T) {
+	t.Log(stringCompare("abc defg", "abcdef", nil))
+}
