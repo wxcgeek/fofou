@@ -2,5 +2,9 @@
             {{if .Image}}
             <a href="/i/{{.Image}}" target="_blank"><img class="image" src="/i/{{.Image}}?thumb=1" /></a>
             {{end}}
+            {{if .Message}}
             {{.MessageHTML}}
+            {{else}}
+            <span style="color:#aaa">无正文</span>
+            {{end}}
         </div>

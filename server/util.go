@@ -441,6 +441,10 @@ func stringCompare(s1 string, s2 string, m []uint32) (bool, []uint32) {
 		m = make([]uint32, 0, len(s2))
 		lastr := uint16(0)
 		for i, r := range s2 {
+			if r == ' ' {
+				continue
+			}
+
 			if r >= 0x41 && r <= 0x5a { // A-Z
 				r += 0x20 // a-z
 			}
