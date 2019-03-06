@@ -163,11 +163,8 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	forum.BadUsers.Remove(user.ID)
 
 	subject := strings.Replace(r.FormValue("subject"), "<", "&lt;", -1)
-	msg, sage := strings.TrimSpace(r.FormValue("message")), false
-	if strings.HasPrefix(msg, "!!sage") {
-		sage = true
-		msg = msg[6:]
-	}
+	msg := strings.TrimSpace(r.FormValue("message"))
+	sage := r.FormValue("sage") != ""
 
 	// validate the fields
 

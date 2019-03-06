@@ -159,8 +159,7 @@ func (store *Store) DeletePost(postLongID uint64, onImageDelete func(string)) er
 	store.Lock()
 	defer store.Unlock()
 
-	topicID := uint32(postLongID >> 16)
-	postID := uint16(postLongID)
+	topicID, postID := SplitID(postLongID)
 	topic := store.topicByIDUnlocked(topicID)
 	if nil == topic {
 		return fmt.Errorf("can't find topic ID: %d", topicID)
@@ -217,7 +216,7 @@ var errTooManyPosts = fmt.Errorf("topic already has 65535 posts")
 
 func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, topic *Topic, newTopic bool) error {
 	nextID := len(topic.Posts) + 1
-	if nextID >= 65536 {
+	if nextID > 4001 {
 		return errTooManyPosts
 	}
 

@@ -80,6 +80,12 @@ func handleImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, file)
 }
 
+func handleHelp(w http.ResponseWriter, r *http.Request) {
+	server.Render(w, server.TmplHelp, struct {
+		server.Forum
+	}{*forum})
+}
+
 // url: /robots.txt
 func handleRobotsTxt(w http.ResponseWriter, r *http.Request) {
 	serveFileFromDir(w, r, "static", "robots.txt")
@@ -192,6 +198,7 @@ func main() {
 	smux.HandleFunc("/robots.txt", handleRobotsTxt)
 	smux.HandleFunc("/logs", preHandle(handleLogs, true))
 	smux.HandleFunc("/s/", preHandle(handleStatic, false))
+	smux.HandleFunc("/help", preHandle(handleHelp, true))
 	smux.HandleFunc("/i/", preHandle(handleImage, false))
 	smux.HandleFunc("/api", preHandle(handleNewPost, false))
 	smux.HandleFunc("/list", preHandle(handleList, true))

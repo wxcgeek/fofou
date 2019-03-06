@@ -11,6 +11,13 @@
                 <input maxlength="256" id="subject" type="edit" placeholder="留空">
             </td>
         </tr>
+
+        <tr>
+            <th><label for="sage">sage:</label></th>
+            <td>
+                <input type="checkbox" id="sage" name="sage" style="width: initial">
+            </td>
+        </tr>
         {{else}}
         <script> window.TOPIC_ID = {{.TopicID}} </script>
         {{end}}

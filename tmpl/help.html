@@ -1,31 +1,53 @@
-<canvas id="zzz" width="300" height="100"></canvas>
+{{template "header.html" .}}
+
+<style>
+#ranking {
+    width: 100%;
+    max-width: 360px;
+        margin: 4px 0;
+}
+</style>
+
+<img id="ranking" />
+
 <script>
-    function drawCurve(canvas, p) {
-        var ctx = canvas.getContext('2d');
-        var len = 20;
-        var height = canvas.height, width = canvas.width - 30;
+    function drawCurve(n, p) {
+        if (n < 5 || n > 20) n = 20;
+
+        var canvas = document.createElement("canvas"), root = document.createElement("canvas");
+        canvas.width = 360;
+        canvas.height = 120;
+        root.width = canvas.width - 10;
+        root.height = canvas.height - 30;
+
+        var ctx = root.getContext('2d');
+        var len = n * 2;
+        var height = root.height, width = root.width - 36;
         var delta = 4;
         var h0 = height - delta * 2;
         var points = [];
-        var calcY_ = function(x) { return 1 - (Math.atan(10 - x) / Math.PI + 0.5 + 0.01); }
+        var calcY_ = function(x) { return 1 - (Math.atan(n - x) / Math.PI + 0.5 + 0.01); }
         var calcY = function(x) { return h0 - calcY_(x) * h0 + delta; }
+        var tick = Math.ceil(len / 10);
 
-        ctx.strokeStyle = '#aaaaaa';
-        ctx.lineWidth = 0.5;
-        ctx.font = (height / 10) + "px Arial";
+        ctx.font = '12px "Lucida Console", Monaco, monospace';
         for (var x = 0; x < len; x += 0.125) {
             var y0 = calcY(x);
             var x0 = x * width / len;
 
             points.push({x: x0, y: y0});
 
-            if (x % 2 == 0) {
+            if (x % 1 == 0) {
                 ctx.beginPath();
+                ctx.strokeStyle = x % tick == 0 ? '#cccccc' : '#eeeeee';
                 ctx.moveTo(x0 + 1, 0);
                 ctx.lineTo(x0 + 1, height);
                 ctx.stroke();
-                ctx.fillText(x, x0 + 2, height - 3);
             }
+        }
+        for (var x = 0; x < len; x += tick) {
+            var x0 = x * width / len;
+            ctx.fillText(x, x0 + 2, height - 3);
         }
 
         if (p >= len) p = len - 1;
@@ -49,7 +71,7 @@
         ctx.fillStyle = "#ff5e5e";
         ctx.fill();
 
-        ctx.strokeStyle = '#000000';
+        ctx.strokeStyle = 'black';
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
         for(var i = 1; i < points.length-1; i++) {
@@ -64,12 +86,32 @@
         ctx.stroke();
 
         ctx.textBaseline = "middle";
+        ctx.textAlign="center"; 
         ctx.fillStyle="red";
-        ctx.fillText(calcY_(p).toFixed(2), width + 1, y0);
+        ctx.fillText(calcY_(p).toFixed(2), width + 18, y0);
 
-        ctx.strokeStyle = '#000000';
+        ctx.strokeStyle = 'black';
         ctx.strokeRect(1, 1, width - 2, height - 2);
+
+        ctx = canvas.getContext('2d');
+        ctx.font = '12px "Lucida Console", Monaco, monospace';
+        ctx.fillStyle="white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(root, 5, 25);
+        ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+        ctx.fillStyle="black";
+        ctx.textAlign="center"; 
+        ctx.textBaseline = "middle";
+        ctx.fillText("Pascal " + new Date().toLocaleDateString(), canvas.width / 2, 12);
+
+        return canvas.toDataURL();
     }
 
-drawCurve(zzz, 333);
+var p = document.cookie.match(/'Posts':(\d+)/);
+var n = document.cookie.match(/'N':(\d+)/);
+if (p && n) {
+    var p = parseFloat(p[1]);
+    var n = parseFloat(n[1]);
+    $('#ranking').attr('src', drawCurve(n, p));
+}
 </script>

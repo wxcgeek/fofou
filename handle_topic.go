@@ -124,8 +124,8 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRawPost(w http.ResponseWriter, r *http.Request) {
-	longID, _ := strconv.Atoi(r.URL.Path[len("/p/"):])
-	topicID, postID := uint32(longID>>16), uint16(longID)
+	longID, _ := strconv.ParseInt(r.URL.Path[len("/p/"):], 10, 64)
+	topicID, postID := server.SplitID(uint64(longID))
 	topic := forum.Store.TopicByID(topicID)
 	if topic.ID == 0 {
 		var err error

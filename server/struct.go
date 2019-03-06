@@ -47,7 +47,19 @@ func (p *Post) MessageHTML() string {
 
 func (p *Post) IP() string { i, _ := Format8Bytes(p.ip); return i }
 
-func (p *Post) LongID() uint64 { return uint64(p.Topic.ID)<<16 + uint64(p.ID) }
+func (p *Post) LongID() uint64 {
+	if p.ID < 128 {
+		return uint64(p.Topic.ID)<<8 + uint64(p.ID)
+	}
+	return uint64(p.Topic.ID)<<13 + uint64(p.ID>>7)<<8 + 1<<7 + uint64(p.ID&0x7f)
+}
+
+func SplitID(longid uint64) (uint32, uint16) {
+	if longid&80 == 0 {
+		return uint32(longid >> 8), uint16(longid) & 0x7f
+	}
+	return uint32(longid >> 13), uint16((longid>>8)&0x1f)<<7 + uint16(longid&0x7f)
+}
 
 func (p *Post) User() string { _, i := Format8Bytes(p.user); return i }
 
