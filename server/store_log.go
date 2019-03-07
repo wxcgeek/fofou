@@ -2,6 +2,8 @@ package server
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/aes"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
@@ -31,7 +33,7 @@ func findPostToDelUndel(r *buffer, topicIDToTopic map[uint32]*Topic) (*Post, err
 
 // parse:
 // T$id|$subject
-func parseTopic(r *buffer) *Topic {
+func parseTopic(r *buffer, store *Store) *Topic {
 	id, err := r.ReadUInt32()
 	panicif(err != nil, "invalid ID")
 
@@ -42,6 +44,7 @@ func parseTopic(r *buffer) *Topic {
 		ID:      id,
 		Subject: subject,
 		Posts:   make([]Post, 0),
+		store:   store,
 	}
 }
 
@@ -142,7 +145,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 
 		switch op {
 		case OP_TOPIC:
-			t := parseTopic(r)
+			t := parseTopic(r, store)
 			store.moveTopicToFront(t)
 			store.topicsCount++
 			panicif(topicIDToTopic[t.ID] != nil, "topic %d already existed", t.ID)
@@ -200,7 +203,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 	return nil
 }
 
-func NewStore(path string, maxLiveTopics int, logger *Logger) *Store {
+func NewStore(path string, password string, maxLiveTopics int, logger *Logger) *Store {
 	store := &Store{
 		dataFilePath:  path,
 		rootTopic:     &Topic{},
@@ -213,6 +216,7 @@ func NewStore(path string, maxLiveTopics int, logger *Logger) *Store {
 
 	store.rootTopic.Next = store.endTopic
 	store.endTopic.Prev = store.rootTopic
+	store.block, _ = aes.NewCipher(bytes.Repeat([]byte(password+"0"), 16)[:16])
 
 	_, err := os.Stat(path)
 	if err != nil {

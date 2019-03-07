@@ -1,5 +1,5 @@
 <div style="margin: 4px 0">
-<button onclick="$(this).hide();$('#newpost').show()">{{if .TopicID}}回复主题{{else}}发布新主题{{end}}</button>
+<button onclick="$(this).hide();$('#newpost').show()" id="expand-newpost">{{if .TopicID}}回复主题{{else}}发布新主题{{end}}</button>
 </div>
 
 <table cellspacing="0" id="newpost" uuid="{{.PostToken}}">
@@ -67,6 +67,7 @@ if (p && n) {
 
 function _reply(longid) {
     $('#message').append("\n>>" + longid);
+    $('#expand-newpost').hide();
     $([document.documentElement, document.body]).animate({
         scrollTop: $('#newpost').show().offset().top
     }, 500);

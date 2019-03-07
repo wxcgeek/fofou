@@ -18,15 +18,20 @@
             });
         }
         function _togglePost(id) {
-            var p = $("#post-" + id + " .toggle"), c = p.prop("fold");
+            var p = $("#post-" + id + " .toggle");
+            if (!p.get(0)) return;
+
+            var c = p.prop("fold");
             var m = $("#post-" + id + " .message");
             var s = JSON.parse(localStorage.getItem("fold") || '{}');
+            var cls = (localStorage.getItem("hide-looks") || 'gray') == 'gray' ? 'fold' : 'fold fold-hide';
+
             p.prop("fold", !c).text(c ? "[-]" : "[+]");
             if (c) {
-                m.show().parent().removeClass("fold");
+                m.show().parent().removeClass(cls);
                 delete s[id];
             } else {
-                m.hide().parent().addClass("fold");
+                m.hide().parent().addClass(cls);
                 s[id] = new Date().getTime();
             }
             localStorage.setItem("fold", JSON.stringify(s));

@@ -4,18 +4,21 @@
 </div>
 </div>
 
-    <script>
-        (function() {
-            var s = JSON.parse(localStorage.getItem("fold") || '{}'), latest = 0;
-            for (var id in s) {
-                _togglePost(id);
-                if (s[id] > latest) latest = s[id];
-            }
-            for (var id in s) {
-                if (latest - s[id] > 7 * 24 * 3600 * 1000) delete s[id];
-            }
-        })()
-    </script>
+<script>
+    (function() {
+        var s = JSON.parse(localStorage.getItem("fold") || '{}'), latest = 0;
+        for (var id in s) {
+            _togglePost(id);
+            if (s[id] > latest) latest = s[id];
+        }
+        for (var id in s) {
+            if (latest - s[id] > 7 * 24 * 3600 * 1000) delete s[id];
+        }
+        if ((localStorage.getItem("auto-expand") || "off") == "on") {
+            $('#expand-newpost').click();
+        }
+    })()
+</script>
 
 </body>
 </html>

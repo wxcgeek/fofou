@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"strconv"
 	"strings"
@@ -45,7 +46,22 @@ func (p *Post) MessageHTML() string {
 	})
 }
 
-func (p *Post) IP() string { i, _ := Format8Bytes(p.ip); return i }
+func (p *Post) IPXor() [8]byte {
+	x := p.ip
+	iv := [16]byte{}
+	copy(iv[:], p.user[:])
+	binary.BigEndian.PutUint64(iv[8:], p.LongID())
+	p.Topic.store.block.Encrypt(iv[:], iv[:])
+	for i := 0; i < len(x); i++ {
+		x[i] ^= iv[i]
+	}
+	return x
+}
+
+func (p *Post) IP() string {
+	i, _ := Format8Bytes(p.IPXor())
+	return i
+}
 
 func (p *Post) LongID() uint64 {
 	if p.ID < 128 {
@@ -81,6 +97,8 @@ type Topic struct {
 	T_TotalPosts uint16
 	T_IsAdmin    bool
 	T_IsExpand   bool
+
+	store *Store
 }
 
 func (p *Topic) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
@@ -100,6 +118,7 @@ func (t *Topic) IsDeleted() bool {
 type ForumConfig struct {
 	Title          string
 	Salt           [32]byte
+	IPPassword     string
 	NoMoreNewUsers bool
 	NoImageUpload  bool
 	MaxLiveTopics  int

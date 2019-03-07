@@ -8,11 +8,16 @@
 }
 </style>
 
-<img id="ranking" />
-
 <ol>
-    <li>用户发言前需要先完成机器人验证。该验证随着发言次数的增加而变得越没有必要——该“必要性”显示为按钮旁的数字，例如0.91表示如果不完成验证直接提交，那么有91%的可能发布成功。如果发布失败，服务端将提示您完成验证后再发。
+    <li>用户发言前需要先完成机器人验证，按钮旁的数字代表信任概率（0.01~0.99）。该数字随着发言次数的增加而增加，例如0.42代表用户有42%的概率不用验证即可发言。</li>
+    <li>网页端不强求验证，即用户可以不点击验证框而直接点击按钮发布内容。但服务端会计算信任概率，所以即便结果是99%成功也有可能roll到需要验证的情况，此时网页端会提示用户进行验证。</li>
+    <li>如果概率很低，请不要抱着抽奖的心态跳过验证。当前cookie的信任概率值如下图：<br><img id="ranking" /></li>
 </ol>
+<h3>设置</h3>
+<ul>
+    <li>回复被折叠后将其：<select id="settings-hide" onchange='localStorage.setItem("hide-looks", this.value)'><option value="gray">变灰</option><option value="hide">不显示</option></select></li>
+    <li>自动展开回复框：<select id="settings-autoexpand" onchange='localStorage.setItem("auto-expand", this.value)'><option value="off">否</option><option value="on">是</option></select></li>
+</ul>
 
 <script>
     function drawCurve(n, p) {
@@ -106,7 +111,7 @@
         ctx.fillStyle="black";
         ctx.textAlign="center"; 
         ctx.textBaseline = "middle";
-        ctx.fillText("Pascal " + new Date().toLocaleDateString(), canvas.width / 2, 12);
+        ctx.fillText(new Date().toLocaleDateString() + " (x = " + p + ")", canvas.width / 2, 12);
 
         return canvas.toDataURL();
     }
@@ -117,5 +122,10 @@ if (p && n) {
     var p = parseFloat(p[1]);
     var n = parseFloat(n[1]);
     $('#ranking').attr('src', drawCurve(n, p));
+} else {
+    $('#ranking').attr('alt', "未发现cookie");
 }
+
+     $("#settings-hide option[value=" + (localStorage.getItem("hide-looks") || "gray") + "]").attr("selected", "selected");
+     $("#settings-autoexpand option[value=" + (localStorage.getItem("auto-expand") || "off") + "]").attr("selected", "selected");
 </script>

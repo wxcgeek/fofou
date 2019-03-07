@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/cipher"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -36,6 +37,7 @@ type Store struct {
 	MaxLiveTopics int
 	Rand          *rand.Rand
 
+	block        cipher.Block
 	ready        uintptr
 	ptr          int64
 	dataFilePath string
@@ -212,7 +214,7 @@ func (store *Store) moveTopicToFront(topic *Topic) {
 	root.Prev = topic
 }
 
-var errTooManyPosts = fmt.Errorf("topic already has 65535 posts")
+var errTooManyPosts = fmt.Errorf("too many posts")
 
 func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, topic *Topic, newTopic bool) error {
 	nextID := len(topic.Posts) + 1
@@ -230,6 +232,8 @@ func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, 
 		Message:   msg,
 		Image:     image,
 	}
+
+	p.ip = p.IPXor()
 
 	var topicStr buffer
 	if newTopic {
@@ -332,6 +336,7 @@ func (store *Store) NewTopic(subject, msg, image string, user [8]byte, ipAddr [8
 		ID:      store.topicsCount + 1,
 		Subject: subject,
 		Posts:   make([]Post, 0),
+		store:   store,
 	}
 
 	err := store.addNewPost(msg, image, user, ipAddr, topic, true)

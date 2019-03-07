@@ -125,6 +125,8 @@ div.post {
 
 div.post.fold, div.post.fold a { color: #aaa !important; }
 
+div.post.fold.fold-hide { display: none; }
+
 div.post .info a { color: black; }
 
 div.post .message {
