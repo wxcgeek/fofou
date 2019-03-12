@@ -44,21 +44,22 @@ code {
 	font-family: "Lucida Console", Monaco, monospace;
 }
 
-table#newpost th, table#newpost td {
+table th, table td {
     padding: 4px;
 }
 
-table#newpost th {
+table th {
     white-space: nowrap;
     width: 1px;
+    text-align: left;
 }
 
-table#newpost textarea, table#newpost input {
+table textarea, table input {
 	width: 100%;
     resize: vertical;
 } 
 
-table#newpost {
+table {
     min-width: 350px;
     margin: 6px 0;
     border: solid 1px #aaa;
@@ -142,6 +143,15 @@ div.post .info .toggle {
 div.post img.image {
     max-width: 200px;
     max-height: 200px;
+}
+
+div.post img.image-base {
     float: left;
     margin-right: 6px;
+    cursor: pointer;
+}
+
+div.post img.image-large {
+    max-width: 100%;
+    max-height: 100%;
 }

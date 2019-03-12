@@ -40,7 +40,7 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 		maxTopics, _ = strconv.Atoi(count)
 	}
 
-	posts, total := store.GetPostsBy(query, qt, maxTopics, 1e8 /* 100ms */)
+	posts, total := store.GetPostsBy(query, qt, maxTopics, int64(forum.SearchTimeout)*1e6)
 	isBlocked := store.IsBlocked(query)
 
 	model.Forum = *forum

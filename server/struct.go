@@ -125,6 +125,7 @@ type ForumConfig struct {
 	MaxSubjectLen  int
 	MaxMessageLen  int
 	MinMessageLen  int
+	SearchTimeout  int
 	Recaptcha      string
 	RecaptchaToken string
 	URL            string

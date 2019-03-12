@@ -204,6 +204,15 @@ func AdminOPCode(forum *Forum, msg string) bool {
 				forum.NoImageUpload = !forum.NoImageUpload
 			}
 			opcode = true
+		case "max-message-len":
+			forum.MaxMessageLen = int(vint)
+			opcode = true
+		case "max-subject-len":
+			forum.MaxSubjectLen = int(vint)
+			opcode = true
+		case "search-timeout":
+			forum.SearchTimeout = int(vint)
+			opcode = true
 		case "delete":
 			forum.Store.DeletePost(uint64(vint), func(img string) {
 				os.Remove("data/images/" + img)

@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -33,7 +34,13 @@ func LoadTemplates(prod bool) {
 		templatePaths = append(templatePaths, filepath.Join("tmpl", name))
 	}
 
-	templates = template.Must(template.ParseFiles(templatePaths...))
+	m := template.FuncMap{
+		"formatBytes": func(b uint64) string {
+			return fmt.Sprintf("%.2f MB", float64(b)/1024/1024)
+		},
+	}
+	templates = template.Must(template.New("").Funcs(m).ParseFiles(templatePaths...))
+
 	go func() {
 		tick := 2
 		if prod {
@@ -41,7 +48,7 @@ func LoadTemplates(prod bool) {
 		}
 		for range time.Tick(time.Second * time.Duration(tick)) {
 			tmplMutex.Lock()
-			t, err := template.ParseFiles(templatePaths...)
+			t, err := template.New("").Funcs(m).ParseFiles(templatePaths...)
 			if err == nil {
 				templates = t
 			}

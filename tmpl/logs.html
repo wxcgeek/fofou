@@ -1,17 +1,33 @@
 {{template "header.html" .}}
 
-<div>
-	Alloc: {{.MemStats.Alloc}} b,
-	Total Alloc: {{.MemStats.TotalAlloc}} b,
-	Heap Alloc: {{.MemStats.HeapAlloc}} b,
-	Heap Sys: {{.MemStats.HeapSys}} b
-</div>
-
-<pre style="font-size: 80%; white-space: pre-wrap; word-wrap: break-word">
+<style>
+#settings input {
+    width: 80px;
+}
+</style>
+<table id="settings">
+    <tr><th>Global States:</th><td><a href="javascript:location.reload()">Refresh</a></td></tr>
+    <tr><th colspan=2><hr></th></tr>
+    <tr><th>Alloc:</th><td>{{formatBytes .MemStats.Alloc}}</td></tr>
+    <tr><th>Total Alloc:</th><td>{{formatBytes .MemStats.TotalAlloc}}</td></tr>
+    <tr><th>Heap Alloc:</th><td>{{formatBytes .MemStats.HeapAlloc}}</td></tr>
+    <tr><th>Heap Sys:</th><td>{{formatBytes .MemStats.HeapSys}}</td></tr>
+    <tr><th>Uploaded Images:</th><td><a href="/browse" target="_blank">Browse</a></td></tr>
+    <tr><th>Thumb Queue:</th><td>{{.IQLen}}</td></tr>
+    <tr><th>Search Timeout:</th><td><input value="{{.Forum.SearchTimeout}}">ms <a href="#" onclick="_submit(null,'!!search-timeout='+$(this).prev().val())">Update</a></td></tr>
+    <tr><th>No Cookies:</th><td>{{.Forum.NoMoreNewUsers}} <a href="javascript:_submit(null,'!!moat=cookie')">Toggle</a></td></tr>
+    <tr><th>No Images Upload:</th><td>{{.Forum.NoImageUpload}} <a href="javascript:_submit(null,'!!moat=image')">Toggle</a></td></tr>
+    <tr><th>Max Message Len:</th><td><input value="{{.Forum.MaxMessageLen}}"> <a href="#" onclick="_submit(null,'!!max-message-len='+$(this).prev().val())">Update</a></td></tr>
+    <tr><th>Max Subject Len:</th><td><input value="{{.Forum.MaxSubjectLen}}"> <a href="#" onclick="_submit(null,'!!max-subject-len='+$(this).prev().val())">Update</a></td></tr>
+    <tr><th>HTTP Headers Test:</th><td><a href="#" onclick="$(this).hide().next().show()">Show</a>
+<pre style="font-size: 80%; white-space: pre-wrap; word-wrap: break-word; word-break: break-all; display: none">
 {{ range $k, $v := .Header }}{{$k}}:
 	{{$v}}
 {{ end }}
 </pre>
+        </td></tr>
+        <tr><th>Get IP:</th><td>{{.IP}}</td></tr>
+</table>
 
 <div style="word-wrap: break-word">
 {{if len .Errors}}

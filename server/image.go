@@ -16,14 +16,21 @@ type ImageQueue struct {
 	*Logger
 }
 
-func NewImageQueue(l *Logger, sizeBox int) *ImageQueue {
+func NewImageQueue(l *Logger, sizeBox int, workers int) *ImageQueue {
 	iq := &ImageQueue{
 		q:       make(chan string, 256),
 		Logger:  l,
 		sizeBox: sizeBox,
 	}
-	go iq.job()
+
+	for i := 0; i < workers; i++ {
+		go iq.job()
+	}
 	return iq
+}
+
+func (iq *ImageQueue) Len() int {
+	return len(iq.q)
 }
 
 func (iq *ImageQueue) Push(path string) {

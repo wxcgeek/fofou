@@ -26,6 +26,7 @@ var (
 	inProduction = flag.Bool("prod", false, "go for production")
 	forum        *server.Forum
 	iq           *server.ImageQueue
+	dirServer    http.Handler
 )
 
 func newForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
@@ -87,6 +88,14 @@ func handleImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, file)
 }
 
+func handleImageBrowser(w http.ResponseWriter, r *http.Request) {
+	if !forum.GetUser(r).IsAdmin() {
+		w.WriteHeader(403)
+		return
+	}
+	dirServer.ServeHTTP(w, r)
+}
+
 func handleHelp(w http.ResponseWriter, r *http.Request) {
 	server.Render(w, server.TmplHelp, struct {
 		server.Forum
@@ -112,6 +121,8 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		Errors  []*server.TimestampedMsg
 		Notices []*server.TimestampedMsg
 		Header  *http.Header
+		IP      string
+		IQLen   int
 		runtime.MemStats
 	}{
 		Forum:    *forum,
@@ -119,8 +130,9 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		Errors:   forum.GetErrors(),
 		Notices:  forum.GetNotices(),
 		Header:   &r.Header,
+		IQLen:    iq.Len(),
 	}
-
+	model.IP, _ = server.Format8Bytes(getIPAddress(r))
 	server.Render(w, server.TmplLogs, model)
 }
 
@@ -167,15 +179,11 @@ func main() {
 		panic(err)
 	}
 
-	if config.MaxSubjectLen == 0 {
-		config.MaxSubjectLen = 60
-	}
-	if config.MaxMessageLen == 0 {
-		config.MaxMessageLen = 10000
-	}
-	if config.MinMessageLen == 0 {
-		config.MinMessageLen = 3
-	}
+	checkInt := func(i *int, v int) { *i = int(^(^uint32(*i-1)>>31)&1)*v + *i }
+	checkInt(&config.MaxSubjectLen, 60)
+	checkInt(&config.MaxMessageLen, 10000)
+	checkInt(&config.MinMessageLen, 3)
+	checkInt(&config.SearchTimeout, 100)
 
 	configbuf, _ := json.MarshalIndent(&config, "", "  ")
 	logger.Notice("%s", string(configbuf))
@@ -196,17 +204,19 @@ func main() {
 	}
 
 	forum = newForum(&config, logger)
-	iq = server.NewImageQueue(forum.Logger, 200)
+	iq = server.NewImageQueue(forum.Logger, 200, runtime.NumCPU())
 
 	server.LoadTemplates(*inProduction)
 
 	smux := &http.ServeMux{}
+	dirServer = http.StripPrefix("/browse/", http.FileServer(http.Dir("data/images")))
 	smux.HandleFunc("/favicon.ico", http.NotFound)
 	smux.HandleFunc("/robots.txt", handleRobotsTxt)
 	smux.HandleFunc("/logs", preHandle(handleLogs, true))
 	smux.HandleFunc("/s/", preHandle(handleStatic, false))
 	smux.HandleFunc("/help", preHandle(handleHelp, true))
 	smux.HandleFunc("/i/", preHandle(handleImage, false))
+	smux.HandleFunc("/browse/", preHandle(handleImageBrowser, false))
 	smux.HandleFunc("/api", preHandle(handleNewPost, false))
 	smux.HandleFunc("/list", preHandle(handleList, true))
 	smux.HandleFunc("/rss.xml", preHandle(handleRSS, false))

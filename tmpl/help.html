@@ -18,6 +18,7 @@
 <ul>
     <li>回复被折叠后将其：<select id="settings-hide" onchange='localStorage.setItem("hide-looks", this.value)'><option value="gray">变灰</option><option value="hide">不显示</option></select></li>
     <li>自动展开回复框：<select id="settings-autoexpand" onchange='localStorage.setItem("auto-expand", this.value)'><option value="off">否</option><option value="on">是</option></select></li>
+    <li>点击图片打开方式：<select id="image-view" onchange='localStorage.setItem("image-view", this.value)'><option value="expand">展开大图</option><option value="blank">在新窗口内显示大图</option></select></li>
 </ul>
 
 <script>
@@ -129,4 +130,5 @@ if (p && n) {
 
      $("#settings-hide option[value=" + (localStorage.getItem("hide-looks") || "gray") + "]").attr("selected", "selected");
      $("#settings-autoexpand option[value=" + (localStorage.getItem("auto-expand") || "off") + "]").attr("selected", "selected");
+     $("#image-view option[value=" + (localStorage.getItem("image-view") || "expand") + "]").attr("selected", "selected");
 </script>

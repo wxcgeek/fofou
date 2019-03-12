@@ -1,6 +1,6 @@
         <div class="message">
             {{if .Image}}
-            <a href="/i/{{.Image}}" target="_blank"><img class="image" src="/i/{{.Image}}?thumb=1" /></a>
+            <img class="image image-base" onclick="_enlarge(this,'/i/{{.Image}}')" src="/i/{{.Image}}?thumb=1" />
             {{end}}
             {{if .Message}}
             {{.MessageHTML}}

@@ -17,6 +17,18 @@
                 $(el).after(div);
             });
         }
+function _enlarge(el, url) {
+    var m = localStorage.getItem("image-view") || 'expand';
+    if (m === 'expand') {
+        if ($(el).prop('expanded')) {
+            $(el).addClass('image').removeClass('image-large').prop('expanded', false);
+        } else {
+            $(el).removeClass('image').addClass('image-large').attr('src', url).prop('expanded', true);
+        }
+    } else {
+        window.open(url);
+    }
+}
         function _togglePost(id) {
             var p = $("#post-" + id + " .toggle");
             if (!p.get(0)) return;
