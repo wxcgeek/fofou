@@ -19,6 +19,7 @@ type Post struct {
 	CreatedAt uint32
 	ID        uint16
 	IsDeleted bool
+	T_IsFirst bool
 	Topic     *Topic
 }
 
@@ -122,6 +123,7 @@ type ForumConfig struct {
 	NoMoreNewUsers bool
 	NoImageUpload  bool
 	MaxLiveTopics  int
+	MaxImageSize   int
 	MaxSubjectLen  int
 	MaxMessageLen  int
 	MinMessageLen  int
@@ -140,22 +142,33 @@ type Forum struct {
 	UUIDs    *lru.Cache
 }
 
-const userStructSize = 8 + 4 + 4 + 8
+const userStructSize = 8 + 4 + 4 + 8 + 8
+
+const (
+	PERM_ADMIN = 1 << iota
+	PERM_NO_ROLL
+	PERM_LOCK_SAGE_DELETE
+	PERM_STICKY_PURGE
+	PERM_BLOCK
+)
 
 type User struct {
-	ID     [8]byte
-	N      uint32
-	Posts  uint32
-	T      int64
-	Hash   string
-	noTest bool
+	ID      [8]byte
+	N       uint32
+	Posts   uint32
+	T       int64
+	M       byte
+	padding [7]byte
+	Hash    string
 }
 
 func (u User) IsValid() bool { return u.ID != default8Bytes }
 
-func (u User) IsAdmin() bool { return u.ID[0] == 'a' && u.ID[1] == ':' }
+func (u User) Can(perm byte) bool { return u.M&perm > 0 }
 
-func (u User) NoTest() bool { return u.noTest }
+func (u User) CanModerate() bool {
+	return u.Can(PERM_ADMIN) || u.Can(PERM_LOCK_SAGE_DELETE) || u.Can(PERM_STICKY_PURGE) || u.Can(PERM_BLOCK)
+}
 
 type SafeJSON struct {
 	*bytes.Buffer

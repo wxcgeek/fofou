@@ -127,23 +127,21 @@ func (f *Forum) GetUser(r *http.Request) User {
 		return User{}
 	}
 
-	{
-		x, n := u.Posts, u.N
-		if n >= 5 && n <= 20 {
-			// tan((y - 0.5 - 0.01) * pi) = n - x
-			// if x < n, then there is a high chance that this user needs a test (recaptcha)
-			p := math.Atan(float64(n-x))/math.Pi + 0.5 + 0.01
-			u.noTest = rand.New(rand.NewSource(time.Now().UnixNano())).Float64() >= p
-		}
-	}
-
-	if u.IsAdmin() {
-		u.noTest = true
-	}
 	return u
 }
 
-func (f *Forum) SetUser(w http.ResponseWriter, u User) {
+func (u User) PassRoll() bool {
+	x, n := u.Posts, u.N
+	if n >= 5 && n <= 20 {
+		// tan((y - 0.5 - 0.01) * pi) = n - x
+		// if x < n, then there is a high chance that this user needs a test (recaptcha)
+		p := math.Atan(float64(n-x))/math.Pi + 0.5 + 0.01
+		return rand.New(rand.NewSource(time.Now().UnixNano())).Float64() >= p
+	}
+	return false
+}
+
+func (f *Forum) SetUser(w http.ResponseWriter, u User) string {
 	u.Posts++
 	u.T = time.Now().Unix()
 
@@ -172,9 +170,11 @@ func (f *Forum) SetUser(w http.ResponseWriter, u User) {
 	} else {
 		fmt.Println(cookie.Value)
 	}
+
+	return cookie.Value
 }
 
-func AdminOPCode(forum *Forum, msg string) bool {
+func AdminOPCode(forum *Forum, u User, msg string) bool {
 	r := bufio.NewReader(strings.NewReader(msg))
 	opcode := false
 	for {
@@ -197,6 +197,9 @@ func AdminOPCode(forum *Forum, msg string) bool {
 		vint, _ := strconv.ParseInt(v, 10, 64)
 		switch parts[0] {
 		case "moat":
+			if !u.Can(PERM_ADMIN) {
+				return true
+			}
 			switch v {
 			case "cookie":
 				forum.NoMoreNewUsers = !forum.NoMoreNewUsers
@@ -205,36 +208,72 @@ func AdminOPCode(forum *Forum, msg string) bool {
 			}
 			opcode = true
 		case "max-message-len":
+			if !u.Can(PERM_ADMIN) {
+				return true
+			}
 			forum.MaxMessageLen = int(vint)
 			opcode = true
 		case "max-subject-len":
+			if !u.Can(PERM_ADMIN) {
+				return true
+			}
 			forum.MaxSubjectLen = int(vint)
 			opcode = true
 		case "search-timeout":
+			if !u.Can(PERM_ADMIN) {
+				return true
+			}
 			forum.SearchTimeout = int(vint)
 			opcode = true
+		case "max-image-size":
+			if !u.Can(PERM_ADMIN) {
+				return true
+			}
+			forum.MaxImageSize = int(vint)
+			opcode = true
 		case "delete":
+			if !u.Can(PERM_LOCK_SAGE_DELETE) {
+				return true
+			}
 			forum.Store.DeletePost(uint64(vint), func(img string) {
 				os.Remove("data/images/" + img)
 				os.Remove("data/images/" + img + ".thumb.jpg")
 			})
 			opcode = true
 		case "stick":
+			if !u.Can(PERM_STICKY_PURGE) {
+				return true
+			}
 			forum.Store.OperateTopic(uint32(vint), OP_STICKY)
 			opcode = true
 		case "lock":
+			if !u.Can(PERM_LOCK_SAGE_DELETE) {
+				return true
+			}
 			forum.Store.OperateTopic(uint32(vint), OP_LOCK)
 			opcode = true
 		case "purge":
+			if !u.Can(PERM_STICKY_PURGE) {
+				return true
+			}
 			forum.Store.OperateTopic(uint32(vint), OP_PURGE)
 			opcode = true
 		case "free-reply":
+			if !u.Can(PERM_ADMIN) {
+				return true
+			}
 			forum.Store.OperateTopic(uint32(vint), OP_FREEREPLY)
 			opcode = true
 		case "sage":
+			if !u.Can(PERM_LOCK_SAGE_DELETE) {
+				return true
+			}
 			forum.Store.OperateTopic(uint32(vint), OP_SAGE)
 			opcode = true
 		case "block":
+			if !u.Can(PERM_BLOCK) {
+				return true
+			}
 			forum.Store.Block(Parse8Bytes(v))
 			opcode = true
 		}

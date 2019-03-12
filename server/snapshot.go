@@ -46,6 +46,10 @@ func SnapshotStore(output string, store *Store) {
 	var p buffer
 	write(p.WriteByte(OP_TOPICNUM).WriteUInt32(store.topicsCount).Bytes())
 
+	for k := range store.blocked {
+		write(p.Reset().WriteByte(OP_BLOCK).Write8Bytes(k).Bytes())
+	}
+
 	n, err := dst.Seek(0, 1)
 	panicif(err != nil, "%v", err)
 

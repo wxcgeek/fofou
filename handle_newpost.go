@@ -72,7 +72,7 @@ func writeSimpleJSON(w http.ResponseWriter, args ...interface{}) {
 }
 
 func handleNewPost(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 4*1024*1024)
+	r.Body = http.MaxBytesReader(w, r.Body, int64(forum.MaxImageSize)*1024*1024)
 
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -95,10 +95,17 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 	ipAddr := getIPAddress(r)
 	user := forum.GetUser(r)
-	if forum.Store.IsBlocked(ipAddr) && !user.IsAdmin() {
-		forum.Notice("blocked a post from IP: %v", ipAddr)
-		badRequest()
-		return
+	if !user.Can(server.PERM_ADMIN) {
+		if forum.Store.IsBlocked(ipAddr) {
+			forum.Notice("blocked a post from IP: %v", ipAddr)
+			badRequest()
+			return
+		}
+		if forum.Store.IsBlocked(user.ID) {
+			forum.Notice("blocked a post from user %v", user.ID)
+			badRequest()
+			return
+		}
 	}
 
 	if !user.IsValid() {
@@ -119,7 +126,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// if user didn't pass the dice test, we will challenge him/her
-	if !user.NoTest() {
+	if !user.Can(server.PERM_NO_ROLL) && !user.PassRoll() {
 		_testCount, _ := forum.BadUsers.Get(user.ID)
 		testCount, _ := _testCount.(int)
 		if testCount++; testCount > 10 {
@@ -168,7 +175,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 	// validate the fields
 
-	if user.IsAdmin() && server.AdminOPCode(forum, msg) {
+	if server.AdminOPCode(forum, user, msg) {
 		writeSimpleJSON(w, "success", true, "admin-operation", msg)
 		return
 	}
@@ -186,12 +193,6 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 			tmp[forum.MaxSubjectLen-1], tmp[forum.MaxSubjectLen-2], tmp[forum.MaxSubjectLen-3] = '.', '.', '.'
 			subject = string(tmp[:forum.MaxSubjectLen])
 		}
-	}
-
-	if forum.Store.IsBlocked(user.ID) {
-		forum.Notice("blocked a post from user %v", user.ID)
-		badRequest()
-		return
 	}
 
 	image, imageInfo, err := r.FormFile("image")
@@ -233,7 +234,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 			writeSimpleJSON(w, "success", false, "error", "image-invalid-format")
 			return
 		}
-		t := time.Now().Format("2006-01-02")
+		t := time.Now().Format("2006-01-02/15")
 		imagePath = fmt.Sprintf("%s/%x%s", t, hash, ext)
 		os.MkdirAll("data/images/"+t, 0755)
 		if of, err := os.Create("data/images/" + imagePath); err == nil {

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -89,7 +90,7 @@ func handleImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleImageBrowser(w http.ResponseWriter, r *http.Request) {
-	if !forum.GetUser(r).IsAdmin() {
+	if !forum.GetUser(r).Can(server.PERM_ADMIN) {
 		w.WriteHeader(403)
 		return
 	}
@@ -107,8 +108,42 @@ func handleRobotsTxt(w http.ResponseWriter, r *http.Request) {
 	serveFileFromDir(w, r, "static", "robots.txt")
 }
 
+func handleCookie(w http.ResponseWriter, r *http.Request) {
+	if m := r.FormValue("makeid"); m != "" {
+		if !forum.GetUser(r).Can(server.PERM_ADMIN) {
+			w.WriteHeader(403)
+			return
+		}
+
+		u, parts := server.User{}, strings.Split(m, ",")
+		copy(u.ID[:], parts[0])
+		M, _ := strconv.Atoi(parts[1])
+		u.M = byte(M)
+		w.Write([]byte(forum.SetUser(nil, u)))
+		return
+	}
+	if m := r.FormValue("uid"); m != "" {
+		cookie := &http.Cookie{
+			Name:    "uid",
+			Value:   m,
+			Path:    "/",
+			Expires: time.Now().AddDate(1, 0, 0),
+		}
+		http.SetCookie(w, cookie)
+		http.Redirect(w, r, "/", 302)
+		return
+	}
+
+	uid, _ := r.Cookie("uid")
+	if uid != nil {
+		w.Write([]byte(uid.Value))
+	} else {
+		w.Write([]byte("no cookie"))
+	}
+}
+
 func handleLogs(w http.ResponseWriter, r *http.Request) {
-	if !forum.GetUser(r).IsAdmin() {
+	if !forum.GetUser(r).Can(server.PERM_ADMIN) {
 		w.WriteHeader(403)
 		return
 	}
@@ -184,6 +219,7 @@ func main() {
 	checkInt(&config.MaxMessageLen, 10000)
 	checkInt(&config.MinMessageLen, 3)
 	checkInt(&config.SearchTimeout, 100)
+	checkInt(&config.MaxImageSize, 4)
 
 	configbuf, _ := json.MarshalIndent(&config, "", "  ")
 	logger.Notice("%s", string(configbuf))
@@ -195,8 +231,11 @@ func main() {
 	}
 
 	if *makeID != "" {
-		u := server.User{}
-		copy(u.ID[:], *makeID)
+		u, parts := server.User{}, strings.Split(*makeID, ",")
+		copy(u.ID[:], parts[0])
+		m, _ := strconv.Atoi(parts[1])
+		u.M = byte(m)
+
 		forum = &server.Forum{}
 		forum.ForumConfig = &config
 		forum.SetUser(nil, u)
@@ -213,8 +252,9 @@ func main() {
 	smux.HandleFunc("/favicon.ico", http.NotFound)
 	smux.HandleFunc("/robots.txt", handleRobotsTxt)
 	smux.HandleFunc("/logs", preHandle(handleLogs, true))
+	smux.HandleFunc("/cookie", preHandle(handleCookie, false))
 	smux.HandleFunc("/s/", preHandle(handleStatic, false))
-	smux.HandleFunc("/help", preHandle(handleHelp, true))
+	smux.HandleFunc("/status", preHandle(handleHelp, true))
 	smux.HandleFunc("/i/", preHandle(handleImage, false))
 	smux.HandleFunc("/browse/", preHandle(handleImageBrowser, false))
 	smux.HandleFunc("/api", preHandle(handleNewPost, false))

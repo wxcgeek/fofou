@@ -132,3 +132,24 @@ if (p && n) {
      $("#settings-autoexpand option[value=" + (localStorage.getItem("auto-expand") || "off") + "]").attr("selected", "selected");
      $("#image-view option[value=" + (localStorage.getItem("image-view") || "expand") + "]").attr("selected", "selected");
 </script>
+
+<h3>其他</h3>
+<ul>
+    <li>正文最大长度：{{.Forum.MaxMessageLen}} 字节</li>
+    <li>标题最大长度：{{.Forum.MaxSubjectLen}} 字</li>
+    <li>图片体积：{{.Forum.MaxImageSize}} MB</li>
+    <li>搜索时间限制：{{.Forum.SearchTimeout}} 毫秒</li>
+    {{if .Forum.NoMoreNewUsers}}
+    <li>当前没有cookie的新用户无法发言</li>
+    {{end}}
+    {{if .Forum.NoImageUpload}}
+    <li>当前禁止图片上传</li>
+    {{end}}
+</ul>
+
+<h3>标记语言</h3>
+
+<ol>
+    <li>使用<code>```code```</code>括住代码</li>
+    <li>使用<code>&gt;&gt;1234</code>引用其他人的发言</li>
+</ol>

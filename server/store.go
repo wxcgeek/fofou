@@ -420,7 +420,7 @@ func (store *Store) GetPostsBy(q [8]byte, qtext string, max int, timeout int64) 
 						res = append(res, post)
 					}
 				}
-			} else if post.ip == q || post.user == q {
+			} else if post.IPXor() == q || post.user == q {
 				if total++; total <= max {
 					res = append(res, post)
 				}

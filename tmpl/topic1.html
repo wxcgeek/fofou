@@ -8,7 +8,7 @@
                 {{if .Sticky}}&Delta;{{end}}
                 No.{{.ID}}
             </span>
-            {{.Subject}}
+            {{if .Subject}}{{.Subject}}{{else}}<span style="color:gray">无标题</span>{{end}}
         </div>
         <div class="title-info">
             <span>
@@ -42,7 +42,7 @@
     </div>
     {{end}}
     {{range .Posts}}
-    <div class="post" id="post-{{.LongID}}">
+    <div class="post {{if .T_IsFirst}}post-first{{end}}" id="post-{{.LongID}}">
         <div class="info">
             <span class="toggle" onclick="_togglePost({{.LongID}})">[-]</span>
             <a href="{{if $.T_IsExpand}}/t/{{.Topic.ID}}#post-{{.LongID}}{{else}}javascript:_reply({{.LongID}}){{end}}">#{{.LongID}}</a>

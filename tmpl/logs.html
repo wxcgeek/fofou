@@ -4,7 +4,23 @@
 #settings input {
     width: 80px;
 }
+
+        #settings input[type=checkbox] {
+            width: initial;
+        }
+
+        .panel {
+margin: 8px 0; line-height: 2em; word-wrap: break-word
+        }
 </style>
+
+    <script>
+        function _intval(k, el) {
+            _submit(null,'!!' + k + '='+$(el).prev().val());
+        }
+    </script>
+
+<h3>Config</h3>
 <table id="settings">
     <tr><th>Global States:</th><td><a href="javascript:location.reload()">Refresh</a></td></tr>
     <tr><th colspan=2><hr></th></tr>
@@ -14,11 +30,12 @@
     <tr><th>Heap Sys:</th><td>{{formatBytes .MemStats.HeapSys}}</td></tr>
     <tr><th>Uploaded Images:</th><td><a href="/browse" target="_blank">Browse</a></td></tr>
     <tr><th>Thumb Queue:</th><td>{{.IQLen}}</td></tr>
-    <tr><th>Search Timeout:</th><td><input value="{{.Forum.SearchTimeout}}">ms <a href="#" onclick="_submit(null,'!!search-timeout='+$(this).prev().val())">Update</a></td></tr>
+    <tr><th>Max Image Size:</th><td><input value="{{.Forum.MaxImageSize}}"> MB <a href="#" onclick="_intval('max-image-size', this)">Update</a></td></tr>
+    <tr><th>Search Timeout:</th><td><input value="{{.Forum.SearchTimeout}}"> ms <a href="#" onclick="_intval('search-timeout', this)">Update</a></td></tr>
     <tr><th>No Cookies:</th><td>{{.Forum.NoMoreNewUsers}} <a href="javascript:_submit(null,'!!moat=cookie')">Toggle</a></td></tr>
     <tr><th>No Images Upload:</th><td>{{.Forum.NoImageUpload}} <a href="javascript:_submit(null,'!!moat=image')">Toggle</a></td></tr>
-    <tr><th>Max Message Len:</th><td><input value="{{.Forum.MaxMessageLen}}"> <a href="#" onclick="_submit(null,'!!max-message-len='+$(this).prev().val())">Update</a></td></tr>
-    <tr><th>Max Subject Len:</th><td><input value="{{.Forum.MaxSubjectLen}}"> <a href="#" onclick="_submit(null,'!!max-subject-len='+$(this).prev().val())">Update</a></td></tr>
+    <tr><th>Max Message Len:</th><td><input value="{{.Forum.MaxMessageLen}}"> bytes <a href="#" onclick="_intval('max-message-len', this)">Update</a></td></tr>
+    <tr><th>Max Subject Len:</th><td><input value="{{.Forum.MaxSubjectLen}}"> chars <a href="#" onclick="_intval('max-subject-len', this)">Update</a></td></tr>
     <tr><th>HTTP Headers Test:</th><td><a href="#" onclick="$(this).hide().next().show()">Show</a>
 <pre style="font-size: 80%; white-space: pre-wrap; word-wrap: break-word; word-break: break-all; display: none">
 {{ range $k, $v := .Header }}{{$k}}:
@@ -29,7 +46,32 @@
         <tr><th>Get IP:</th><td>{{.IP}}</td></tr>
 </table>
 
-<div style="word-wrap: break-word">
+<div class=panel>
+    <h3>Make ID</h3>
+    ID (8 chars): <input id="perm-username"><br>
+    <input class="perm-check" id="perm-1" type="checkbox"><label for="perm-1">PERM_ADMIN</label><br>
+    <input class="perm-check" id="perm-2" type="checkbox"><label for="perm-2">PERM_NO_ROLL</label><br>
+    <input class="perm-check" id="perm-4" type="checkbox"><label for="perm-4">PERM_LOCK_SAGE_DELETE</label><br>
+    <input class="perm-check" id="perm-8" type="checkbox"><label for="perm-8">PERM_STICKY_PURGE</label><br>
+    <input class="perm-check" id="perm-16" type="checkbox"><label for="perm-16">PERM_BLOCK</label><br>
+    <button onclick="_makeid()">Make ID</button><br>
+    <div id="perm-makeid"></div>
+    <script>
+        function _makeid() {
+            var mask = 0;
+            $(".perm-check").each(function(i, el) {
+                if (el.checked)
+                    mask |= parseInt(el.id.substring(5));
+            });
+            $.post("/cookie", { makeid: $("#perm-username").val() + "," + mask }, function (data) {
+                $("#perm-makeid").html('<a href="/cookie?uid=' + encodeURIComponent(data) + '">' + data + "</a>");
+            });
+        }
+    </script>
+</div>
+
+<div class=panel>
+    <h3>Logs</h3>
 {{if len .Errors}}
 	<div style="color:red">Errors:</div>
 	{{range .Errors}}

@@ -33,7 +33,7 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := server.Parse8Bytes(q)
-	isAdmin := forum.GetUser(r).IsAdmin()
+	isAdmin := forum.GetUser(r).CanModerate()
 	maxTopics := 50
 
 	if count := r.FormValue("count"); isAdmin && count != "" {

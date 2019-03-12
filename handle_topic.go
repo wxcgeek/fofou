@@ -32,7 +32,7 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 NEXT:
-	isAdmin := forum.GetUser(r).IsAdmin()
+	isAdmin := forum.GetUser(r).CanModerate()
 	if topic.IsDeleted() && !isAdmin {
 		http.Redirect(w, r, "/", 302)
 		return
@@ -53,7 +53,18 @@ NEXT:
 
 	topic.T_TotalPosts = uint16(len(topic.Posts) - 1)
 	topic.T_IsAdmin = isAdmin
-	topic.Posts = topic.Posts[(p-1)*server.PostsPerPage : int(math.Min(float64(p*server.PostsPerPage), float64(len(topic.Posts))))]
+	posts := topic.Posts[(p-1)*server.PostsPerPage : int(math.Min(float64(p*server.PostsPerPage), float64(len(topic.Posts))))]
+	if p == 1 {
+		tmp := make([]server.Post, len(posts))
+		copy(tmp, posts)
+		topic.Posts = tmp
+	} else {
+		tmp := make([]server.Post, len(posts)+1)
+		tmp[0] = topic.Posts[0]
+		copy(tmp[1:], posts)
+		topic.Posts = tmp
+	}
+	topic.Posts[0].T_IsFirst = true
 
 	model := struct {
 		server.Forum
@@ -84,7 +95,7 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("handleForum(): forum: %q, from: %d\n", forum.ForumUrl, from)
 
 	nTopicsMax := 15
-	isAdmin := forum.GetUser(r).IsAdmin()
+	isAdmin := forum.GetUser(r).CanModerate()
 	topics, newFrom := forum.GetTopics(nTopicsMax, from, isAdmin)
 	prevTo := from - nTopicsMax
 	if prevTo < 0 {
@@ -100,9 +111,17 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 		t.T_TotalPosts = uint16(len(t.Posts) - 1)
 		t.T_IsAdmin = isAdmin
 		t.T_IsExpand = true
-		if len(t.Posts) >= 5 {
-			t.Posts = t.Posts[len(t.Posts)-5:]
+		if len(t.Posts) > 5 {
+			tmp := make([]server.Post, 5)
+			tmp[0] = t.Posts[0]
+			copy(tmp[1:], t.Posts[len(t.Posts)-4:])
+			t.Posts = tmp
+		} else {
+			tmp := make([]server.Post, len(t.Posts))
+			copy(tmp, t.Posts)
+			t.Posts = tmp
 		}
+		t.Posts[0].T_IsFirst = true
 		topicsDisplay = append(topicsDisplay, t)
 	}
 
@@ -138,7 +157,7 @@ func handleRawPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 NEXT:
-	isAdmin := forum.GetUser(r).IsAdmin()
+	isAdmin := forum.GetUser(r).CanModerate()
 	if topic.IsDeleted() && !isAdmin {
 		w.WriteHeader(404)
 		return
