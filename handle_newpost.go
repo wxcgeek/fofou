@@ -108,7 +108,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		}
 		copy(user.ID[:], forum.Rand.Fetch(6))
 		if user.ID[1] == ':' {
-			user.ID[1]++ // in case we get random bytes satrting with "a:"
+			user.ID[1]++ // in case we get random bytes starting with "a:"
 		}
 		user.T = time.Now().Unix()
 		if topic.ID == 0 {
@@ -164,7 +164,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 	subject := strings.Replace(r.FormValue("subject"), "<", "&lt;", -1)
 	msg := strings.TrimSpace(r.FormValue("message"))
-	sage := r.FormValue("sage") != ""
+	sage := r.FormValue("sage") != "" && user.Posts >= user.N
 
 	// validate the fields
 

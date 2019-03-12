@@ -180,8 +180,8 @@ func main() {
 	configbuf, _ := json.MarshalIndent(&config, "", "  ")
 	logger.Notice("%s", string(configbuf))
 
-	if bytes.Equal(config.Salt[:], make([]byte, 32)) {
-		copy(config.Salt[:], rand.New().Fetch(32))
+	if bytes.Equal(config.Salt[:], make([]byte, 16)) {
+		copy(config.Salt[:], rand.New().Fetch(16))
 		buf, _ := json.Marshal(&config)
 		ioutil.WriteFile(configPath, buf, 0755)
 	}

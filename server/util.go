@@ -114,7 +114,7 @@ func (f *Forum) GetUser(r *http.Request) User {
 		return User{}
 	}
 
-	user := [userStructSize + 32]byte{}
+	user := [userStructSize + 16]byte{}
 	copy(user[:], (*(*[userStructSize]byte)(unsafe.Pointer(&u)))[:])
 	copy(user[userStructSize:], f.Salt[:])
 
@@ -145,7 +145,9 @@ func (f *Forum) GetUser(r *http.Request) User {
 
 func (f *Forum) SetUser(w http.ResponseWriter, u User) {
 	u.Posts++
-	user := [userStructSize + 32]byte{}
+	u.T = time.Now().Unix()
+
+	user := [userStructSize + 16]byte{}
 	copy(user[:], (*(*[userStructSize]byte)(unsafe.Pointer(&u)))[:])
 	copy(user[userStructSize:], f.Salt[:])
 

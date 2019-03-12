@@ -76,7 +76,7 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 
 	realPostID := len(t.Posts) + 1
 	panicif(int(id) != realPostID, "invalid post ID: %d, topic ID: %d, expected post ID: %d\n", id, topicID, realPostID)
-	panicif(realPostID >= 65536, "too many posts (65536)")
+	panicif(realPostID > 4000, "too many posts")
 
 	return Post{
 		ID:        uint16(realPostID),

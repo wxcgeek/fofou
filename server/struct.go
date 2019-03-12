@@ -117,7 +117,7 @@ func (t *Topic) IsDeleted() bool {
 // ForumConfig is a static configuration of a single forum
 type ForumConfig struct {
 	Title          string
-	Salt           [32]byte
+	Salt           [16]byte
 	IPPassword     string
 	NoMoreNewUsers bool
 	NoImageUpload  bool

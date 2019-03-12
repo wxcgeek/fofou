@@ -248,7 +248,7 @@ func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, 
 	topicStr.WriteUInt16(p.ID)
 	topicStr.WriteBool(false)
 	topicStr.WriteUInt32(p.CreatedAt)
-	topicStr.Write8Bytes(ipAddr)
+	topicStr.Write8Bytes(p.ip)
 	topicStr.Write8Bytes(user)
 	topicStr.WriteString(image)
 	topicStr.WriteString(msg)
