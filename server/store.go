@@ -18,6 +18,7 @@ import (
 
 const (
 	OP_TOPIC     = 'T'
+	OP_TOPICNUM  = 't'
 	OP_POST      = 'P'
 	OP_DELETE    = 'D'
 	OP_BLOCK     = 'B'
@@ -218,7 +219,7 @@ var errTooManyPosts = fmt.Errorf("too many posts")
 
 func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, topic *Topic, newTopic bool) error {
 	nextID := len(topic.Posts) + 1
-	if nextID > 4001 {
+	if nextID > 4000 {
 		return errTooManyPosts
 	}
 
@@ -245,6 +246,7 @@ func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, 
 	topicStr.WriteByte(OP_POST)
 	topicStr.WriteUInt32(topic.ID)
 	topicStr.WriteUInt16(p.ID)
+	topicStr.WriteBool(false)
 	topicStr.WriteUInt32(p.CreatedAt)
 	topicStr.Write8Bytes(ipAddr)
 	topicStr.Write8Bytes(user)
@@ -270,19 +272,15 @@ func (store *Store) buildArchivePath(topicID uint32) string {
 	return filepath.Join(filepath.Dir(store.dataFilePath), "archive", strconv.Itoa(id1), strconv.Itoa(id2), strconv.Itoa(int(topicID)))
 }
 
-func archive(topic *Topic, saveToPath string) error {
-
-	buf := &buffer{}
+func (topic *Topic) marshal() buffer {
+	buf := buffer{}
 	buf.WriteByte(OP_TOPIC).WriteUInt32(topic.ID).WriteString(topic.Subject)
 
 	for _, p := range topic.Posts {
-		if p.IsDeleted {
-			continue
-		}
-
 		buf.WriteByte(OP_POST).
 			WriteUInt32(topic.ID).
 			WriteUInt16(p.ID).
+			WriteBool(p.IsDeleted).
 			WriteUInt32(p.CreatedAt).
 			Write8Bytes(p.ip).
 			Write8Bytes(p.user).
@@ -290,10 +288,14 @@ func archive(topic *Topic, saveToPath string) error {
 			WriteString(p.Message)
 	}
 
-	// .CreateDirForFileMust(saveToPath)
+	return buf
+}
+
+func archive(topic *Topic, saveToPath string) error {
 	if err := os.MkdirAll(filepath.Dir(saveToPath), 0755); err != nil {
 		return err
 	}
+	buf := topic.marshal()
 	return ioutil.WriteFile(saveToPath, buf.Bytes(), 0755)
 }
 

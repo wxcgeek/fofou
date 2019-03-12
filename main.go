@@ -22,7 +22,8 @@ import (
 var (
 	httpAddr     = flag.String("addr", ":5010", "HTTP server address")
 	makeID       = flag.String("make", "", "Make an ID")
-	inProduction = flag.Bool("production", false, "go for production")
+	snapshot     = flag.String("ss", "", "Make snapshot of main.txt")
+	inProduction = flag.Bool("prod", false, "go for production")
 	forum        *server.Forum
 	iq           *server.ImageQueue
 )
@@ -45,6 +46,12 @@ func newForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
 				vt, p := forum.PostsCount()
 				forum.Notice("%d topics, %d visible topics, %d posts", forum.TopicsCount(), vt, p)
 				forum.Notice("loaded all in %.2fs", time.Now().Sub(start).Seconds())
+
+				if *snapshot != "" {
+					server.SnapshotStore(*snapshot, forum.Store)
+					os.Exit(0)
+				}
+
 				break
 			}
 		}

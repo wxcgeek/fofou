@@ -31,8 +31,6 @@ func findPostToDelUndel(r *buffer, topicIDToTopic map[uint32]*Topic) (*Post, err
 	return &topic.Posts[postID-1], nil
 }
 
-// parse:
-// T$id|$subject
 func parseTopic(r *buffer, store *Store) *Topic {
 	id, err := r.ReadUInt32()
 	panicif(err != nil, "invalid ID")
@@ -48,14 +46,15 @@ func parseTopic(r *buffer, store *Store) *Topic {
 	}
 }
 
-// parse:
-// P1|1|1148874103|4b0af66e|Krzysztof Kowalczyk|message in ascii85 format
 func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	topicID, err := r.ReadUInt32()
 	panicif(err != nil, "invalid topic ID")
 
 	id, err := r.ReadUInt16()
 	panicif(err != nil, "invalid post ID")
+
+	deleted, err := r.ReadBool()
+	panicif(err != nil, "invalid deletion marker")
 
 	createdOnSeconds, err := r.ReadUInt32()
 	panicif(err != nil, "invalid timestamp")
@@ -84,7 +83,8 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 		CreatedAt: createdOnSeconds,
 		user:      userName,
 		ip:        ipAddrInternal,
-		IsDeleted: false,
+		// if this flag is set to true (only can be done in archive()), then no other OP_DELETE shall be performed on this post
+		IsDeleted: deleted,
 		Topic:     t,
 		Message:   message,
 		Image:     image,
@@ -96,6 +96,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 	if err != nil {
 		return err
 	}
+	defer fh.Close()
 
 	topicIDToTopic := make(map[uint32]*Topic)
 	print := func(f string, args ...interface{}) {
@@ -150,6 +151,11 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 			store.topicsCount++
 			panicif(topicIDToTopic[t.ID] != nil, "topic %d already existed", t.ID)
 			topicIDToTopic[t.ID] = t
+		case OP_TOPICNUM:
+			num, err := r.ReadUInt32()
+			panicif(err != nil, "invalid new topics counter")
+			print("\ntopic counter updated, old: %d, new: %d\n", store.topicsCount, num)
+			store.topicsCount = num
 		case OP_POST:
 			post := parsePost(r, topicIDToTopic)
 			t := post.Topic
@@ -167,7 +173,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 			post.IsDeleted = !post.IsDeleted
 		case OP_BLOCK:
 			str, err := r.Read8Bytes()
-			panicif(err != nil, "invalid string")
+			panicif(err != nil, "invalid object to block")
 			store.markBlockedOrUnblocked(str)
 		case OP_STICKY, OP_ARCHIVE, OP_LOCK, OP_PURGE, OP_FREEREPLY, OP_SAGE:
 			topicID, err := r.ReadUInt32()
@@ -193,11 +199,10 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 				delete(topicIDToTopic, t.ID)
 			}
 		default:
-			panic("unexpected line type")
+			panicif(true, "unexpected line type: %x", op)
 		}
 	}
 
-	fh.Close()
 	atomic.StoreUintptr(&store.ready, 1000)
 	print("\n")
 	return nil
