@@ -312,14 +312,14 @@ func modCode(forum *server.Forum, u server.User, msg string) bool {
 			break
 		}
 
-		parts := strings.Split(msg[2:], "=")
-		if len(parts) != 2 {
+		eidx := strings.Index(msg, "=")
+		if eidx == -1 {
 			break
 		}
 
-		v := parts[1]
+		v := msg[eidx+1:]
 		vint, _ := strconv.ParseInt(v, 10, 64)
-		switch parts[0] {
+		switch msg[2:eidx] {
 		case "moat":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
@@ -407,6 +407,12 @@ func modCode(forum *server.Forum, u server.User, msg string) bool {
 				return true
 			}
 			forum.Store.Block(server.Parse8Bytes(v))
+			opcode = true
+		case "title":
+			if !u.Can(server.PERM_ADMIN) {
+				return true
+			}
+			forum.Title = v
 			opcode = true
 		}
 	}

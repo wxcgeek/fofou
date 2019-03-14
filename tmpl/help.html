@@ -140,6 +140,7 @@ if (p && n) {
 <ul>
     <li>正文最大长度：{{.Forum.MaxMessageLen}} 字节</li>
     <li>标题最大长度：{{.Forum.MaxSubjectLen}} 字</li>
+    <li>发帖间隔：{{.Forum.Cooldown}} 秒</li>
     <li>图片体积：{{.Forum.MaxImageSize}} MB</li>
     <li>搜索时间限制：{{.Forum.SearchTimeout}} 毫秒</li>
     {{if .Forum.NoMoreNewUsers}} <li>当前没有cookie的新用户无法发言</li> {{end}}

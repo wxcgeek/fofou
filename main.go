@@ -195,7 +195,7 @@ func preHandle(fn func(http.ResponseWriter, *http.Request), footer bool) http.Ha
 			return
 		}
 		if footer {
-			w = &server.ResponseWriterWrapper{w, 0}
+			w = &server.ResponseWriterWrapper{w, http.StatusOK}
 		}
 
 		startTime := time.Now()
@@ -271,7 +271,7 @@ func main() {
 	dirServer = http.StripPrefix("/browse/", http.FileServer(http.Dir(DATA_IMAGES)))
 	smux.HandleFunc("/favicon.ico", http.NotFound)
 	smux.HandleFunc("/robots.txt", handleRobotsTxt)
-	smux.HandleFunc("/logs", preHandle(handleLogs, true))
+	smux.HandleFunc("/mod", preHandle(handleLogs, true))
 	smux.HandleFunc("/cookie", preHandle(handleCookie, false))
 	smux.HandleFunc("/s/", preHandle(handleStatic, false))
 	smux.HandleFunc("/status", preHandle(handleHelp, true))
