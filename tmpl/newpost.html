@@ -38,12 +38,14 @@
         </tr>
         {{end}}
 
+        {{if not .Forum.NoRecaptcha}}
         <tr>
             <th>验证:</th>
             <td>
                 <div id="recaptcha">...</div>
             </td>
         </tr>
+        {{end}}
 
         <tr>
             <td></td>

@@ -2,7 +2,6 @@
 package server
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"encoding/base32"
@@ -13,7 +12,6 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
-	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -172,114 +170,6 @@ func (f *Forum) SetUser(w http.ResponseWriter, u User) string {
 	}
 
 	return cookie.Value
-}
-
-func AdminOPCode(forum *Forum, u User, msg string) bool {
-	r := bufio.NewReader(strings.NewReader(msg))
-	opcode := false
-	for {
-		line, _, err := r.ReadLine()
-		if err != nil {
-			break
-		}
-
-		msg := string(line)
-		if !strings.HasPrefix(msg, "!!") {
-			break
-		}
-
-		parts := strings.Split(msg[2:], "=")
-		if len(parts) != 2 {
-			break
-		}
-
-		v := parts[1]
-		vint, _ := strconv.ParseInt(v, 10, 64)
-		switch parts[0] {
-		case "moat":
-			if !u.Can(PERM_ADMIN) {
-				return true
-			}
-			switch v {
-			case "cookie":
-				forum.NoMoreNewUsers = !forum.NoMoreNewUsers
-			case "image":
-				forum.NoImageUpload = !forum.NoImageUpload
-			}
-			opcode = true
-		case "max-message-len":
-			if !u.Can(PERM_ADMIN) {
-				return true
-			}
-			forum.MaxMessageLen = int(vint)
-			opcode = true
-		case "max-subject-len":
-			if !u.Can(PERM_ADMIN) {
-				return true
-			}
-			forum.MaxSubjectLen = int(vint)
-			opcode = true
-		case "search-timeout":
-			if !u.Can(PERM_ADMIN) {
-				return true
-			}
-			forum.SearchTimeout = int(vint)
-			opcode = true
-		case "max-image-size":
-			if !u.Can(PERM_ADMIN) {
-				return true
-			}
-			forum.MaxImageSize = int(vint)
-			opcode = true
-		case "delete":
-			if !u.Can(PERM_LOCK_SAGE_DELETE) {
-				return true
-			}
-			forum.Store.DeletePost(uint64(vint), func(img string) {
-				os.Remove("data/images/" + img)
-				os.Remove("data/images/" + img + ".thumb.jpg")
-			})
-			opcode = true
-		case "stick":
-			if !u.Can(PERM_STICKY_PURGE) {
-				return true
-			}
-			forum.Store.OperateTopic(uint32(vint), OP_STICKY)
-			opcode = true
-		case "lock":
-			if !u.Can(PERM_LOCK_SAGE_DELETE) {
-				return true
-			}
-			forum.Store.OperateTopic(uint32(vint), OP_LOCK)
-			opcode = true
-		case "purge":
-			if !u.Can(PERM_STICKY_PURGE) {
-				return true
-			}
-			forum.Store.OperateTopic(uint32(vint), OP_PURGE)
-			opcode = true
-		case "free-reply":
-			if !u.Can(PERM_ADMIN) {
-				return true
-			}
-			forum.Store.OperateTopic(uint32(vint), OP_FREEREPLY)
-			opcode = true
-		case "sage":
-			if !u.Can(PERM_LOCK_SAGE_DELETE) {
-				return true
-			}
-			forum.Store.OperateTopic(uint32(vint), OP_SAGE)
-			opcode = true
-		case "block":
-			if !u.Can(PERM_BLOCK) {
-				return true
-			}
-			forum.Store.Block(Parse8Bytes(v))
-			opcode = true
-		}
-	}
-
-	return opcode
 }
 
 // returns 5 ~ 20

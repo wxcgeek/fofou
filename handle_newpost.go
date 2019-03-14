@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha1"
 	"encoding/json"
@@ -52,6 +53,26 @@ func getIPAddress(r *http.Request) (v [8]byte) {
 	return
 }
 
+func throtNewPost(ip, id [8]byte) bool {
+	now := time.Now().Unix()
+	ts, ok := throtIPID.Get(ip)
+	if !ok {
+		ts, ok = throtIPID.Get(id)
+		if !ok {
+			throtIPID.Add(ip, now)
+			throtIPID.Add(id, now)
+			return true
+		}
+	}
+	t := ts.(int64)
+	if now-t > int64(forum.Cooldown) {
+		throtIPID.Add(ip, now)
+		throtIPID.Add(id, now)
+		return true
+	}
+	return false
+}
+
 func writeSimpleJSON(w http.ResponseWriter, args ...interface{}) {
 	var p bytes.Buffer
 	p.WriteString("{")
@@ -93,8 +114,8 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ipAddr := getIPAddress(r)
-	user := forum.GetUser(r)
+	ipAddr, user := getIPAddress(r), forum.GetUser(r)
+
 	if !user.Can(server.PERM_ADMIN) {
 		if forum.Store.IsBlocked(ipAddr) {
 			forum.Notice("blocked a post from IP: %v", ipAddr)
@@ -103,6 +124,10 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		}
 		if forum.Store.IsBlocked(user.ID) {
 			forum.Notice("blocked a post from user %v", user.ID)
+			badRequest()
+			return
+		}
+		if !throtNewPost(ipAddr, user.ID) {
 			badRequest()
 			return
 		}
@@ -126,11 +151,11 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// if user didn't pass the dice test, we will challenge him/her
-	if !user.Can(server.PERM_NO_ROLL) && !user.PassRoll() {
-		_testCount, _ := forum.BadUsers.Get(user.ID)
+	if !forum.NoRecaptcha && !user.Can(server.PERM_NO_ROLL) && !user.PassRoll() {
+		_testCount, _ := badUsers.Get(user.ID)
 		testCount, _ := _testCount.(int)
 		if testCount++; testCount > 10 {
-			forum.BadUsers.Remove(user.ID)
+			badUsers.Remove(user.ID)
 			forum.Block(user.ID)
 			forum.Block(ipAddr)
 			badRequest()
@@ -140,7 +165,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		recaptcha := strings.TrimSpace(r.FormValue("token"))
 		if recaptcha == "" {
 			writeSimpleJSON(w, "success", false, "error", "recaptcha-needed")
-			forum.BadUsers.Add(user.ID, testCount)
+			badUsers.Add(user.ID, testCount)
 			return
 		}
 
@@ -162,12 +187,12 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 		if r, _ := recaptchaResult["success"].(bool); !r {
 			forum.Error("recaptcha failed: %v", string(buf))
-			forum.BadUsers.Add(user.ID, testCount)
+			badUsers.Add(user.ID, testCount)
 			writeSimpleJSON(w, "success", false, "error", "recaptcha-failed")
 			return
 		}
 	}
-	forum.BadUsers.Remove(user.ID)
+	badUsers.Remove(user.ID)
 
 	subject := strings.Replace(r.FormValue("subject"), "<", "&lt;", -1)
 	msg := strings.TrimSpace(r.FormValue("message"))
@@ -175,18 +200,21 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 	// validate the fields
 
-	if server.AdminOPCode(forum, user, msg) {
-		writeSimpleJSON(w, "success", true, "admin-operation", msg)
+	if modCode(forum, user, msg) {
+		_, username := server.Format8Bytes(user.ID)
+		ipstr, _ := server.Format8Bytes(ipAddr)
+		forum.Notice("mod %s from %s has performed: %s", username, ipstr, msg)
+		writeSimpleJSON(w, "success", true, "mod-operation", msg)
 		return
 	}
 
 	// simple mechanism to prevent double post only
 	uuid := server.DecodeUUID(r.FormValue("uuid"))
-	if _, existed := forum.UUIDs.Get(uuid); existed {
+	if _, existed := uuids.Get(uuid); existed {
 		badRequest()
 		return
 	}
-	forum.UUIDs.Add(uuid, true)
+	uuids.Add(uuid, true)
 
 	if topic.ID == 0 {
 		if tmp := []rune(subject); len(tmp) > forum.MaxSubjectLen {
@@ -236,11 +264,11 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		}
 		t := time.Now().Format("2006-01-02/15")
 		imagePath = fmt.Sprintf("%s/%x%s", t, hash, ext)
-		os.MkdirAll("data/images/"+t, 0755)
-		if of, err := os.Create("data/images/" + imagePath); err == nil {
+		os.MkdirAll(DATA_IMAGES+t, 0755)
+		if of, err := os.Create(DATA_IMAGES + imagePath); err == nil {
 			defer of.Close()
 			io.Copy(of, image)
-			iq.Push("data/images/" + imagePath)
+			iq.Push(DATA_IMAGES + imagePath)
 		} else {
 			writeSimpleJSON(w, "success", false, "error", "image-disk-error")
 			forum.Error("copy image to dest: %v", err)
@@ -268,4 +296,125 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeSimpleJSON(w, "success", true, "topic", topic.ID)
+}
+
+func modCode(forum *server.Forum, u server.User, msg string) bool {
+	r := bufio.NewReader(strings.NewReader(msg))
+	opcode := false
+	for {
+		line, _, err := r.ReadLine()
+		if err != nil {
+			break
+		}
+
+		msg := string(line)
+		if !strings.HasPrefix(msg, "!!") {
+			break
+		}
+
+		parts := strings.Split(msg[2:], "=")
+		if len(parts) != 2 {
+			break
+		}
+
+		v := parts[1]
+		vint, _ := strconv.ParseInt(v, 10, 64)
+		switch parts[0] {
+		case "moat":
+			if !u.Can(server.PERM_ADMIN) {
+				return true
+			}
+			switch v {
+			case "cookie":
+				forum.NoMoreNewUsers = !forum.NoMoreNewUsers
+			case "image":
+				forum.NoImageUpload = !forum.NoImageUpload
+			case "recaptcha":
+				forum.NoRecaptcha = !forum.NoRecaptcha
+			}
+			opcode = true
+		case "max-message-len":
+			if !u.Can(server.PERM_ADMIN) {
+				return true
+			}
+			forum.MaxMessageLen = int(vint)
+			opcode = true
+		case "max-subject-len":
+			if !u.Can(server.PERM_ADMIN) {
+				return true
+			}
+			forum.MaxSubjectLen = int(vint)
+			opcode = true
+		case "search-timeout":
+			if !u.Can(server.PERM_ADMIN) {
+				return true
+			}
+			forum.SearchTimeout = int(vint)
+			opcode = true
+		case "cooldown":
+			if !u.Can(server.PERM_ADMIN) {
+				return true
+			}
+			forum.Cooldown = int(vint)
+			opcode = true
+		case "max-image-size":
+			if !u.Can(server.PERM_ADMIN) {
+				return true
+			}
+			forum.MaxImageSize = int(vint)
+			opcode = true
+		case "delete":
+			if !u.Can(server.PERM_LOCK_SAGE_DELETE) {
+				return true
+			}
+			forum.Store.DeletePost(uint64(vint), func(img string) {
+				os.Remove(DATA_IMAGES + img)
+				os.Remove(DATA_IMAGES + img + ".thumb.jpg")
+			})
+			opcode = true
+		case "stick":
+			if !u.Can(server.PERM_STICKY_PURGE) {
+				return true
+			}
+			forum.Store.OperateTopic(uint32(vint), server.OP_STICKY)
+			opcode = true
+		case "lock":
+			if !u.Can(server.PERM_LOCK_SAGE_DELETE) {
+				return true
+			}
+			forum.Store.OperateTopic(uint32(vint), server.OP_LOCK)
+			opcode = true
+		case "purge":
+			if !u.Can(server.PERM_STICKY_PURGE) {
+				return true
+			}
+			forum.Store.OperateTopic(uint32(vint), server.OP_PURGE)
+			opcode = true
+		case "free-reply":
+			if !u.Can(server.PERM_ADMIN) {
+				return true
+			}
+			forum.Store.OperateTopic(uint32(vint), server.OP_FREEREPLY)
+			opcode = true
+		case "sage":
+			if !u.Can(server.PERM_LOCK_SAGE_DELETE) {
+				return true
+			}
+			forum.Store.OperateTopic(uint32(vint), server.OP_SAGE)
+			opcode = true
+		case "block":
+			if !u.Can(server.PERM_BLOCK) {
+				return true
+			}
+			forum.Store.Block(server.Parse8Bytes(v))
+			opcode = true
+		}
+	}
+
+	if opcode {
+		buf, _ := json.Marshal(forum.ForumConfig)
+		ioutil.WriteFile(DATA_CONFIG, buf, 0755)
+	}
+
+	return opcode
 }

@@ -97,22 +97,14 @@ div.subject {
     padding: 4px;
 }
 
-div.subject .title, div.subject .title * {
-    font-size: 16px;
+div.topic-status { 
+    white-space: nowrap;
+    margin: 4px 0;
 }
 
-div.title-info {
-    line-height: 20px;
-}
+div.topic-status span { display: block; }
 
-div.subject .title-id {
-    display: inline-block;
-    padding: 2px 6px;
-    background: #fafbfc;
-    border: solid 1px #333;
-}
-
-div.ref { font-size: 90%; }
+div.topic-status, div.ref { font-size: 90%; }
 
 div.ref .subject { display: none; }
 

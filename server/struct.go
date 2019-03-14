@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/coyove/common/lru"
 )
 
 type Post struct {
@@ -122,12 +121,14 @@ type ForumConfig struct {
 	IPPassword     string
 	NoMoreNewUsers bool
 	NoImageUpload  bool
+	NoRecaptcha    bool
 	MaxLiveTopics  int
 	MaxImageSize   int
 	MaxSubjectLen  int
 	MaxMessageLen  int
 	MinMessageLen  int
 	SearchTimeout  int
+	Cooldown       int
 	Recaptcha      string
 	RecaptchaToken string
 	URL            string
@@ -138,8 +139,6 @@ type Forum struct {
 	*ForumConfig
 	*Store
 	*Logger
-	BadUsers *lru.Cache
-	UUIDs    *lru.Cache
 }
 
 const userStructSize = 8 + 4 + 4 + 8 + 8
@@ -212,4 +211,14 @@ func (s *SafeJSON) Read(p []byte) (int, error) {
 		}
 	}
 	return n, err
+}
+
+type ResponseWriterWrapper struct {
+	http.ResponseWriter
+	Code int
+}
+
+func (r *ResponseWriterWrapper) WriteHeader(code int) {
+	r.Code = code
+	r.ResponseWriter.WriteHeader(code)
 }

@@ -20,6 +20,12 @@ import (
 	"github.com/coyove/fofou/server"
 )
 
+const (
+	DATA_IMAGES = "data/images/"
+	DATA_MAIN   = "data/main.txt"
+	DATA_CONFIG = "data/main.json"
+)
+
 var (
 	httpAddr     = flag.String("addr", ":5010", "HTTP server address")
 	makeID       = flag.String("make", "", "Make an ID")
@@ -27,8 +33,16 @@ var (
 	inProduction = flag.Bool("prod", false, "go for production")
 	forum        *server.Forum
 	iq           *server.ImageQueue
+	throtIPID    *lru.Cache
+	badUsers     *lru.Cache
+	uuids        *lru.Cache
 	dirServer    http.Handler
 )
+
+func atoi(v string) (byte, int8, uint16, int16, uint32, int32, uint64, int64, uint, int) {
+	i, _ := strconv.ParseUint(v, 10, 64)
+	return byte(i), int8(i), uint16(i), int16(i), uint32(i), int32(i), i, int64(i), uint(i), int(i)
+}
 
 func newForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
 	forum := &server.Forum{
@@ -37,13 +51,14 @@ func newForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
 	}
 
 	start := time.Now()
-	forum.Store = server.NewStore("data/main.txt", config.IPPassword, config.MaxLiveTopics, logger)
-	forum.BadUsers = lru.NewCache(1024)
-	forum.UUIDs = lru.NewCache(1024)
+	forum.Store = server.NewStore(DATA_MAIN, config.IPPassword, config.MaxLiveTopics, logger)
+	badUsers = lru.NewCache(1024)
+	uuids = lru.NewCache(1024)
+	throtIPID = lru.NewCache(256)
 
 	go func() {
 		for {
-			time.Sleep(time.Second)
+			time.Sleep(100 * time.Millisecond)
 			if forum.Store.IsReady() {
 				vt, p := forum.PostsCount()
 				forum.Notice("%d topics, %d visible topics, %d posts", forum.TopicsCount(), vt, p)
@@ -74,7 +89,7 @@ func handleStatic(w http.ResponseWriter, r *http.Request) {
 
 func handleImage(w http.ResponseWriter, r *http.Request) {
 	file := r.URL.Path[len("/i/"):]
-	file = "data/images/" + file
+	file = DATA_IMAGES + file
 
 	if r.FormValue("thumb") == "1" {
 		path := file + ".thumb.jpg"
@@ -91,7 +106,7 @@ func handleImage(w http.ResponseWriter, r *http.Request) {
 
 func handleImageBrowser(w http.ResponseWriter, r *http.Request) {
 	if !forum.GetUser(r).Can(server.PERM_ADMIN) {
-		w.WriteHeader(403)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	dirServer.ServeHTTP(w, r)
@@ -111,14 +126,16 @@ func handleRobotsTxt(w http.ResponseWriter, r *http.Request) {
 func handleCookie(w http.ResponseWriter, r *http.Request) {
 	if m := r.FormValue("makeid"); m != "" {
 		if !forum.GetUser(r).Can(server.PERM_ADMIN) {
-			w.WriteHeader(403)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		u, parts := server.User{}, strings.Split(m, ",")
 		copy(u.ID[:], parts[0])
-		M, _ := strconv.Atoi(parts[1])
-		u.M = byte(M)
+		u.M, _, _, _, _, _, _, _, _, _ = atoi(parts[1])
+		if len(parts) > 2 {
+			_, _, _, _, u.N, _, _, _, _, _ = atoi(parts[2])
+		}
 		w.Write([]byte(forum.SetUser(nil, u)))
 		return
 	}
@@ -144,7 +161,7 @@ func handleCookie(w http.ResponseWriter, r *http.Request) {
 
 func handleLogs(w http.ResponseWriter, r *http.Request) {
 	if !forum.GetUser(r).Can(server.PERM_ADMIN) {
-		w.WriteHeader(403)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -177,14 +194,17 @@ func preHandle(fn func(http.ResponseWriter, *http.Request), footer bool) http.Ha
 			w.Write([]byte(fmt.Sprintf("%v Booting... %.1f%%", time.Now().Format(time.RFC1123), forum.LoadingProgress()*100)))
 			return
 		}
+		if footer {
+			w = &server.ResponseWriterWrapper{w, 0}
+		}
 
 		startTime := time.Now()
 		fn(w, r)
-		duration := time.Now().Sub(startTime)
-		if footer {
+		duration := time.Since(startTime)
+
+		if footer && w.(*server.ResponseWriterWrapper).Code == http.StatusOK {
 			server.Render(w, server.TmplFooter, struct{ RenderTime int64 }{duration.Nanoseconds() / 1e6})
 		}
-
 		if duration.Seconds() > 0.1 {
 			url := r.URL.Path
 			if len(r.URL.RawQuery) > 0 {
@@ -194,17 +214,16 @@ func preHandle(fn func(http.ResponseWriter, *http.Request), footer bool) http.Ha
 		}
 	}
 }
+
 func main() {
-	os.MkdirAll("data/archive", 0755)
-	os.MkdirAll("data/images", 0755)
+	os.MkdirAll(DATA_IMAGES, 0755)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	flag.Parse()
 	logger := server.NewLogger(1024, 1024, !*inProduction)
 
 	var config server.ForumConfig
-	var configPath = "data/main.json"
-	b, err := ioutil.ReadFile(configPath)
+	b, err := ioutil.ReadFile(DATA_CONFIG)
 	if err != nil {
 		panic(err)
 	}
@@ -220,6 +239,7 @@ func main() {
 	checkInt(&config.MinMessageLen, 3)
 	checkInt(&config.SearchTimeout, 100)
 	checkInt(&config.MaxImageSize, 4)
+	checkInt(&config.Cooldown, 2)
 
 	configbuf, _ := json.MarshalIndent(&config, "", "  ")
 	logger.Notice("%s", string(configbuf))
@@ -227,7 +247,7 @@ func main() {
 	if bytes.Equal(config.Salt[:], make([]byte, 16)) {
 		copy(config.Salt[:], rand.New().Fetch(16))
 		buf, _ := json.Marshal(&config)
-		ioutil.WriteFile(configPath, buf, 0755)
+		ioutil.WriteFile(DATA_CONFIG, buf, 0755)
 	}
 
 	if *makeID != "" {
@@ -248,7 +268,7 @@ func main() {
 	server.LoadTemplates(*inProduction)
 
 	smux := &http.ServeMux{}
-	dirServer = http.StripPrefix("/browse/", http.FileServer(http.Dir("data/images")))
+	dirServer = http.StripPrefix("/browse/", http.FileServer(http.Dir(DATA_IMAGES)))
 	smux.HandleFunc("/favicon.ico", http.NotFound)
 	smux.HandleFunc("/robots.txt", handleRobotsTxt)
 	smux.HandleFunc("/logs", preHandle(handleLogs, true))

@@ -8,12 +8,15 @@
 }
 </style>
 
+{{if not .Forum.NoRecaptcha}}
 <h3>关于发帖</h3>
 <ol>
     <li>机器人验证这一步<b>并不一定</b>是必须的：如果用户跳过验证直接提交，服务端会roll点决定是否强制用户进行验证。</li>
     <li>提交按钮旁的数字代表随机概率（0.01~0.99），例如0.42代表用户有42%的概率不用验证即可发言，58%的概率被驳回。</li>
     <li>该数字随着发帖数增加而增加，如果概率很低，请不要抱着抽奖的心态跳过验证。当前您的cookie的信任概率如下图：<br><img id="ranking" /></li>
 </ol>
+{{end}}
+
 <h3>设置</h3>
 <ul>
     <li>回复被折叠后将其：<select id="settings-hide" onchange='localStorage.setItem("hide-looks", this.value)'><option value="gray">变灰</option><option value="hide">不显示</option></select></li>
@@ -139,12 +142,9 @@ if (p && n) {
     <li>标题最大长度：{{.Forum.MaxSubjectLen}} 字</li>
     <li>图片体积：{{.Forum.MaxImageSize}} MB</li>
     <li>搜索时间限制：{{.Forum.SearchTimeout}} 毫秒</li>
-    {{if .Forum.NoMoreNewUsers}}
-    <li>当前没有cookie的新用户无法发言</li>
-    {{end}}
-    {{if .Forum.NoImageUpload}}
-    <li>当前禁止图片上传</li>
-    {{end}}
+    {{if .Forum.NoMoreNewUsers}} <li>当前没有cookie的新用户无法发言</li> {{end}}
+    {{if .Forum.NoImageUpload}} <li>当前禁止图片上传</li> {{end}}
+    {{if .Forum.NoRecaptcha}} <li>当前发帖不需要机器人验证</li> {{end}}
 </ul>
 
 <h3>标记语言</h3>

@@ -2,22 +2,12 @@
     {{if .ID}}
     <div class="subject">
         <div class="title">
-            <span class="title-id"
-                style="{{if or .Archived .Locked}}background:#333;color:white{{end}}">
-                {{if .FreeReply}}&hearts;{{end}}
-                {{if .Sticky}}&Delta;{{end}}
-                No.{{.ID}}
-            </span>
+            No.{{.ID}}
             {{if .Subject}}{{.Subject}}{{else}}<span style="color:gray">无标题</span>{{end}}
         </div>
         <div class="title-info">
             <span>
-                {{if .Archived}}<b>[存档]</b>{{end}}
-                {{if .Locked}}<b>[锁定]</b>{{end}}
-                {{if .Sticky}}<b>[置顶]</b>{{end}}
-                {{if .Saged}}<b style="color:red">[SAGE]</b>{{end}}
-                {{if .FreeReply}}<b>[自由回复]</b>{{end}}
-                共 {{.T_TotalPosts}} 条回复
+                共 {{.T_TotalPosts}} 回复
                 {{if .T_IsExpand}}
                 <span>
                     , [ <a href="/t/{{.ID}}" target="_blank">展开</a> ] 以查看更多
@@ -26,7 +16,6 @@
                 <span id="title-subject" style="display:none">{{.Subject}}</span>
                 <script>document.title += " - " + $("#title-subject").text()</script>
                 {{end}}
-
             </span>
         </div>
         {{if .T_IsAdmin}}
@@ -59,13 +48,23 @@
             {{ end }}
         </div>
         {{if .IsDeleted}}
-        {{if $.T_IsAdmin}}
-        <s>{{template "post1.html" .}}</s>
+            {{if $.T_IsAdmin}}
+                <s>{{template "post1.html" .}}</s>
+            {{else}}
+                <div><s style="color: #aaa">已删除</s></div>
+            {{end}}
         {{else}}
-        <div><s style="color: #aaa">已删除</s></div>
+            {{template "post1.html" .}}
         {{end}}
-        {{else}}
-        {{template "post1.html" .}}
+
+        {{if .T_IsFirst}}
+                <div class="topic-status">
+                    {{if $.Archived}}<span class="icon-floppy"><b>该主题已被存档</b></span>{{end}}
+                    {{if $.Locked}}<span class="icon-lock"><b>该主题已被锁定</b></span>{{end}}
+                    {{if $.Sticky}}<span class="icon-pin"><b>置顶主题</b></span>{{end}}
+                    {{if $.Saged}}<span class="icon-thumbs-down-alt" style="color:red"><b>该主题已被SAGE</b></span>{{end}}
+                    {{if $.FreeReply}}<span class="icon-heart" style="color:#0097A7"><b>该主题下可自由回复</b></span>{{end}}
+                </div>
         {{end}}
     </div>
     {{end}}
