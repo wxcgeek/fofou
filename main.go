@@ -113,9 +113,23 @@ func handleImageBrowser(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleHelp(w http.ResponseWriter, r *http.Request) {
-	server.Render(w, server.TmplHelp, struct {
+	path := "data/main.txt.snapshot"
+	if r.RequestURI == "/data.bin" {
+		http.ServeFile(w, r, path)
+		return
+	}
+	fi, _ := os.Stat(path)
+	p := struct {
 		server.Forum
-	}{*forum})
+		DataBinSize uint64
+		DataBinTime string
+	}{}
+	p.Forum = *forum
+	if fi != nil {
+		p.DataBinSize = uint64(fi.Size())
+		p.DataBinTime = fi.ModTime().Format(time.RFC1123)
+	}
+	server.Render(w, server.TmplHelp, p)
 }
 
 // url: /robots.txt
@@ -241,14 +255,13 @@ func main() {
 	checkInt(&config.MaxImageSize, 4)
 	checkInt(&config.Cooldown, 2)
 
-	configbuf, _ := json.MarshalIndent(&config, "", "  ")
-	logger.Notice("%s", string(configbuf))
-
 	if bytes.Equal(config.Salt[:], make([]byte, 16)) {
 		copy(config.Salt[:], rand.New().Fetch(16))
-		buf, _ := json.Marshal(&config)
-		ioutil.WriteFile(DATA_CONFIG, buf, 0755)
 	}
+
+	configbuf, _ := json.MarshalIndent(&config, "", "  ")
+	logger.Notice("%s", string(configbuf))
+	ioutil.WriteFile(DATA_CONFIG, configbuf, 0755)
 
 	if *makeID != "" {
 		u, parts := server.User{}, strings.Split(*makeID, ",")
@@ -280,6 +293,7 @@ func main() {
 	smux.HandleFunc("/api", preHandle(handleNewPost, false))
 	smux.HandleFunc("/list", preHandle(handleList, true))
 	smux.HandleFunc("/rss.xml", preHandle(handleRSS, false))
+	smux.HandleFunc("/data.bin", preHandle(handleHelp, false))
 	smux.HandleFunc("/t/", preHandle(handleTopic, true))
 	smux.HandleFunc("/p/", preHandle(handleRawPost, false))
 	smux.HandleFunc("/", preHandle(handleTopics, true))
@@ -287,6 +301,21 @@ func main() {
 	srv := &http.Server{Handler: smux}
 	srv.Addr = *httpAddr
 	forum.Notice("running on %s", srv.Addr)
+
+	go func() {
+		for {
+			if *inProduction {
+				time.Sleep(time.Hour * 6)
+			} else {
+				time.Sleep(time.Minute)
+			}
+
+			start := time.Now()
+			forum.Store.Dup()
+			forum.Notice("dup: %.2fs", time.Since(start).Seconds())
+		}
+	}()
+
 	if err := srv.ListenAndServe(); err != nil {
 		fmt.Printf("http.ListendAndServer() failed with %s\n", err)
 	}

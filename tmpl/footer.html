@@ -2,10 +2,25 @@
 <div style="padding: 6px 0; text-align: center; font-size: 12px; line-height:1.5em">
     Rendered in {{.RenderTime}}ms by
     <a href="https://github.com/coyove/fofou" target="_blank">fofou</a><a href="/mod">2</a>
+    <a href="javascript:_deleteMode()">删除模式</a>
 </div>
 </div>
 
 <script>
+    function _deleteMode() {
+        $(".post .info").each(function(i, el) {
+            $(el).append($("<div>")
+                .append($("<a>").text("删除").css("color", "red").attr('href', 'javascript:void(0)')
+                    .on("click", (function (el) {
+                        return function() {
+                            var id = $(el).parent().get(0).id.match(/post-(\d+)/)[1];
+                            _reply(id, true);
+                        }
+                    })(el)))
+            );
+        });
+    }
+
     (function() {
         var s = JSON.parse(localStorage.getItem("fold") || '{}'), latest = 0;
         for (var id in s) {

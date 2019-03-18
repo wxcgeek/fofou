@@ -15,7 +15,7 @@
         <tr>
             <th><label for="sage">sage:</label></th>
             <td>
-                <input type="checkbox" id="sage" name="sage" style="width: initial">
+                <input type="checkbox" id="sage" name="sage" style="width: 20px">
             </td>
         </tr>
         {{else}}
@@ -67,8 +67,8 @@ if (p && n) {
     $('#submit-newpost').append(" (0.00)").focus();
 }
 
-function _reply(longid) {
-    $('#message').append("\n>>" + longid);
+function _reply(longid, del) {
+    $('#message').append(del ? "!!delete=" + longid + "\n" : "\n>>" + longid).trigger('render');
     $('#expand-newpost').hide();
     $([document.documentElement, document.body]).animate({
         scrollTop: $('#newpost').show().offset().top
@@ -85,10 +85,14 @@ function _reply(longid) {
     function onloadRecaptcha() {
         function callback() {
             if ($(this).prop('recaptcha')) return;
-            grecaptcha.render("recaptcha", {"sitekey": "{{.Forum.RecaptchaToken}}", "theme": "light"});
-            $(this).prop('recaptcha', true);
+            try {
+                grecaptcha.render("recaptcha", {"sitekey": "{{.Forum.RecaptchaToken}}", "theme": "light"});
+            } catch(e) {
+            } finally {
+                $(this).prop('recaptcha', true);
+            }
         }
-        $("#message").on('focus',  callback);
+        $("#message").on('focus', callback).bind("render", callback);
         $("#select-image").on('change', callback);
     }
 

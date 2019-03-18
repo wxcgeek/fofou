@@ -4,6 +4,7 @@ import (
 	"crypto/cipher"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"os"
@@ -158,7 +159,7 @@ func (store *Store) TopicByID(id uint32) Topic {
 }
 
 // DeletePost deletes/restores a post
-func (store *Store) DeletePost(postLongID uint64, onImageDelete func(string)) error {
+func (store *Store) DeletePost(u User, postLongID uint64, onImageDelete func(string)) error {
 	store.Lock()
 	defer store.Unlock()
 
@@ -172,6 +173,9 @@ func (store *Store) DeletePost(postLongID uint64, onImageDelete func(string)) er
 	}
 
 	post := &topic.Posts[postID-1]
+	if !u.Can(PERM_LOCK_SAGE_DELETE) && u.ID != post.user {
+		return fmt.Errorf("can't delete the post")
+	}
 
 	var p buffer
 	if err := store.append(p.WriteByte(OP_DELETE).WriteUInt32(topicID).WriteUInt16(postID).Bytes()); err != nil {
@@ -299,7 +303,25 @@ func archive(topic *Topic, saveToPath string) error {
 	return ioutil.WriteFile(saveToPath, buf.Bytes(), 0755)
 }
 
-func (store *Store) Archive() {
+func (store *Store) Dup() {
+	store.RLock()
+	defer store.RUnlock()
+
+	os.Remove(store.dataFilePath + ".snapshot")
+	of, err := os.Create(store.dataFilePath + ".snapshot")
+	if err != nil {
+		return
+	}
+
+	defer of.Close()
+	if _, err := store.dataFile.Seek(0, 0); err != nil {
+		return
+	}
+
+	io.Copy(of, store.dataFile)
+}
+
+func (store *Store) ArchiveJob() {
 	store.Lock()
 	defer store.Unlock()
 
@@ -347,7 +369,7 @@ func (store *Store) NewTopic(subject, msg, image string, user [8]byte, ipAddr [8
 	}
 
 	if store.Rand.Intn(64) == 0 {
-		go store.Archive()
+		go store.ArchiveJob()
 	}
 
 	return topic.ID, err

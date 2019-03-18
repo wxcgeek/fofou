@@ -364,14 +364,14 @@ func modCode(forum *server.Forum, u server.User, msg string) bool {
 			forum.MaxImageSize = int(vint)
 			opcode = true
 		case "delete":
-			if !u.Can(server.PERM_LOCK_SAGE_DELETE) {
-				return true
-			}
-			forum.Store.DeletePost(uint64(vint), func(img string) {
+			res := forum.Store.DeletePost(u, uint64(vint), func(img string) {
 				os.Remove(DATA_IMAGES + img)
 				os.Remove(DATA_IMAGES + img + ".thumb.jpg")
 			})
 			opcode = true
+			if res != nil {
+				break
+			}
 		case "stick":
 			if !u.Can(server.PERM_STICKY_PURGE) {
 				return true
@@ -413,6 +413,12 @@ func modCode(forum *server.Forum, u server.User, msg string) bool {
 				return true
 			}
 			forum.Title = v
+			opcode = true
+		case "url":
+			if !u.Can(server.PERM_ADMIN) {
+				return true
+			}
+			forum.URL = v
 			opcode = true
 		}
 	}

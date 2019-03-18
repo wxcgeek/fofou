@@ -6,6 +6,10 @@
     max-width: 360px;
         margin: 4px 0;
 }
+
+pre {
+	font-family: "Lucida Console", Monaco, monospace;
+}
 </style>
 
 {{if not .Forum.NoRecaptcha}}
@@ -136,6 +140,18 @@ if (p && n) {
      $("#image-view option[value=" + (localStorage.getItem("image-view") || "expand") + "]").attr("selected", "selected");
 </script>
 
+<h3>标记语言</h3>
+
+<ol>
+    <li>使用<code>```code```</code>括住代码</li>
+    <li>使用<code>&gt;&gt;1234</code>引用其他人的发言</li>
+</ol>
+
+<h3>删除模式</h3>
+<ul>
+    <li>用户可以删除自己的发言。该动作通过发布一条特殊命令来实现，所以需要机器人验证</li>
+</ul>
+
 <h3>其他</h3>
 <ul>
     <li>正文最大长度：{{.Forum.MaxMessageLen}} 字节</li>
@@ -146,11 +162,5 @@ if (p && n) {
     {{if .Forum.NoMoreNewUsers}} <li>当前没有cookie的新用户无法发言</li> {{end}}
     {{if .Forum.NoImageUpload}} <li>当前禁止图片上传</li> {{end}}
     {{if .Forum.NoRecaptcha}} <li>当前发帖不需要机器人验证</li> {{end}}
+    <li><a href="/data.bin">公开数据下载</a> ({{formatBytes .DataBinSize}} / {{.DataBinTime}})</li>
 </ul>
-
-<h3>标记语言</h3>
-
-<ol>
-    <li>使用<code>```code```</code>括住代码</li>
-    <li>使用<code>&gt;&gt;1234</code>引用其他人的发言</li>
-</ol>
