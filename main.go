@@ -51,7 +51,7 @@ func newForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
 	}
 
 	start := time.Now()
-	forum.Store = server.NewStore(DATA_MAIN, config.IPPassword, config.MaxLiveTopics, logger)
+	forum.Store = server.NewStore(DATA_MAIN, config.Salt, config.MaxLiveTopics, logger)
 	badUsers = lru.NewCache(1024)
 	uuids = lru.NewCache(1024)
 	throtIPID = lru.NewCache(256)

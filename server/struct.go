@@ -118,7 +118,6 @@ func (t *Topic) IsDeleted() bool {
 type ForumConfig struct {
 	Title          string
 	Salt           [16]byte
-	IPPassword     string
 	NoMoreNewUsers bool
 	NoImageUpload  bool
 	NoRecaptcha    bool

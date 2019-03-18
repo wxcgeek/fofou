@@ -400,11 +400,11 @@ func (store *Store) GetPostsBy(q [8]byte, qtext string, max int, timeout int64) 
 	start := time.Now().UnixNano()
 
 	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
-		if len(m) > 0 && len(topic.Posts) > 0 {
-			if time.Now().UnixNano()-start > timeout {
-				break
-			}
+		if time.Now().UnixNano()-start > timeout {
+			break
+		}
 
+		if len(m) > 0 && len(topic.Posts) > 0 {
 			if r, _ := stringCompare(topic.Subject, "", m); r {
 				if total++; total <= max {
 					res = append(res, topic.Posts[0])

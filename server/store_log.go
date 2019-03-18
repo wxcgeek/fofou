@@ -2,7 +2,6 @@ package server
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/aes"
 	"encoding/base64"
 	"encoding/binary"
@@ -208,7 +207,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 	return nil
 }
 
-func NewStore(path string, password string, maxLiveTopics int, logger *Logger) *Store {
+func NewStore(path string, password [16]byte, maxLiveTopics int, logger *Logger) *Store {
 	store := &Store{
 		dataFilePath:  path,
 		rootTopic:     &Topic{},
@@ -221,7 +220,7 @@ func NewStore(path string, password string, maxLiveTopics int, logger *Logger) *
 
 	store.rootTopic.Next = store.endTopic
 	store.endTopic.Prev = store.rootTopic
-	store.block, _ = aes.NewCipher(bytes.Repeat([]byte(password+"0"), 16)[:16])
+	store.block, _ = aes.NewCipher(password[:])
 
 	_, err := os.Stat(path)
 	if err != nil {
