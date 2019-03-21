@@ -2,12 +2,12 @@
 <div style="padding: 6px 0; text-align: center; font-size: 12px; line-height:1.5em">
     Rendered in {{.RenderTime}}ms by
     <a href="https://github.com/coyove/fofou" target="_blank">fofou</a><a href="/mod">2</a>
-    <a href="javascript:_deleteMode()">删除模式</a>
+    <a href="javascript:_deleteMode(this)">删除模式</a>
 </div>
 </div>
 
 <script>
-    function _deleteMode() {
+    function _deleteMode(el) {
         $(".post .info").each(function(i, el) {
             $(el).append($("<div>")
                 .append($("<a>").text("删除").css("color", "red").attr('href', 'javascript:void(0)')
@@ -19,6 +19,7 @@
                     })(el)))
             );
         });
+        $(el).hide();
     }
 
     (function() {
@@ -32,6 +33,10 @@
         }
         if ((localStorage.getItem("auto-expand") || "off") == "on") {
             $('#expand-newpost').click();
+        }
+        var m = document.cookie.match(/'M':(\d+)/);
+        if (m && m[1]) {
+            if ((parseInt(m[1]) & 1) == 0) $(".admin-topic-ops").hide();
         }
     })()
 </script>

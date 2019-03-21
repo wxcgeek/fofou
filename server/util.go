@@ -62,8 +62,12 @@ func Format8Bytes(b [8]byte) (string, string) {
 	}
 	buf.WriteString("x")
 
-	if b[0] == 'a' && b[1] == ':' {
-		bufid.WriteString(string(b[:]))
+	if b[0] == '^' {
+		idx := bytes.IndexByte(b[:], 0)
+		if idx == -1 {
+			idx = 8
+		}
+		bufid.WriteString(string(b[:idx]))
 	} else {
 		base64.NewEncoder(base64.URLEncoding, &bufid).Write(b[:6])
 	}
@@ -92,7 +96,7 @@ func Parse8Bytes(str string) (b [8]byte) {
 		}
 		return
 	}
-	if strings.HasPrefix(str, "a:") {
+	if strings.HasPrefix(str, "^") {
 		copy(b[:], str)
 		return
 	}

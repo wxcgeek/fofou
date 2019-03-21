@@ -40,7 +40,7 @@ function _enlarge(el, url) {
             var s = JSON.parse(localStorage.getItem("fold") || '{}');
             var cls = (localStorage.getItem("hide-looks") || 'gray') == 'gray' ? 'fold' : 'fold fold-hide';
 
-            p.prop("fold", !c).text(c ? "[-]" : "[+]");
+            p.prop("fold", !c).removeClass("icon-plus-squared icon-minus-squared").addClass(c ? "icon-minus-squared" : "icon-plus-squared");
             if (c) {
                 m.show().parent().removeClass(cls);
                 delete s[id];

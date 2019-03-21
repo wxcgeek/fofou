@@ -127,7 +127,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 			badRequest()
 			return
 		}
-		if !throtNewPost(ipAddr, user.ID) {
+		if !user.CanModerate() && !throtNewPost(ipAddr, user.ID) {
 			badRequest()
 			return
 		}
@@ -139,8 +139,8 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		copy(user.ID[:], forum.Rand.Fetch(6))
-		if user.ID[1] == ':' {
-			user.ID[1]++ // in case we get random bytes starting with "a:"
+		if user.ID[0] == '^' {
+			user.ID[0]++ // ^ means mod
 		}
 		user.T = time.Now().Unix()
 		if topic.ID == 0 {

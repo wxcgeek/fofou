@@ -19,11 +19,13 @@
         {{end}}
 
         {{ if $.T_IsAdmin }}
-        <div style="font-size:12px">IP:
-            <a href="/list?q={{.IP}}" target="_blank" style="font-size:12px">{{.IP}}</a>
-            <a href="javascript:_submit(null, '!!delete={{.LongID}}')" style="font-size:12px;color:red">
+        <div style="font-size:12px;text-align:center">
+            <span class="mod-ip">
+            <a href="/list?q={{.IP}}" target="_blank">{{.IP}}</a>
+            <a href="javascript:_submit(null, '!!delete={{.LongID}}')" style="color:red">
                 {{if .IsDeleted}} 恢复删除 {{else}} 删除 {{end}}
             </a>
+            </span>
         </div>
         {{ end }}
 
@@ -36,7 +38,7 @@
                     {{if $.Saged}}<span class="icon-thumbs-down-alt" style="color:red"><b>该主题已被SAGE</b></span>{{end}}
                     {{if $.FreeReply}}<span class="icon-heart" style="color:#0097A7"><b>该主题下可自由回复</b></span>{{end}}
                     {{if $.T_IsAdmin}}
-                    <span class="icon-cog">主题操作：<a href="javascript:_submit(null,'!!free-reply={{$.ID}}')">自由回复</a>
+                    <span class="icon-cog admin-topic-ops">主题操作：<a href="javascript:_submit(null,'!!free-reply={{$.ID}}')">自由回复</a>
                 <a href="javascript:_submit(null,'!!lock={{$.ID}}')">锁定</a>
                 <a href="javascript:_submit(null,'!!stick={{$.ID}}')">置顶</a>
                 <a href="javascript:_submit(null,'!!sage={{$.ID}}')">SAGE</a>

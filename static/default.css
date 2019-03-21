@@ -103,10 +103,6 @@ div.topic {
     overflow: hidden;
 }
 
-div.subject {
-    padding: 4px;
-}
-
 div.topic-status { 
     white-space: nowrap;
     margin: 4px 0;
@@ -128,9 +124,11 @@ div.post {
 
 div.post-first {
     border: none;
-    margin-left: 4px;
+    margin: 0;
     background-color: transparent;
 }
+
+div.ref .post { margin: 2px; }
 
 div.post.fold, div.post.fold a { color: #aaa !important; }
 
@@ -138,12 +136,16 @@ div.post.fold.fold-hide { display: none; }
 
 div.post .message {
     word-break: break-all;
-    margin: 8px 0;
+    margin: 8px;
 }
 
-div.post .info .toggle {
-	font-family: "Lucida Console", Monaco, monospace;
+div.post .info .toggle { cursor: pointer; }
+
+div.post .info .toggle::before {
     cursor: pointer;
+    width: 16px;
+    margin: 0;
+    display: inline-block;
 }
 
 div.post img.image {
@@ -163,4 +165,14 @@ div.post img.image-base {
 div.post img.image-large {
     max-width: 100%;
     max-height: 100%;
+}
+
+.icon-minus-squared, .icon-plus-squared {
+    color: #667;
+}
+
+.mod-ip {
+    display:inline-block;padding:4px 8px;background:white;
+    border-radius: 3px;
+    border: dotted 1px #667;
 }
