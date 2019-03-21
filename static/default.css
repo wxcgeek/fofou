@@ -134,6 +134,8 @@ div.post.fold, div.post.fold a { color: #aaa !important; }
 
 div.post.fold.fold-hide { display: none; }
 
+div.post.fold div.post { display: none; }
+
 div.post .message {
     word-break: break-all;
     margin: 8px;
