@@ -1,10 +1,26 @@
-        <div class="message">
-            {{if .Image}}
-            <img class="image image-base" onclick="_enlarge(this,'/i/{{.Image}}')" src="/i/{{.Image}}?thumb=1" />
-            {{end}}
-            {{if .Message}}
-            {{.MessageHTML}}
-            {{else}}
-            <span style="color:#aaa">无正文</span>
-            {{end}}
-        </div>
+{{if .Image}}
+<img class="image image-base" onclick="_enlarge(this,'/i/{{.Image}}')" src="/i/{{.Image}}?thumb=1" />
+{{end}}
+<div class="info">
+    <span class="toggle" onclick="_togglePost({{.LongID}})">[-]</span>
+
+    <a href="javascript:_reply({{.LongID}})">#{{.LongID}}</a>
+
+    {{if eq .Topic.FirstPostID .ID}}
+        {{if .Topic.Subject}}{{.Topic.Subject}}{{else}}无标题{{end}}
+    {{end}}
+
+    {{.Date}}
+    <a href="/list?q={{.User}}" target="_blank">{{.User}}</a>
+
+    {{if eq .Topic.FirstPostID .ID}}
+            <span class="nowrap"> [ <a href="/t/{{.Topic.ID}}" target="_blank">展开</a> ] </span>
+    {{end}}
+</div>
+<div class="message">
+    {{if .Message}}
+    {{.MessageHTML}}
+    {{else}}
+    <span style="color:#aaa">无正文</span>
+    {{end}}
+</div>

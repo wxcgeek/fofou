@@ -4,10 +4,20 @@
 }
 
 body {
-	color:				black;
-	padding:			0; /* needed for Opera */
+	color:	black;
+	padding:0;
 	font-size: 14px;
 	margin: 0;
+	background-color: rgb(252, 252, 244);
+}
+
+a:visited {
+    color: #54638c;
+}
+
+a:link {
+    color: #0035c7;
+    text-decoration: underline;
 }
 
 .header .item {
@@ -31,6 +41,8 @@ body {
 }
 
 .header * {color:white !important;}
+
+.nowrap { white-space: nowrap; }
 
 #container {
 	width: 100%;
@@ -66,7 +78,7 @@ table {
 	background-color: rgb(246, 246, 239);
 }
 
-div#paging span, div.paging a {
+div.paging span, div.paging a {
     display: inline-block;
     margin: 2px;
     padding: 2px 6px;
@@ -74,16 +86,16 @@ div#paging span, div.paging a {
     cursor: pointer;
     color: black;
     text-decoration: none;
+    background: #fafbfc;
 }
 
-div#paging span.current {
+div.paging span.current, div.paging a.current, div.paging span:hover, div.paging a:hover {
     background: #888;
     border-color: #666;
     color: white;
 }
 
 div.topic {
-    padding: 4px;
     margin: 6px 0;
     border: solid 1px #aaa;
 	background-color: rgb(246, 246, 239);
@@ -92,8 +104,6 @@ div.topic {
 }
 
 div.subject {
-    background: #dadad4;
-    margin: -4px -4px 8px -4px;
     padding: 4px;
 }
 
@@ -126,11 +136,9 @@ div.post.fold, div.post.fold a { color: #aaa !important; }
 
 div.post.fold.fold-hide { display: none; }
 
-div.post .info a { color: black; }
-
 div.post .message {
     word-break: break-all;
-    margin-top: 4px;
+    margin: 8px 0;
 }
 
 div.post .info .toggle {
@@ -147,7 +155,10 @@ div.post img.image-base {
     float: left;
     margin-right: 6px;
     cursor: pointer;
+    display: inline;
 }
+
+.fold .image-base { display: none !important; }
 
 div.post img.image-large {
     max-width: 100%;

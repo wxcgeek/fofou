@@ -62,6 +62,10 @@ func naiveDownscale(path string, sizeBox int) error {
 		return nil
 	}
 
+	if _, err := os.Stat(path); err != nil {
+		return nil
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return err

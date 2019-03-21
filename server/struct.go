@@ -114,6 +114,10 @@ func (t *Topic) IsDeleted() bool {
 	return true
 }
 
+func (t *Topic) FirstPostID() uint16 {
+	return t.Posts[0].ID
+}
+
 // ForumConfig is a static configuration of a single forum
 type ForumConfig struct {
 	Title          string
