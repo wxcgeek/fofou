@@ -67,7 +67,7 @@ func handleRSS(w http.ResponseWriter, r *http.Request) {
 		`<link>`, forum.URL, `</link>`,
 	}
 
-	topics, _ := forum.GetTopics(20, 0, false)
+	topics := forum.GetTopics(0, 20, server.DefaultTopicFilter)
 	for _, g := range topics {
 		var message string
 		if len(g.Posts) > 0 {

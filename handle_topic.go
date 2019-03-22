@@ -17,7 +17,7 @@ type NewPost struct {
 // url: /t/{tid}
 func handleTopic(w http.ResponseWriter, r *http.Request) {
 	topicID, _ := strconv.Atoi(r.URL.Path[len("/t/"):])
-	topic := forum.Store.TopicByID(uint32(topicID))
+	topic := forum.Store.GetTopic(uint32(topicID), server.DefaultTopicFilter)
 	if topic.ID == 0 {
 		var err error
 		topic, err = forum.LoadArchivedTopic(uint32(topicID))
@@ -32,10 +32,6 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 	}
 NEXT:
 	isAdmin := forum.GetUser(r).CanModerate()
-	if topic.IsDeleted() && !isAdmin {
-		http.Redirect(w, r, "/", 302)
-		return
-	}
 	if len(topic.Posts) == 0 {
 		http.Redirect(w, r, "/", 302)
 		return
@@ -89,13 +85,8 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	isAdmin := forum.GetUser(r).CanModerate()
-	topics, _ := forum.GetTopics(forum.TopicsPerPage, (p-1)*forum.TopicsPerPage, isAdmin)
-	topicsDisplay := make([]server.Topic, 0)
-
-	for _, t := range topics {
-		if t.IsDeleted() && !isAdmin {
-			continue
-		}
+	topics := forum.GetTopics((p-1)*forum.TopicsPerPage, forum.TopicsPerPage, func(topic *server.Topic) server.Topic {
+		t := *topic
 		t.T_TotalPosts = uint16(len(t.Posts) - 1)
 		t.T_IsAdmin = isAdmin
 		t.T_IsExpand = true
@@ -110,8 +101,8 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 			t.Posts = tmp
 		}
 		t.Posts[0].T_IsFirst = true
-		topicsDisplay = append(topicsDisplay, t)
-	}
+		return t
+	})
 
 	model := struct {
 		server.Forum
@@ -120,7 +111,7 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 		Topics []server.Topic
 	}{
 		Forum:  *forum,
-		Topics: topicsDisplay,
+		Topics: topics,
 		Page:   p,
 	}
 
@@ -131,7 +122,7 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 func handleRawPost(w http.ResponseWriter, r *http.Request) {
 	longID, _ := strconv.ParseInt(r.URL.Path[len("/p/"):], 10, 64)
 	topicID, postID := server.SplitID(uint64(longID))
-	topic := forum.Store.TopicByID(topicID)
+	topic := forum.Store.GetTopic(topicID, server.DefaultTopicFilter)
 	if topic.ID == 0 {
 		var err error
 		topic, err = forum.LoadArchivedTopic(uint32(topicID))
@@ -143,12 +134,6 @@ func handleRawPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 NEXT:
-	isAdmin := forum.GetUser(r).CanModerate()
-	if topic.IsDeleted() && !isAdmin {
-		w.WriteHeader(404)
-		return
-	}
-
 	if int(postID) > len(topic.Posts) || postID == 0 {
 		w.WriteHeader(404)
 		return

@@ -107,7 +107,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 	topicID, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("topic")))
 	if topicID > 0 {
-		if topic = forum.Store.TopicByID(uint32(topicID)); topic.ID == 0 {
+		if topic = forum.Store.GetTopic(uint32(topicID), server.DefaultTopicFilter); topic.ID == 0 {
 			forum.Notice("invalid topic ID: %d\n", topicID)
 			badRequest()
 			return

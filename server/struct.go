@@ -113,18 +113,7 @@ func (p *Topic) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(s
 
 func (p *Topic) LastDate() string { return time.Unix(int64(p.ModifiedAt), 0).Format(stdTimeFormat) }
 
-func (t *Topic) IsDeleted() bool {
-	for _, p := range t.Posts {
-		if !p.IsDeleted {
-			return false
-		}
-	}
-	return true
-}
-
-func (t *Topic) FirstPostID() uint16 {
-	return t.Posts[0].ID
-}
+func (t *Topic) FirstPostID() uint16 { return t.Posts[0].ID }
 
 // ForumConfig is a static configuration of a single forum
 type ForumConfig struct {

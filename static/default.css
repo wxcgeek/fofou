@@ -80,7 +80,7 @@ table {
 
 div.paging span, div.paging a {
     display: inline-block;
-    margin: 2px;
+    margin: 2px 2px 2px 0;
     padding: 2px 6px;
     border: solid 1px #aaa;
     cursor: pointer;

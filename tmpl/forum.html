@@ -1,4 +1,4 @@
-{{ template "header.html" . }}
+{{template "header.html" .}}
 
 {{template "newpost.html" .}}
 
@@ -12,11 +12,17 @@
 
     <script>
         (function() {
-            var c = $("#topics-page"), p = {{.Page}};
+            var c = $("#topics-page"), p = {{.Page}}, flag = false;
             for (var i = p - 3; i <= p + 3; i++) {
                 if (i < 1) continue;
+                if (i == 1) flag = true;
                 c.append($("<a>").attr("href", "?p=" + i).html(i).addClass(i == p ? "current" : ""));
             }
+
+            if (!flag)
+                c.prepend($("<a>").attr("href", "?p=1").html("1...").addClass(1 == p ? "current" : ""));
+
+            document.title += " - P" + p;
         })()
     </script>
 </div>

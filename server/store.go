@@ -120,22 +120,23 @@ func (store *Store) TopicsCount() int {
 	return int(store.topicsCount)
 }
 
+var DefaultTopicFilter = func(t *Topic) Topic { return *t }
+
 // GetTopics retuns topics
-func (store *Store) GetTopics(nMax, from int, withDeleted bool) ([]Topic, int) {
-	res := make([]Topic, 0, nMax)
+func (store *Store) GetTopics(start, length int, filter func(*Topic) Topic) []Topic {
+	res := make([]Topic, 0, length)
 	store.RLock()
 	defer store.RUnlock()
 
-	topic, i := store.rootTopic.Next, 0
+	topic, i, end := store.rootTopic.Next, 0, start+length
 	for ; topic != store.endTopic; topic, i = topic.Next, i+1 {
-		if i >= from && i < from+nMax {
-			res = append(res, *topic)
-		} else if i >= from+nMax {
+		if i >= start && i < end {
+			res = append(res, filter(topic))
+		} else if i >= end {
 			break
 		}
 	}
-
-	return res, i
+	return res
 }
 
 func (store *Store) topicByIDUnlocked(id uint32) *Topic {
@@ -150,14 +151,14 @@ func (store *Store) topicByIDUnlocked(id uint32) *Topic {
 	return nil
 }
 
-func (store *Store) TopicByID(id uint32) Topic {
+func (store *Store) GetTopic(id uint32, filter func(*Topic) Topic) Topic {
 	store.RLock()
 	defer store.RUnlock()
 	t := store.topicByIDUnlocked(id)
 	if t == nil {
 		return Topic{}
 	}
-	return *t
+	return filter(t)
 }
 
 // DeletePost deletes/restores a post
