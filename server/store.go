@@ -37,6 +37,7 @@ type Store struct {
 	*Logger
 
 	MaxLiveTopics int
+	LiveTopicsNum int
 	Rand          *rand.Rand
 
 	block        cipher.Block
@@ -94,6 +95,7 @@ func (store *Store) OperateTopic(topicID uint32, action byte) {
 		if err = store.append(p.WriteByte(OP_PURGE).WriteUInt32(topicID).Bytes()); err == nil {
 			t.Prev.Next = t.Next
 			t.Next.Prev = t.Prev
+			store.LiveTopicsNum--
 		}
 	}
 	if err != nil {
@@ -345,6 +347,7 @@ func (store *Store) ArchiveJob() {
 		}
 		t.Prev.Next = t.Next
 		t.Next.Prev = t.Prev
+		store.LiveTopicsNum--
 	}
 }
 
@@ -366,6 +369,7 @@ func (store *Store) NewTopic(subject, msg, image string, user [8]byte, ipAddr [8
 	err := store.addNewPost(msg, image, user, ipAddr, topic, true)
 	if err == nil {
 		store.topicsCount++
+		store.LiveTopicsNum++
 	}
 
 	if store.Rand.Intn(64) == 0 {

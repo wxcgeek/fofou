@@ -61,7 +61,7 @@ func newForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
 			time.Sleep(100 * time.Millisecond)
 			if forum.Store.IsReady() {
 				vt, p := forum.PostsCount()
-				forum.Notice("%d topics, %d visible topics, %d posts", forum.TopicsCount(), vt, p)
+				forum.Notice("%d topics, %d live topics = %d, %d posts", forum.TopicsCount(), forum.LiveTopicsNum, vt, p)
 				forum.Notice("loaded all in %.2fs", time.Now().Sub(start).Seconds())
 
 				if *snapshot != "" {
@@ -254,6 +254,8 @@ func main() {
 	checkInt(&config.SearchTimeout, 100)
 	checkInt(&config.MaxImageSize, 4)
 	checkInt(&config.Cooldown, 2)
+	checkInt(&config.PostsPerPage, 20)
+	checkInt(&config.TopicsPerPage, 15)
 
 	if bytes.Equal(config.Salt[:], make([]byte, 16)) {
 		copy(config.Salt[:], rand.New().Fetch(16))

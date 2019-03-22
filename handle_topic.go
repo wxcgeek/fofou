@@ -5,7 +5,6 @@ import (
 	"math"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/coyove/fofou/server"
 )
@@ -42,7 +41,7 @@ NEXT:
 		return
 	}
 
-	pages := int(math.Ceil(float64(len(topic.Posts)) / float64(server.PostsPerPage)))
+	pages := int(math.Ceil(float64(len(topic.Posts)) / float64(forum.PostsPerPage)))
 	p, _ := strconv.Atoi(r.FormValue("p"))
 	if p < 1 {
 		p = 1
@@ -53,7 +52,7 @@ NEXT:
 
 	topic.T_TotalPosts = uint16(len(topic.Posts) - 1)
 	topic.T_IsAdmin = isAdmin
-	posts := topic.Posts[(p-1)*server.PostsPerPage : int(math.Min(float64(p*server.PostsPerPage), float64(len(topic.Posts))))]
+	posts := topic.Posts[(p-1)*forum.PostsPerPage : int(math.Min(float64(p*forum.PostsPerPage), float64(len(topic.Posts))))]
 	if p == 1 {
 		tmp := make([]server.Post, len(posts))
 		copy(tmp, posts)
@@ -84,24 +83,13 @@ NEXT:
 }
 
 func handleTopics(w http.ResponseWriter, r *http.Request) {
-	fromStr := strings.TrimSpace(r.FormValue("from"))
-	from := 0
-	if "" != fromStr {
-		var err error
-		if from, err = strconv.Atoi(fromStr); err != nil {
-			from = 0
-		}
+	p, _ := strconv.Atoi(r.FormValue("p"))
+	if p < 1 {
+		p = 1
 	}
-	//fmt.Printf("handleForum(): forum: %q, from: %d\n", forum.ForumUrl, from)
 
-	nTopicsMax := 15
 	isAdmin := forum.GetUser(r).CanModerate()
-	topics, newFrom := forum.GetTopics(nTopicsMax, from, isAdmin)
-	prevTo := from - nTopicsMax
-	if prevTo < 0 {
-		prevTo = -1
-	}
-
+	topics, _ := forum.GetTopics(forum.TopicsPerPage, (p-1)*forum.TopicsPerPage, isAdmin)
 	topicsDisplay := make([]server.Topic, 0)
 
 	for _, t := range topics {
@@ -128,14 +116,12 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 	model := struct {
 		server.Forum
 		NewPost
-		NewFrom int
-		PrevTo  int
-		Topics  []server.Topic
+		Page   int
+		Topics []server.Topic
 	}{
-		Forum:   *forum,
-		Topics:  topicsDisplay,
-		NewFrom: newFrom,
-		PrevTo:  prevTo,
+		Forum:  *forum,
+		Topics: topicsDisplay,
+		Page:   p,
 	}
 
 	_, model.PostToken = forum.UUID()

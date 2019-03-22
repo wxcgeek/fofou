@@ -22,14 +22,10 @@ import (
 
 var (
 	stdTimeFormat  = "2006-01-02 15:04:05"
-	urlRx          = regexp.MustCompile(`(https?://[[:^space:]]+|<|\n| |` + "```[\\s\\S]+```" + `|>>\d+)`)
+	urlRx          = regexp.MustCompile(`(https?://[[:^space:]]+|<|\n| |` + "```[\\s\\S]+```" + `|>>(#|No\.)?\d+)`)
 	base32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567").WithPadding('1')
 	default8Bytes  = [8]byte{}
 	errInvalidHash = fmt.Errorf("corrupted string hash")
-)
-
-var (
-	PostsPerPage int = 20
 )
 
 func panicif(cond bool, args ...interface{}) {

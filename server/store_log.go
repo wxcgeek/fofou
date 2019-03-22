@@ -148,6 +148,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 			t := parseTopic(r, store)
 			store.moveTopicToFront(t)
 			store.topicsCount++
+			store.LiveTopicsNum++
 			panicif(topicIDToTopic[t.ID] != nil, "topic %d already existed", t.ID)
 			topicIDToTopic[t.ID] = t
 		case OP_TOPICNUM:
@@ -195,6 +196,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 			case OP_ARCHIVE, OP_PURGE:
 				t.Prev.Next = t.Next
 				t.Next.Prev = t.Prev
+				store.LiveTopicsNum--
 				delete(topicIDToTopic, t.ID)
 			}
 		default:

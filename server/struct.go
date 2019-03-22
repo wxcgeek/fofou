@@ -37,8 +37,16 @@ func (p *Post) MessageHTML() string {
 			if strings.HasPrefix(in, "```") {
 				return "<code>" + strings.Replace(in[3:len(in)-3], "<", "&lt;", -1) + "</code>"
 			} else if strings.HasPrefix(in, ">>") {
-				longid, _ := strconv.Atoi(in[2:])
-				return fmt.Sprintf("<a href='javascript:void(0)' onclick='_ref(this, %d)'>%s</a>", longid, in)
+				old := in
+				if strings.HasPrefix(in, ">>#") {
+					in = in[3:]
+				} else if strings.HasPrefix(in, ">>No.") {
+					in = in[5:]
+				} else {
+					in = in[2:]
+				}
+				longid, _ := strconv.Atoi(in)
+				return fmt.Sprintf("<a href='javascript:void(0)' onclick='_ref(this, %d)'>%s</a>", longid, old)
 			} else {
 				return "<a href='" + in + "' target=_blank>" + in + "</a>"
 			}
@@ -132,6 +140,8 @@ type ForumConfig struct {
 	MinMessageLen  int
 	SearchTimeout  int
 	Cooldown       int
+	PostsPerPage   int
+	TopicsPerPage  int
 	Recaptcha      string
 	RecaptchaToken string
 	URL            string

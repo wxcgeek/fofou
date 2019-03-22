@@ -32,11 +32,11 @@ function _enlarge(el, url) {
     }
 }
         function _togglePost(id) {
-            var p = $("#post-" + id + " .toggle");
+            var p = $("#post-" + id + " .toggle").first();
             if (!p.get(0)) return;
 
             var c = p.prop("fold");
-            var m = $("#post-" + id + " .message");
+            var m = $("#post-" + id + " .message").first();
             var s = JSON.parse(localStorage.getItem("fold") || '{}');
             var cls = (localStorage.getItem("hide-looks") || 'gray') == 'gray' ? 'fold' : 'fold fold-hide';
 
