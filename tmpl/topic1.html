@@ -19,7 +19,18 @@
         {{end}}
 
         {{ if $.T_IsAdmin }}
-        <div style="font-size:12px;text-align:center">
+        <div style="font-size:12px;text-align:right">
+            {{if .T_IsFirst}}
+                <span class="dropdown icon-cog admin-topic-ops">
+                <div>
+                <a href="javascript:_submit(null,'!!free-reply={{$.ID}}')">自由回复</a>
+                <a href="javascript:_submit(null,'!!lock={{$.ID}}')">锁定</a>
+                <a href="javascript:_submit(null,'!!stick={{$.ID}}')">置顶</a>
+                <a href="javascript:_submit(null,'!!sage={{$.ID}}')">SAGE</a>
+                <a style="color:red" href="javascript:confirm()?_submit(null,'!!purge={{$.ID}}'):0">永删</a>
+                </div>
+                </span>
+            {{end}}
             <span class="mod-ip">
             <a href="/list?q={{.IP}}" target="_blank">{{.IP}}</a>
             <a href="javascript:_submit(null, '!!delete={{.LongID}}')" style="color:red">
@@ -30,21 +41,14 @@
         {{ end }}
 
         {{if .T_IsFirst}}
-                <div class="topic-status">
+            <div class="topic-status">
                     {{if $.T_TotalPosts}}<span class="icon-chat-empty"><b>共{{$.T_TotalPosts}}回复{{if $.T_IsExpand}}，展开以查看更多{{end}}</b></span>{{end}}
                     {{if $.Archived}}<span class="icon-floppy"><b>该主题已被存档</b></span>{{end}}
                     {{if $.Locked}}<span class="icon-lock"><b>该主题已被锁定</b></span>{{end}}
                     {{if $.Sticky}}<span class="icon-pin"><b>置顶主题</b></span>{{end}}
                     {{if $.Saged}}<span class="icon-thumbs-down-alt" style="color:red"><b>该主题已被SAGE</b></span>{{end}}
                     {{if $.FreeReply}}<span class="icon-heart" style="color:#0097A7"><b>该主题下可自由回复</b></span>{{end}}
-                    {{if $.T_IsAdmin}}
-                    <span class="icon-cog admin-topic-ops">主题操作：<a href="javascript:_submit(null,'!!free-reply={{$.ID}}')">自由回复</a>
-                <a href="javascript:_submit(null,'!!lock={{$.ID}}')">锁定</a>
-                <a href="javascript:_submit(null,'!!stick={{$.ID}}')">置顶</a>
-                <a href="javascript:_submit(null,'!!sage={{$.ID}}')">SAGE</a>
-                <a style="color:red" href="javascript:confirm()?_submit(null,'!!purge={{$.ID}}'):0">永删</a></span>
-                    {{end}}
-                </div>
+            </div>
         {{else}}
     </div>
         {{end}}

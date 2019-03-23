@@ -1,6 +1,3 @@
-{{if .Image}}
-<img class="image image-base" onclick="_enlarge(this,'/i/{{.Image}}')" src="/i/{{.Image}}?thumb=1" />
-{{end}}
 <div class="info">
     {{if not .T_IsRef}}
     <span class="toggle icon-minus-squared" onclick="_togglePost({{.LongID}})"></span>
@@ -20,6 +17,9 @@
         <span class="nowrap"> [ <a href="/t/{{.Topic.ID}}" target="_blank">展开</a> ] </span>
     {{end}}
 </div>
+{{if .Image}}
+<img class="image image-base" onclick="_enlarge(this,'/i/{{.Image}}')" src="/i/{{.Image}}?thumb=1" />
+{{end}}
 <div class="message">
     {{if .Message}}
     {{.MessageHTML}}

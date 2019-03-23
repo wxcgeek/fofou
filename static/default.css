@@ -47,7 +47,6 @@ a:link {
 #container {
 	width: 100%;
 	margin: 0 auto;
-	max-width: 960px;
 	padding: 4px;
 }
 
@@ -95,11 +94,7 @@ div.paging span.current, div.paging a.current, div.paging span:hover, div.paging
     color: white;
 }
 
-div.topic {
-    margin: 6px 0;
-    display: table;
-    overflow: hidden;
-}
+div.topic { margin: 2px 0; }
 
 div.topic-status { margin: 4px 0; }
 
@@ -107,12 +102,45 @@ div.topic-status span { display: block; }
 
 div.topic-status, div.ref { font-size: 90%; }
 
+.dropdown { 
+    display: inline-block;
+    position: relative;
+    cursor: pointer;
+}
+
+.dropdown div {
+    position: absolute;
+    border: solid 1px #ccc;
+    background: #fafbfc;
+    display: none;
+    z-index: 10000;
+}
+
+.dropdown div a {
+    display: block;
+    text-decoration: none;
+    white-space: nowrap;
+    color: black;
+    padding: 4px 8px;
+    border-top: solid 1px #ddd;
+    cursor: pointer;
+    text-align: left;
+}
+
+.dropdown:hover div { display: block; }
+
+.dropdown div a:first-child { border-top: none; }
+
+.dropdown div a:hover { background: #eee; }
+
 div.ref .subject { display: none; }
 
 div.post {
     margin: 4px 4px 4px 1.2em;
     padding: 4px;
     border: solid 1px #aaa;
+    border-top-color: #ddd;
+    border-left-color: #ddd;
     display: table;
 	background-color: rgb(236, 236, 229);
 }
@@ -121,9 +149,16 @@ div.post-first {
     border: none;
     margin: 0;
     background-color: transparent;
+    width: 100%;
 }
 
-div.ref .post { margin: 0; border-style: dashed; }
+div.ref .post { 
+    margin: 0;
+    border: solid 1px #ccc;
+    border-top-color: #aaa;
+    border-left-color: #aaa;
+    background-color: rgba(255, 255, 255, 0.3);
+}
 
 div.post.fold, div.post.fold a { color: #aaa !important; }
 
@@ -135,6 +170,8 @@ div.post .message {
     word-break: break-all;
     margin: 8px;
 }
+
+div.post .info { margin-bottom: 2px; }
 
 div.post .info .toggle { cursor: pointer; }
 
