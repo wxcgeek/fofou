@@ -74,10 +74,10 @@ func Parse8Bytes(str string) (b [8]byte) {
 	if strings.HasSuffix(str, ".x") {
 		parts := strings.Split(str, ".")
 		if len(parts) == 4 {
-			first := func(a int64, e error) byte { return byte(a) }
-			b[4] = first(strconv.ParseInt(parts[0], 10, 8))
-			b[5] = first(strconv.ParseInt(parts[1], 10, 8))
-			b[6] = first(strconv.ParseInt(parts[2], 10, 8))
+			first := func(a uint64, e error) byte { return byte(a) }
+			b[4] = first(strconv.ParseUint(parts[0], 10, 64))
+			b[5] = first(strconv.ParseUint(parts[1], 10, 64))
+			b[6] = first(strconv.ParseUint(parts[2], 10, 64))
 		}
 		return
 	}

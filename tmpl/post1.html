@@ -14,7 +14,7 @@
     {{end}}
 
     {{.Date}}
-    <a href="/list?q={{.User}}" target="_blank">{{.User}}</a>
+    <a href="/list?q={{.User}}" target="_blank" class="author">{{.User}}</a>
 
     {{if .T_IsFirst}}
         <span class="nowrap"> [ <a href="/t/{{.Topic.ID}}" target="_blank">展开</a> ] </span>

@@ -1,8 +1,9 @@
 <div style="margin: 4px 0">
+    <div style="text-align: center">
 <button onclick="$(this).hide();$('#newpost').show()" id="expand-newpost">{{if .TopicID}}回复主题{{else}}发布新主题{{end}}</button>
-</div>
+    </div>
 
-<table cellspacing="0" id="newpost" uuid="{{.PostToken}}">
+<table cellspacing="0" id="newpost" uuid="{{.PostToken}}" style="margin: 0 auto">
     <tbody>
         {{if not .TopicID}}
         <tr>
@@ -68,7 +69,7 @@ if (p && n) {
 }
 
 function _reply(longid, del) {
-    $('#message').append(del ? "!!delete=" + longid + "\n" : "\n>>" + longid).trigger('render');
+    $('#message').append(del ? "!!delete=" + longid + "\n请将该内容作为新主题提交以删除：" + longid : "\n>>" + longid).trigger('render');
     $('#expand-newpost').hide();
     $([document.documentElement, document.body]).animate({
         scrollTop: $('#newpost').show().offset().top
@@ -79,6 +80,8 @@ function _reply(longid, del) {
         </tr>
     </tbody>
 </table>
+<hr>
+</div>
 
 <script src="https://www.recaptcha.net/recaptcha/api.js?onload=onloadRecaptcha&render=explicit&hl=zh_CN" async defer></script>
 <script>

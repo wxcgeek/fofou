@@ -1,16 +1,31 @@
 
-<div style="padding: 6px 0; text-align: center; font-size: 12px; line-height:1.5em">
+<div id="footer" style="padding: 6px 0; text-align: center; font-size: 12px; line-height:1.5em">
     Rendered in {{.RenderTime}}ms by
     <a href="https://github.com/coyove/fofou" target="_blank">fofou</a><a href="/mod">2</a>
     <a href="#" onclick="_deleteMode(this)">删除模式</a>
+</div>
+
+<div style="cursor:pointer;background:rgba(0,0,0,0.2);position:fixed;width:24px;height:24px;line-height:24px;text-align:center;top:50%;right:0">
+    <span class="icon-down-dir" onclick="$([document.documentElement,document.body]).animate({scrollTop:$('#footer').offset().top},100)">
+    </span>
 </div>
 </div>
 
 <script>
     function _deleteMode(el) {
+        var m = document.cookie.match(/'ID':\[(\S+)\]/);
+        var id = null;
+        if (m && m[1]) {
+            var a = new Uint8Array(m[1].split("^"));
+            id = (btoa(String.fromCharCode.apply(null, a)).substring(0, 8).replace("+", "-").replace("/", "_"));
+        }
+        if (!id) return;
+
         $(".post .info").each(function(i, el) {
+            if ($(el).find(".author").text() != id) return;
+
             $(el).append($("<div>")
-                .append($("<a>").text("删除").css("color", "red").attr('href', 'javascript:void(0)')
+                .append($("<button>").text("删除")
                     .on("click", (function (el) {
                         return function() {
                             var id = $(el).parent().get(0).id.match(/post-(\d+)/)[1];
