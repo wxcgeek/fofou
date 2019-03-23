@@ -2,19 +2,22 @@
 <img class="image image-base" onclick="_enlarge(this,'/i/{{.Image}}')" src="/i/{{.Image}}?thumb=1" />
 {{end}}
 <div class="info">
+    {{if not .T_IsRef}}
     <span class="toggle icon-minus-squared" onclick="_togglePost({{.LongID}})"></span>
-
     <a href="javascript:_reply({{.LongID}})">#{{.LongID}}</a>
+    {{else}}
+    <a href="/p/{{.LongID}}" target=_blank>跳转：#{{.LongID}}</a>
+    {{end}}
 
-    {{if eq .Topic.FirstPostID .ID}}
+    {{if .T_IsFirst}}
         {{if .Topic.Subject}}{{.Topic.Subject}}{{else}}无标题{{end}}
     {{end}}
 
     {{.Date}}
     <a href="/list?q={{.User}}" target="_blank">{{.User}}</a>
 
-    {{if eq .Topic.FirstPostID .ID}}
-            <span class="nowrap"> [ <a href="/t/{{.Topic.ID}}" target="_blank">展开</a> ] </span>
+    {{if .T_IsFirst}}
+        <span class="nowrap"> [ <a href="/t/{{.Topic.ID}}" target="_blank">展开</a> ] </span>
     {{end}}
 </div>
 <div class="message">

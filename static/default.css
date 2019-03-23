@@ -115,7 +115,7 @@ div.topic-status, div.ref { font-size: 90%; }
 div.ref .subject { display: none; }
 
 div.post {
-    margin: 4px 4px 4px 12px;
+    margin: 4px 4px 4px 1.2em;
     padding: 4px;
     border: solid 1px #aaa;
     display: table;

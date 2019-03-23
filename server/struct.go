@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+const (
+	POST_ISFIRST = 1 << iota
+	POST_ISREF
+)
+
 type Post struct {
 	Message   string
 	Image     string
@@ -18,9 +23,15 @@ type Post struct {
 	CreatedAt uint32
 	ID        uint16
 	IsDeleted bool
-	T_IsFirst bool
+	T_Status  byte
 	Topic     *Topic
 }
+
+func (p *Post) T_SetStatus(v byte) { p.T_Status |= v }
+
+func (p *Post) T_IsFirst() bool { return p.T_Status&POST_ISFIRST > 0 }
+
+func (p *Post) T_IsRef() bool { return p.T_Status&POST_ISREF > 0 }
 
 func (p *Post) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
 
@@ -72,6 +83,9 @@ func (p *Post) IP() string {
 }
 
 func (p *Post) LongID() uint64 {
+	if p.ID >= 1<<12 {
+		panic("4096 exceeded")
+	}
 	if p.ID < 128 {
 		return uint64(p.Topic.ID)<<8 + uint64(p.ID)
 	}
@@ -79,7 +93,7 @@ func (p *Post) LongID() uint64 {
 }
 
 func SplitID(longid uint64) (uint32, uint16) {
-	if longid&80 == 0 {
+	if (longid>>7)&1 == 0 {
 		return uint32(longid >> 8), uint16(longid) & 0x7f
 	}
 	return uint32(longid >> 13), uint16((longid>>8)&0x1f)<<7 + uint16(longid&0x7f)

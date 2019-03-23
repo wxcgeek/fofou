@@ -2,12 +2,25 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"net/http"
 	"strconv"
 
 	"github.com/coyove/fofou/server"
 )
+
+func intmin(a, b int) int {
+	if a < b {
+		return a
+	} else {
+		return b
+	}
+}
+
+func intdivceil(a, b int) int {
+	return int(math.Ceil(float64(a) / float64(b)))
+}
 
 type NewPost struct {
 	TopicID   int
@@ -37,7 +50,7 @@ NEXT:
 		return
 	}
 
-	pages := int(math.Ceil(float64(len(topic.Posts)) / float64(forum.PostsPerPage)))
+	pages := intdivceil(len(topic.Posts), forum.PostsPerPage)
 	p, _ := strconv.Atoi(r.FormValue("p"))
 	if p < 1 {
 		p = 1
@@ -48,7 +61,7 @@ NEXT:
 
 	topic.T_TotalPosts = uint16(len(topic.Posts) - 1)
 	topic.T_IsAdmin = isAdmin
-	posts := topic.Posts[(p-1)*forum.PostsPerPage : int(math.Min(float64(p*forum.PostsPerPage), float64(len(topic.Posts))))]
+	posts := topic.Posts[(p-1)*forum.PostsPerPage : intmin(p*forum.PostsPerPage, len(topic.Posts))]
 	if p == 1 {
 		tmp := make([]server.Post, len(posts))
 		copy(tmp, posts)
@@ -59,7 +72,7 @@ NEXT:
 		copy(tmp[1:], posts)
 		topic.Posts = tmp
 	}
-	topic.Posts[0].T_IsFirst = true
+	topic.Posts[0].T_SetStatus(server.POST_ISFIRST)
 
 	model := struct {
 		server.Forum
@@ -100,7 +113,7 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 			copy(tmp, t.Posts)
 			t.Posts = tmp
 		}
-		t.Posts[0].T_IsFirst = true
+		t.Posts[0].T_SetStatus(server.POST_ISFIRST)
 		return t
 	})
 
@@ -122,6 +135,12 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 func handleRawPost(w http.ResponseWriter, r *http.Request) {
 	longID, _ := strconv.ParseInt(r.URL.Path[len("/p/"):], 10, 64)
 	topicID, postID := server.SplitID(uint64(longID))
+	if r.FormValue("raw") != "1" {
+		p := intdivceil(int(postID), forum.PostsPerPage)
+		http.Redirect(w, r, fmt.Sprintf("/t/%d?p=%d#post-%d", topicID, p, longID), 302)
+		return
+	}
+
 	topic := forum.Store.GetTopic(topicID, server.DefaultTopicFilter)
 	if topic.ID == 0 {
 		var err error
@@ -141,7 +160,8 @@ NEXT:
 
 	topic.T_TotalPosts = uint16(len(topic.Posts) - 1)
 	topic.T_IsExpand = true
-	topic.Posts = topic.Posts[postID-1 : postID]
+	topic.Posts = []server.Post{topic.Posts[postID-1]}
+	topic.Posts[0].T_SetStatus(server.POST_ISREF)
 
 	model := struct {
 		server.Forum

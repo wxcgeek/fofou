@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -422,21 +423,16 @@ func (store *Store) GetPostsBy(q [8]byte, qtext string, max int, timeout int64) 
 	store.RLock()
 	defer store.RUnlock()
 
+	var m []uint32
 	res, total := make([]Post, 0), 0
-	_, m := stringCompare("", qtext, nil)
-	start := time.Now().UnixNano()
 
-	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
-		if time.Now().UnixNano()-start > timeout {
-			break
-		}
-
+	search := func(topic *Topic) {
 		if len(m) > 0 && len(topic.Posts) > 0 {
 			if r, _ := stringCompare(topic.Subject, "", m); r {
 				if total++; total <= max {
 					res = append(res, topic.Posts[0])
 				}
-				continue
+				return
 			}
 		}
 
@@ -454,9 +450,37 @@ func (store *Store) GetPostsBy(q [8]byte, qtext string, max int, timeout int64) 
 			}
 
 			if len(m) > 0 && total > max {
-				break
+				return
 			}
 		}
+	}
+
+	if strings.HasPrefix(qtext, ">>") {
+		idx := strings.Index(qtext, " ")
+		if idx == -1 {
+			return res, 0
+		}
+		longID, _ := strconv.ParseUint(qtext[2:idx], 10, 64)
+		topicID, _ := SplitID(longID)
+		topic := store.topicByIDUnlocked(uint32(topicID))
+		if topic == nil {
+			return res, 0
+		}
+		_, m = stringCompare("", qtext[idx+1:], nil)
+		if len(m) == 0 {
+			return res, 0
+		}
+		search(topic)
+		return res, total
+	}
+
+	_, m = stringCompare("", qtext, nil)
+	start := time.Now().UnixNano()
+	for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
+		if time.Now().UnixNano()-start > timeout {
+			break
+		}
+		search(topic)
 	}
 	return res, total
 }

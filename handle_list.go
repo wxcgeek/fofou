@@ -43,6 +43,10 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	posts, total := store.GetPostsBy(query, qt, maxTopics, int64(forum.SearchTimeout)*1e6)
 	isBlocked := store.IsBlocked(query)
 
+	for i := range posts {
+		posts[i].T_SetStatus(server.POST_ISREF)
+	}
+
 	model.Forum = *forum
 	model.Topic = server.Topic{
 		Posts:     posts,
