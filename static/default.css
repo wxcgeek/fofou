@@ -103,10 +103,7 @@ div.topic {
     overflow: hidden;
 }
 
-div.topic-status { 
-    white-space: nowrap;
-    margin: 4px 0;
-}
+div.topic-status { margin: 4px 0; }
 
 div.topic-status span { display: block; }
 

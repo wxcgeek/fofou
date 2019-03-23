@@ -4,23 +4,27 @@
 
 <div class="contents"> 
     <div class="topics">
-        {{ range .Topics }}
+        {{range .Topics}}
         {{template "topic1.html" .}} 
-        {{ end }}
+        {{end}}
     </div>
-    <div class="paging" id="topics-page"></div>
 
+    <div class="paging" id="topics-page"></div>
     <script>
         (function() {
-            var c = $("#topics-page"), p = {{.Page}}, flag = false;
+            // rendering pages navigation
+            var c = $("#topics-page"), p = {{.CurPage}}, flag = false, flag2 = false;
             for (var i = p - 3; i <= p + 3; i++) {
-                if (i < 1) continue;
+                if (i < 1 || i > {{.Pages}}) continue;
                 if (i == 1) flag = true;
+                if (i == {{.Pages}}) flag2 = true;
                 c.append($("<a>").attr("href", "?p=" + i).html(i).addClass(i == p ? "current" : ""));
             }
 
-            if (!flag)
-                c.prepend($("<a>").attr("href", "?p=1").html("1..."));
+            if ({{.Pages}} > 1) {
+                if (!flag) c.prepend($("<a>").attr("href", "?p=1").html("1..."));
+                if (!flag2) c.append($("<a>").attr("href", "?p={{.Pages}}").html("...{{.Pages}}"));
+            }
 
             document.title += " - P" + p;
         })()

@@ -120,12 +120,14 @@ func handleTopics(w http.ResponseWriter, r *http.Request) {
 	model := struct {
 		server.Forum
 		NewPost
-		Page   int
-		Topics []server.Topic
+		Pages   int
+		CurPage int
+		Topics  []server.Topic
 	}{
-		Forum:  *forum,
-		Topics: topics,
-		Page:   p,
+		Forum:   *forum,
+		Topics:  topics,
+		CurPage: p,
+		Pages:   intdivceil(forum.LiveTopicsNum, forum.TopicsPerPage),
 	}
 
 	_, model.PostToken = forum.UUID()
