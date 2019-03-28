@@ -57,7 +57,7 @@ function _enlarge(el, url) {
             localStorage.setItem("fold", JSON.stringify(s));
         }
         function _submit(btn, msg) {
-            btn ? $(btn).prop('disabled', 'true') : 0;
+            btn ? $(btn).attr('disabled', 'true') : 0;
             var form = new FormData();
             if (msg) {
                 form.append('message', msg);
@@ -101,7 +101,7 @@ function _enlarge(el, url) {
                     }
 
                 }
-                btn ? $(btn).prop('disabled', '') : 0;
+                btn ? $(btn).attr('disabled', '') : 0;
             };
             xhr.open('post', "/api");
             xhr.send(form);

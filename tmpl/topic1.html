@@ -19,7 +19,8 @@
         {{end}}
 
         {{ if $.T_IsAdmin }}
-        <div style="font-size:12px;text-align:right">
+        <div style="font-size:12px;">
+            <span class="mod-ip">
             {{if .T_IsFirst}}
                 <span class="dropdown icon-cog admin-topic-ops">
                 <div>
@@ -31,7 +32,6 @@
                 </div>
                 </span>
             {{end}}
-            <span class="mod-ip">
             <a href="/list?q={{.IP}}" target="_blank">{{.IP}}</a>
             <a href="javascript:_submit(null, '!!delete={{.LongID}}')" style="color:red">
                 {{if .IsDeleted}} 恢复删除 {{else}} 删除 {{end}}
