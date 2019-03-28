@@ -33,7 +33,7 @@ func handleTopic(w http.ResponseWriter, r *http.Request) {
 	topic := forum.Store.GetTopic(uint32(topicID), server.DefaultTopicFilter)
 	if topic.ID == 0 {
 		var err error
-		topic, err = forum.LoadArchivedTopic(uint32(topicID))
+		topic, err = forum.LoadArchivedTopic(uint32(topicID), forum.Salt)
 		if err == nil {
 			topic.Archived = true
 			goto NEXT
@@ -146,7 +146,7 @@ func handleRawPost(w http.ResponseWriter, r *http.Request) {
 	topic := forum.Store.GetTopic(topicID, server.DefaultTopicFilter)
 	if topic.ID == 0 {
 		var err error
-		topic, err = forum.LoadArchivedTopic(uint32(topicID))
+		topic, err = forum.LoadArchivedTopic(uint32(topicID), forum.Salt)
 		if err == nil {
 			topic.Archived = true
 			goto NEXT

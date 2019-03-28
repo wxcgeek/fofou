@@ -45,6 +45,42 @@ func parseTopic(r *buffer, store *Store) *Topic {
 	}
 }
 
+func parseImage(r *buffer, topicIDToTopic map[uint32]*Topic) {
+	topicID, err := r.ReadUInt32()
+	panicif(err != nil, "invalid topic ID")
+
+	t, ok := topicIDToTopic[topicID]
+	panicif(!ok, "invalid topic ID")
+
+	id, err := r.ReadUInt16()
+	panicif(err != nil || int(id) > len(t.Posts) || id == 0, "invalid post ID")
+
+	p := &t.Posts[id-1]
+	panicif(p.Image != nil, "post already had an image")
+
+	path, err := r.ReadString()
+	panicif(err != nil, "invalid image path")
+
+	name, err := r.ReadString()
+	panicif(err != nil, "invalid image name")
+
+	size, err := r.ReadUInt32()
+	panicif(err != nil, "invalid image size")
+
+	x, err := r.ReadUInt16()
+	panicif(err != nil, "invalid image X")
+
+	y, err := r.ReadUInt16()
+	panicif(err != nil, "invalid image Y")
+
+	p.Image = &Image{
+		Path: path,
+		Name: name,
+		Size: size,
+		X:    x,
+		Y:    y,
+	}
+}
 func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	topicID, err := r.ReadUInt32()
 	panicif(err != nil, "invalid topic ID")
@@ -63,9 +99,6 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 
 	userName, err := r.Read8Bytes()
 	panicif(err != nil, "invalid username")
-
-	image, err := r.ReadString()
-	panicif(err != nil, "invalid image refer")
 
 	message, err := r.ReadString()
 	panicif(err != nil, "invalid message body")
@@ -86,7 +119,6 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 		IsDeleted: deleted,
 		Topic:     t,
 		Message:   message,
-		Image:     image,
 	}
 }
 
@@ -167,6 +199,8 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 			}
 
 			store.moveTopicToFront(t)
+		case OP_IMAGE:
+			parseImage(r, topicIDToTopic)
 		case OP_DELETE:
 			post, err := findPostToDelUndel(r, topicIDToTopic)
 			panicif(err != nil, err)
@@ -257,10 +291,18 @@ func NewStore(path string, password [16]byte, maxLiveTopics int, logger *Logger)
 					userName := [8]byte{'a', 'b', 'c', 'd', 'e', 'f', 0, 0}
 					ipAddr := [8]byte{}
 
+					var img *Image
+					if r.Intn(4) == 1 {
+						img = &Image{}
+						img.Path = "2019-03-28/12/giphy.gif_d238e58e.gif"
+						img.Name = "giphy.gif"
+					}
+
 					if r.Intn(10) == 1 {
-						curTopicId, _ = store.NewTopic(subject, msg, "", userName, ipAddr)
+						longID, _ := store.NewTopic(subject, msg, img, userName, ipAddr)
+						curTopicId, _ = SplitID(longID)
 					} else if curTopicId > 0 {
-						store.NewPost(uint32(r.Intn(int(curTopicId))+1), msg, "", userName, ipAddr)
+						store.NewPost(uint32(r.Intn(int(curTopicId))+1), msg, img, userName, ipAddr)
 					}
 					wg.Done()
 				}()
@@ -273,7 +315,7 @@ func NewStore(path string, password [16]byte, maxLiveTopics int, logger *Logger)
 	return store
 }
 
-func (store *Store) LoadArchivedTopic(topicID uint32) (Topic, error) {
+func (store *Store) LoadArchivedTopic(topicID uint32, password [16]byte) (Topic, error) {
 	path := store.buildArchivePath(uint32(topicID))
 	if _, err := os.Stat(path); err != nil {
 		return Topic{}, err
@@ -287,6 +329,7 @@ func (store *Store) LoadArchivedTopic(topicID uint32) (Topic, error) {
 
 	store.rootTopic.Next = store.endTopic
 	store.endTopic.Prev = store.rootTopic
+	store.block, _ = aes.NewCipher(password[:])
 
 	var err error
 	if err = store.loadDB(path, true); err != nil {

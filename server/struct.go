@@ -15,9 +15,17 @@ const (
 	POST_ISREF
 )
 
+type Image struct {
+	Path string
+	Name string
+	Size uint32
+	X    uint16
+	Y    uint16
+}
+
 type Post struct {
 	Message   string
-	Image     string
+	Image     *Image
 	user      [8]byte
 	ip        [8]byte
 	CreatedAt uint32

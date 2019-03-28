@@ -18,7 +18,10 @@
     {{end}}
 </div>
 {{if .Image}}
-<img class="image image-base" onclick="_enlarge(this,'/i/{{.Image}}')" src="/i/{{.Image}}?thumb=1" />
+<div class="image-div">
+    <a target="_blank" href="/i/{{.Image.Path}}">{{.Image.Name}}</a> ({{formatBytes32 .Image.Size}})<br>
+    <img class="image image-base" onclick="_enlarge(this,'/i/{{.Image.Path}}')" src="/i/{{.Image.Path}}?thumb=1" />
+</div>
 {{end}}
 <div class="message">
     {{if .Message}}

@@ -35,6 +35,9 @@ func LoadTemplates(prod bool) {
 	}
 
 	m := template.FuncMap{
+		"formatBytes32": func(b uint32) string {
+			return fmt.Sprintf("%.2f MB", float64(b)/1024/1024)
+		},
 		"formatBytes": func(b uint64) string {
 			return fmt.Sprintf("%.2f MB", float64(b)/1024/1024)
 		},

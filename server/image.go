@@ -2,6 +2,7 @@ package server
 
 import (
 	"image"
+	"image/gif"
 	"image/jpeg"
 	_ "image/png"
 	"math"
@@ -54,10 +55,6 @@ func (iq *ImageQueue) job() {
 }
 
 func naiveDownscale(path string, sizeBox int) error {
-	if strings.HasSuffix(path, ".gif") {
-		return nil
-	}
-
 	if _, err := os.Stat(path + ".thumb.jpg"); err == nil {
 		return nil
 	}
@@ -72,7 +69,12 @@ func naiveDownscale(path string, sizeBox int) error {
 	}
 	defer f.Close()
 
-	img, _, err := image.Decode(f)
+	var img image.Image
+	if strings.HasSuffix(path, ".gif") {
+		img, err = gif.Decode(f)
+	} else {
+		img, _, err = image.Decode(f)
+	}
 	if err != nil {
 		return err
 	}

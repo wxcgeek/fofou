@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/cipher"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ const (
 	OP_TOPIC     = 'T'
 	OP_TOPICNUM  = 't'
 	OP_POST      = 'P'
+	OP_IMAGE     = 'I'
 	OP_DELETE    = 'D'
 	OP_BLOCK     = 'B'
 	OP_STICKY    = 'S'
@@ -187,7 +189,10 @@ func (store *Store) DeletePost(u User, postLongID uint64, onImageDelete func(str
 	}
 
 	post.IsDeleted = !post.IsDeleted
-	onImageDelete(post.Image)
+
+	if post.Image != nil {
+		onImageDelete(post.Image.Path)
+	}
 	return nil
 }
 
@@ -225,10 +230,10 @@ func (store *Store) moveTopicToFront(topic *Topic) {
 
 var errTooManyPosts = fmt.Errorf("too many posts")
 
-func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, topic *Topic, newTopic bool) error {
+func (store *Store) addNewPost(msg string, image *Image, user [8]byte, ipAddr [8]byte, topic *Topic, newTopic bool) (uint64, error) {
 	nextID := len(topic.Posts) + 1
 	if nextID > 4000 {
-		return errTooManyPosts
+		return 0, errTooManyPosts
 	}
 
 	p := &Post{
@@ -258,11 +263,21 @@ func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, 
 	topicStr.WriteUInt32(p.CreatedAt)
 	topicStr.Write8Bytes(p.ip)
 	topicStr.Write8Bytes(user)
-	topicStr.WriteString(image)
 	topicStr.WriteString(msg)
 
+	if image != nil {
+		topicStr.WriteByte(OP_IMAGE).
+			WriteUInt32(topic.ID).
+			WriteUInt16(p.ID).
+			WriteString(image.Path).
+			WriteString(image.Name).
+			WriteUInt32(image.Size).
+			WriteUInt16(image.X).
+			WriteUInt16(image.Y)
+	}
+
 	if err := store.append(topicStr.Bytes()); err != nil {
-		return err
+		return 0, err
 	}
 
 	topic.Posts = append(topic.Posts, *p)
@@ -272,7 +287,7 @@ func (store *Store) addNewPost(msg, image string, user [8]byte, ipAddr [8]byte, 
 	} else {
 		topic.ModifiedAt = p.CreatedAt
 	}
-	return nil
+	return p.LongID(), nil
 }
 
 func (store *Store) buildArchivePath(topicID uint32) string {
@@ -292,8 +307,18 @@ func (topic *Topic) marshal() buffer {
 			WriteUInt32(p.CreatedAt).
 			Write8Bytes(p.ip).
 			Write8Bytes(p.user).
-			WriteString(p.Image).
 			WriteString(p.Message)
+
+		if p.Image != nil {
+			buf.WriteByte(OP_IMAGE).
+				WriteUInt32(topic.ID).
+				WriteUInt16(p.ID).
+				WriteString(p.Image.Path).
+				WriteString(p.Image.Name).
+				WriteUInt32(p.Image.Size).
+				WriteUInt16(p.Image.X).
+				WriteUInt16(p.Image.Y)
+		}
 	}
 
 	return buf
@@ -304,7 +329,11 @@ func archive(topic *Topic, saveToPath string) error {
 		return err
 	}
 	buf := topic.marshal()
-	return ioutil.WriteFile(saveToPath, buf.Bytes(), 0755)
+	hdr := make([]byte, 16)
+	binary.BigEndian.PutUint64(hdr[2:], uint64(len(buf.Bytes())+16))
+	hdr = append(hdr, buf.Bytes()...)
+	hdr[0], hdr[1], hdr[2] = 'z', 'z', 'z'
+	return ioutil.WriteFile(saveToPath, hdr, 0755)
 }
 
 func (store *Store) Dup() {
@@ -353,7 +382,7 @@ func (store *Store) ArchiveJob() {
 	}
 }
 
-func (store *Store) NewTopic(subject, msg, image string, user [8]byte, ipAddr [8]byte) (uint32, error) {
+func (store *Store) NewTopic(subject, msg string, image *Image, user [8]byte, ipAddr [8]byte) (uint64, error) {
 	store.Lock()
 	defer store.Unlock()
 
@@ -368,7 +397,7 @@ func (store *Store) NewTopic(subject, msg, image string, user [8]byte, ipAddr [8
 		store:   store,
 	}
 
-	err := store.addNewPost(msg, image, user, ipAddr, topic, true)
+	postLongID, err := store.addNewPost(msg, image, user, ipAddr, topic, true)
 	if err == nil {
 		store.topicsCount++
 		store.LiveTopicsNum++
@@ -378,25 +407,25 @@ func (store *Store) NewTopic(subject, msg, image string, user [8]byte, ipAddr [8
 		go store.ArchiveJob()
 	}
 
-	return topic.ID, err
+	return postLongID, err
 }
 
-func (store *Store) NewPost(topicID uint32, msg, image string, user [8]byte, ipAddr [8]byte) error {
+func (store *Store) NewPost(topicID uint32, msg string, image *Image, user [8]byte, ipAddr [8]byte) (uint64, error) {
 	store.Lock()
 	defer store.Unlock()
 
 	topic := store.topicByIDUnlocked(topicID)
 	if topic == nil {
-		return errors.New("invalid topic ID")
+		return 0, errors.New("invalid topic ID")
 	}
-	err := store.addNewPost(msg, image, user, ipAddr, topic, false)
+	postLongID, err := store.addNewPost(msg, image, user, ipAddr, topic, false)
 	if err == errTooManyPosts {
 		var p buffer
 		if err = store.append(p.WriteByte(OP_LOCK).WriteUInt32(topicID).Bytes()); err == nil {
 			topic.Locked = true
 		}
 	}
-	return err
+	return postLongID, err
 }
 
 // BlockIP blocks/unblocks IP address

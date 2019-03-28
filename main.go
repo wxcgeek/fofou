@@ -97,9 +97,7 @@ func handleImage(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, path)
 			return
 		}
-		if !strings.HasSuffix(file, ".gif") {
-			iq.Push(file)
-		}
+		iq.Push(file)
 	}
 	http.ServeFile(w, r, file)
 }

@@ -92,6 +92,24 @@ func writeSimpleJSON(w http.ResponseWriter, args ...interface{}) {
 	w.Write(p.Bytes())
 }
 
+func sanitizeFilename(name string) string {
+	const needle = "\\/:*?\"<>|"
+	if !strings.ContainsAny(name, needle) && len(name) <= 32 {
+		return name
+	}
+	buf := []rune(name)
+	for i := 0; i < len(buf); i++ {
+		if i >= 32 {
+			buf = buf[:i]
+			break
+		}
+		if strings.ContainsRune(needle, buf[i]) {
+			buf[i] = '_'
+		}
+	}
+	return string(buf)
+}
+
 func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, int64(forum.MaxImageSize)*1024*1024)
 
@@ -255,47 +273,57 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 	forum.SetUser(w, user)
 
-	imagePath := ""
+	var aImage *server.Image
 	if image != nil && imageInfo != nil {
+		aImage = &server.Image{}
+
 		ext, hash := strings.ToLower(filepath.Ext(imageInfo.Filename)), sha1.Sum([]byte(imageInfo.Filename))
 		if ext != ".png" && ext != ".gif" && ext != ".jpg" && ext != ".jpeg" {
 			writeSimpleJSON(w, "success", false, "error", "image-invalid-format")
 			return
 		}
+
 		t := time.Now().Format("2006-01-02/15")
-		imagePath = fmt.Sprintf("%s/%x%s", t, hash, ext)
+		aImage.Name = sanitizeFilename(imageInfo.Filename)
+		aImage.Path = fmt.Sprintf("%s/%s_%x%s", t, aImage.Name, hash[:4], ext)
 		os.MkdirAll(DATA_IMAGES+t, 0755)
-		if of, err := os.Create(DATA_IMAGES + imagePath); err == nil {
-			defer of.Close()
-			io.Copy(of, image)
-			iq.Push(DATA_IMAGES + imagePath)
-		} else {
+
+		of, err := os.Create(DATA_IMAGES + aImage.Path)
+		if err != nil {
 			writeSimpleJSON(w, "success", false, "error", "image-disk-error")
 			forum.Error("copy image to dest: %v", err)
 			return
 		}
+
+		nw, _ := io.Copy(of, image)
+		aImage.Size = uint32(nw)
+		iq.Push(DATA_IMAGES + aImage.Path)
+		of.Close()
 	}
 
+	var postLongID uint64
 	if topic.ID == 0 {
-		topicID, err := forum.Store.NewTopic(subject, msg, imagePath, user.ID, ipAddr)
+		postLongID, err = forum.Store.NewTopic(subject, msg, aImage, user.ID, ipAddr)
 		if err != nil {
 			forum.Error("failed to create new topic: %v", err)
 			internalError()
 			return
 		}
+		topicID, _ := server.SplitID(postLongID)
 		if sage {
 			forum.Store.OperateTopic(topicID, server.OP_SAGE)
 		}
-		writeSimpleJSON(w, "success", true, "topic", topicID)
-		return
+	} else {
+		postLongID, err = forum.Store.NewPost(topic.ID, msg, aImage, user.ID, ipAddr)
+		if err != nil {
+			forum.Error("failed to create new post to %d: %v", topic.ID, err)
+			internalError()
+			return
+		}
 	}
 
-	if err := forum.Store.NewPost(topic.ID, msg, imagePath, user.ID, ipAddr); err != nil {
-		forum.Error("failed to create new post to %d: %v", topic.ID, err)
-		internalError()
-		return
-	}
-	writeSimpleJSON(w, "success", true, "topic", topic.ID)
+	tmpt, tmpp := server.SplitID(postLongID)
+	writeSimpleJSON(w, "success", true, "topic", tmpt, "post", tmpp)
 }
 
 func modCode(forum *server.Forum, u server.User, msg string) bool {

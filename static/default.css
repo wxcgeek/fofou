@@ -182,21 +182,26 @@ div.post .info .toggle::before {
     display: inline-block;
 }
 
-div.post img.image {
+div.post .image {
     max-width: 200px;
     max-height: 200px;
 }
 
-div.post img.image-base {
+div.post .image-base {
     float: left;
     margin-right: 6px;
     cursor: pointer;
     display: inline;
 }
 
+div.post .image-div {
+    display: inline;
+    font-size: 90%;
+}
+
 .fold .image-base { display: none !important; }
 
-div.post img.image-large {
+div.post .image-large {
     max-width: 100%;
     max-height: 100%;
 }
