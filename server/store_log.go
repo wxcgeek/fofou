@@ -294,7 +294,7 @@ func NewStore(path string, password [16]byte, maxLiveTopics int, logger *Logger)
 					var img *Image
 					if r.Intn(4) == 1 {
 						img = &Image{}
-						img.Path = "2019-03-28/12/giphy.gif_d238e58e.gif"
+						img.Path = "2019-03-28/18/Untitled-1 copy.png_de609951.png"
 						img.Name = "giphy.gif"
 					}
 

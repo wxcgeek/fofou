@@ -79,7 +79,7 @@ function _enlarge(el, url) {
                         var resp = xhr.responseText;
                         resp = JSON.parse(resp);
                         if (resp.success) {
-                            location.reload();
+                            resp.longid ? location.href = "/p/" + resp.longid : location.reload();
                             return;
                         }
                         alert("发生错误：\ncode: " + resp.error + "\n" + ({

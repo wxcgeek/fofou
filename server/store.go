@@ -403,10 +403,6 @@ func (store *Store) NewTopic(subject, msg string, image *Image, user [8]byte, ip
 		store.LiveTopicsNum++
 	}
 
-	if store.Rand.Intn(64) == 0 {
-		go store.ArchiveJob()
-	}
-
 	return postLongID, err
 }
 

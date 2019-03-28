@@ -93,7 +93,7 @@ func writeSimpleJSON(w http.ResponseWriter, args ...interface{}) {
 }
 
 func sanitizeFilename(name string) string {
-	const needle = "\\/:*?\"<>|"
+	const needle = "\\/:*?\"<>| "
 	if !strings.ContainsAny(name, needle) && len(name) <= 32 {
 		return name
 	}
@@ -313,6 +313,13 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		if sage {
 			forum.Store.OperateTopic(topicID, server.OP_SAGE)
 		}
+		if forum.Rand.Intn(64) == 0 || (!*inProduction && forum.Rand.Intn(3) == 0) {
+			go func() {
+				start := time.Now()
+				forum.ArchiveJob()
+				forum.Notice("archive threads in %.2fs", time.Since(start).Seconds())
+			}()
+		}
 	} else {
 		postLongID, err = forum.Store.NewPost(topic.ID, msg, aImage, user.ID, ipAddr)
 		if err != nil {
@@ -323,7 +330,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tmpt, tmpp := server.SplitID(postLongID)
-	writeSimpleJSON(w, "success", true, "topic", tmpt, "post", tmpp)
+	writeSimpleJSON(w, "success", true, "topic", tmpt, "post", tmpp, "longid", postLongID)
 }
 
 func modCode(forum *server.Forum, u server.User, msg string) bool {

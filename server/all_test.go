@@ -90,15 +90,12 @@ func TestLongID(t *testing.T) {
 
 	r := rand.New()
 	for i := 0; i < 10000; i++ {
-		for i := 0; i < 1<<12; i++ {
+		for i := 1; i < 1<<12; i++ {
 			k := r.Intn(1 << 32)
 			longid := makeid(uint32(k), uint16(i))
 			k2, i2 := SplitID(longid)
-			if k2 != uint32(k) {
-				t.Fatal(k2, k)
-			}
-			if i2 != uint16(i) {
-				t.Fatal(i2, i)
+			if k2 != uint32(k) || i2 != uint16(i) {
+				t.Fatalf("\n%032b + %016b = %064b\n%032b + %016b", k, i, longid, k2, i2)
 			}
 		}
 	}

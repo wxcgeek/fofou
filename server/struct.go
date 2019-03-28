@@ -91,20 +91,39 @@ func (p *Post) IP() string {
 }
 
 func (p *Post) LongID() uint64 {
-	if p.ID >= 1<<12 {
-		panic("4096 exceeded")
+	if p.ID >= 1<<12 || p.ID == 0 {
+		panic("invalid post ID")
 	}
-	if p.ID < 128 {
-		return uint64(p.Topic.ID)<<8 + uint64(p.ID)
+
+	ti, pi := uint64(p.Topic.ID), uint64(p.ID-1)
+	if pi < 4 {
+		// ti(26) | 0 | ti(4) | 0 | ti(2) | pi(2)
+		return ti>>6<<10 + (ti>>2&0xf)<<5 + (ti&0x3)<<2 + pi
 	}
-	return uint64(p.Topic.ID)<<13 + uint64(p.ID>>7)<<8 + 1<<7 + uint64(p.ID&0x7f)
+	if pi < 16 {
+		// ti(28) | 0 | ti(4) | 1 | pi(4)
+		return ti>>4<<10 + (ti&0xf)<<5 + 1<<4 + pi
+	}
+	if pi < 256 {
+		// ti(32) | 1 | pi(4) | 0 | pi(4)
+		return ti<<10 + 1<<9 + (pi>>4)<<5 + (pi & 0xf)
+	}
+	// ti(32) | pi(4) | 1 | pi(4) | 1 | pi(4)
+	return ti<<14 + pi>>8<<10 + 1<<9 + (pi>>4&0xf)<<5 + 1<<4 + (pi & 0xf)
 }
 
 func SplitID(longid uint64) (uint32, uint16) {
-	if (longid>>7)&1 == 0 {
-		return uint32(longid >> 8), uint16(longid) & 0x7f
+	x, y := longid>>9&1, longid>>4&1
+	if x == 0 && y == 0 {
+		return uint32(longid>>10)<<6 + uint32(longid>>5&0xf)<<2 + uint32(longid>>2&0x3), uint16(longid&0x3) + 1
 	}
-	return uint32(longid >> 13), uint16((longid>>8)&0x1f)<<7 + uint16(longid&0x7f)
+	if x == 0 && y == 1 {
+		return uint32(longid>>10)<<4 + uint32(longid>>5&0xf), uint16(longid&0xf) + 1
+	}
+	if x == 1 && y == 0 {
+		return uint32(longid >> 10), uint16(longid>>5&0xf)<<4 + uint16(longid&0xf) + 1
+	}
+	return uint32(longid >> 14), uint16(longid>>10&0xf)<<8 + uint16(longid>>5&0xf)<<4 + uint16(longid&0xf) + 1
 }
 
 func (p *Post) User() string { _, i := Format8Bytes(p.user); return i }

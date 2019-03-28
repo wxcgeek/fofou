@@ -199,7 +199,7 @@ div.post .image-div {
     font-size: 90%;
 }
 
-.fold .image-base { display: none !important; }
+.fold .image-div { display: none !important; }
 
 div.post .image-large {
     max-width: 100%;
