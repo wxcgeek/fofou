@@ -21,17 +21,6 @@
         {{ if $.T_IsAdmin }}
         <div style="font-size:12px;">
             <span class="mod-ip">
-            {{if .T_IsFirst}}
-                <span class="dropdown icon-cog admin-topic-ops">
-                <div>
-                <a href="javascript:_submit(null,'!!free-reply={{$.ID}}')">自由回复</a>
-                <a href="javascript:_submit(null,'!!lock={{$.ID}}')">锁定</a>
-                <a href="javascript:_submit(null,'!!stick={{$.ID}}')">置顶</a>
-                <a href="javascript:_submit(null,'!!sage={{$.ID}}')">SAGE</a>
-                <a style="color:red" href="javascript:confirm()?_submit(null,'!!purge={{$.ID}}'):0">永删</a>
-                </div>
-                </span>
-            {{end}}
             <a href="/list?q={{.IP}}" target="_blank">{{.IP}}</a>
             <a href="javascript:_submit(null, '!!delete={{.LongID}}')" style="color:red">
                 {{if .IsDeleted}} 恢复删除 {{else}} 删除 {{end}}

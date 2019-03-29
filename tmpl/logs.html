@@ -54,6 +54,7 @@
     <tr><th>Heap Alloc:</th><td>{{formatBytes .MemStats.HeapAlloc}}</td></tr>
     <tr><th>Heap Sys:</th><td>{{formatBytes .MemStats.HeapSys}}</td></tr>
     <tr><th colspan=2><hr></th></tr>
+    <tr><th>Production:</th><td>{{if .Forum.InProduction}}<b style="color:green">Online</b>{{else}}<span style="color:red">Testing</span>{{end}} <a href="javascript:_submit(null,'!!moat=production')">Toggle</a></td></tr>
     <tr><th>Title:</th><td><input class=long value="{{.Forum.Title}}"> <a href="#" onclick="_submit(null,'!!title='+$(this).prev().val())">Update</a></td></tr>
     <tr><th>Main URL:</th><td><input class=long value="{{.Forum.URL}}"> <a href="#" onclick="_submit(null,'!!url='+$(this).prev().val())">Update</a></td></tr>
     <tr><th>Uploaded Images:</th><td><a href="/browse" target="_blank">Browse</a></td></tr>

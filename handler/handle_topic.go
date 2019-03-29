@@ -74,6 +74,7 @@ NEXT:
 		topic.Posts = tmp
 	}
 	topic.Posts[0].T_SetStatus(server.POST_ISFIRST)
+	topic.Posts[0].Topic = &topic
 
 	model := struct {
 		server.Forum
@@ -115,6 +116,7 @@ func Topics(w http.ResponseWriter, r *http.Request) {
 			t.Posts = tmp
 		}
 		t.Posts[0].T_SetStatus(server.POST_ISFIRST)
+		t.Posts[0].Topic = &t
 		return t
 	})
 

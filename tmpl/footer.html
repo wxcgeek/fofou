@@ -53,6 +53,11 @@
         if (m && m[1]) {
             if ((parseInt(m[1]) & 1) == 0) $(".admin-topic-ops").hide();
         }
+        $(document).mouseup(function(e) {
+            var menu = $(".dropdown.active");
+            if (!menu.get(0)) return;
+            if (!menu.is(e.target) && menu.has(e.target).length === 0) menu.click();
+        });
     })()
 </script>
 

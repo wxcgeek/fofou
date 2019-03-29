@@ -15,11 +15,22 @@
 
     {{if .T_IsFirst}}
         <span class="nowrap"> [ <a href="/t/{{.Topic.ID}}" target="_blank">展开</a> ] </span>
+        {{if .Topic.T_IsAdmin}}
+            <span class="dropdown icon-down-dir admin-topic-ops" onclick="$(this).toggleClass('active')">
+            <div>
+            <a href="javascript:_submit(null,'!!free-reply={{.Topic.ID}}')">自由回复</a>
+            <a href="javascript:_submit(null,'!!lock={{.Topic.ID}}')">锁定</a>
+            <a href="javascript:_submit(null,'!!stick={{.Topic.ID}}')">置顶</a>
+            <a href="javascript:_submit(null,'!!sage={{.Topic.ID}}')">SAGE</a>
+            <a style="color:red" href="javascript:confirm()?_submit(null,'!!purge={{.Topic.ID}}'):0">永删</a>
+            </div>
+            </span>
+        {{end}}
     {{end}}
 </div>
 {{if .Image}}
 <div class="image-div">
-    <a target="_blank" href="/i/{{.Image.Path}}">{{.Image.Name}}</a> ({{formatBytes32 .Image.Size}})<br>
+    <a target="_blank" href="/i/{{.Image.Path}}">{{.Image.Name}}</a> ({{formatBytes32 .Image.Size}}) <span class="loading"></span><br>
     <img class="image image-base" onclick="_enlarge(this,'/i/{{.Image.Path}}')" src="/i/{{.Image.Path}}?thumb=1" />
 </div>
 {{end}}
