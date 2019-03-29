@@ -163,6 +163,7 @@ type ForumConfig struct {
 	NoMoreNewUsers bool
 	NoImageUpload  bool
 	NoRecaptcha    bool
+	InProduction   bool
 	MaxLiveTopics  int
 	MaxImageSize   int
 	MaxSubjectLen  int

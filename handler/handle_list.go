@@ -1,5 +1,5 @@
 // This code is in Public Domain. Take all the code you want, I'll just write more.
-package main
+package handler
 
 import (
 	"fmt"
@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coyove/fofou/common"
 	"github.com/coyove/fofou/server"
 )
 
-func handleList(w http.ResponseWriter, r *http.Request) {
-	store := forum.Store
+func List(w http.ResponseWriter, r *http.Request) {
+	store := common.Kforum.Store
 	q := r.FormValue("q")
 	qt := r.FormValue("qt")
 
@@ -25,7 +26,7 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 		QueryText  string
 		Blocked    map[string]bool
 		IsBlocked  bool
-	}{Forum: *forum}
+	}{Forum: *common.Kforum}
 
 	if q == "" && qt == "" {
 		server.Render(w, server.TmplPosts, model)
@@ -33,21 +34,20 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := server.Parse8Bytes(q)
-	isAdmin := forum.GetUser(r).CanModerate()
+	isAdmin := common.Kforum.GetUser(r).CanModerate()
 	maxTopics := 50
 
 	if count := r.FormValue("count"); isAdmin && count != "" {
 		maxTopics, _ = strconv.Atoi(count)
 	}
 
-	posts, total := store.GetPostsBy(query, qt, maxTopics, int64(forum.SearchTimeout)*1e6)
+	posts, total := store.GetPostsBy(query, qt, maxTopics, int64(common.Kforum.SearchTimeout)*1e6)
 	isBlocked := store.IsBlocked(query)
 
 	for i := range posts {
 		posts[i].T_SetStatus(server.POST_ISREF)
 	}
 
-	model.Forum = *forum
 	model.Topic = server.Topic{
 		Posts:     posts,
 		Subject:   fmt.Sprintf("%s: %x", q, query),
@@ -62,16 +62,16 @@ func handleList(w http.ResponseWriter, r *http.Request) {
 	server.Render(w, server.TmplPosts, model)
 }
 
-func handleRSS(w http.ResponseWriter, r *http.Request) {
+func RSS(w http.ResponseWriter, r *http.Request) {
 	xml := []string{
 		`<?xml version="1.0" encoding="UTF-8"?>`,
 		`<rss version="2.0"><channel>`,
-		`<title>`, forum.Title, `</title>`,
+		`<title>`, common.Kforum.Title, `</title>`,
 		`<pubDate>`, time.Now().Format(time.RFC1123Z), `</pubDate>`,
-		`<link>`, forum.URL, `</link>`,
+		`<link>`, common.Kforum.URL, `</link>`,
 	}
 
-	topics := forum.GetTopics(0, 20, server.DefaultTopicFilter)
+	topics := common.Kforum.GetTopics(0, 20, server.DefaultTopicFilter)
 	for _, g := range topics {
 		var message string
 		if len(g.Posts) > 0 {
@@ -82,7 +82,7 @@ func handleRSS(w http.ResponseWriter, r *http.Request) {
 			`<item>`,
 			`<title>`, g.Subject, `</title>`,
 			`<pubDate>`, time.Unix(int64(g.CreatedAt), 0).Format(time.RFC1123Z), `</pubDate>`,
-			`<link>`, forum.URL, "/t/", strconv.FormatUint(uint64(g.ID), 10), `</link>`,
+			`<link>`, common.Kforum.URL, "/t/", strconv.FormatUint(uint64(g.ID), 10), `</link>`,
 			`<description>`, `<![CDATA[`, message, `]]>`, `</description>`,
 			`</item>`,
 		)

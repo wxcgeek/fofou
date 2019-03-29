@@ -1,5 +1,5 @@
 // This code is in Public Domain. Take all the code you want, I'll just write more.
-package main
+package handler
 
 import (
 	"bufio"
@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coyove/fofou/common"
 	"github.com/coyove/fofou/server"
 )
 
@@ -55,19 +56,19 @@ func getIPAddress(r *http.Request) (v [8]byte) {
 
 func throtNewPost(ip, id [8]byte) bool {
 	now := time.Now().Unix()
-	ts, ok := throtIPID.Get(ip)
+	ts, ok := common.KthrotIPID.Get(ip)
 	if !ok {
-		ts, ok = throtIPID.Get(id)
+		ts, ok = common.KthrotIPID.Get(id)
 		if !ok {
-			throtIPID.Add(ip, now)
-			throtIPID.Add(id, now)
+			common.KthrotIPID.Add(ip, now)
+			common.KthrotIPID.Add(id, now)
 			return true
 		}
 	}
 	t := ts.(int64)
-	if now-t > int64(forum.Cooldown) {
-		throtIPID.Add(ip, now)
-		throtIPID.Add(id, now)
+	if now-t > int64(common.Kforum.Cooldown) {
+		common.KthrotIPID.Add(ip, now)
+		common.KthrotIPID.Add(id, now)
 		return true
 	}
 	return false
@@ -110,8 +111,8 @@ func sanitizeFilename(name string) string {
 	return string(buf)
 }
 
-func handleNewPost(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, int64(forum.MaxImageSize)*1024*1024)
+func PostAPI(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, int64(common.Kforum.MaxImageSize)*1024*1024)
 
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -125,23 +126,23 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 	topicID, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("topic")))
 	if topicID > 0 {
-		if topic = forum.Store.GetTopic(uint32(topicID), server.DefaultTopicFilter); topic.ID == 0 {
-			forum.Notice("invalid topic ID: %d\n", topicID)
+		if topic = common.Kforum.Store.GetTopic(uint32(topicID), server.DefaultTopicFilter); topic.ID == 0 {
+			common.Kforum.Notice("invalid topic ID: %d\n", topicID)
 			badRequest()
 			return
 		}
 	}
 
-	ipAddr, user := getIPAddress(r), forum.GetUser(r)
+	ipAddr, user := getIPAddress(r), common.Kforum.GetUser(r)
 
 	if !user.Can(server.PERM_ADMIN) {
-		if forum.Store.IsBlocked(ipAddr) {
-			forum.Notice("blocked a post from IP: %v", ipAddr)
+		if common.Kforum.Store.IsBlocked(ipAddr) {
+			common.Kforum.Notice("blocked a post from IP: %v", ipAddr)
 			badRequest()
 			return
 		}
-		if forum.Store.IsBlocked(user.ID) {
-			forum.Notice("blocked a post from user %v", user.ID)
+		if common.Kforum.Store.IsBlocked(user.ID) {
+			common.Kforum.Notice("blocked a post from user %v", user.ID)
 			badRequest()
 			return
 		}
@@ -152,30 +153,30 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !user.IsValid() {
-		if forum.NoMoreNewUsers && !topic.FreeReply {
+		if common.Kforum.NoMoreNewUsers && !topic.FreeReply {
 			writeSimpleJSON(w, "success", false, "error", "no-more-new-users")
 			return
 		}
-		copy(user.ID[:], forum.Rand.Fetch(6))
+		copy(user.ID[:], common.Kforum.Rand.Fetch(6))
 		if user.ID[0] == '^' {
 			user.ID[0]++ // ^ means mod
 		}
 		user.T = time.Now().Unix()
 		if topic.ID == 0 {
-			user.N = uint32(forum.Rand.Intn(10) + 10)
+			user.N = uint32(common.Kforum.Rand.Intn(10) + 10)
 		} else {
-			user.N = uint32(forum.Rand.Intn(5) + 5)
+			user.N = uint32(common.Kforum.Rand.Intn(5) + 5)
 		}
 	}
 
 	// if user didn't pass the dice test, we will challenge him/her
-	if !forum.NoRecaptcha && !user.Can(server.PERM_NO_ROLL) && !user.PassRoll() {
-		_testCount, _ := badUsers.Get(user.ID)
+	if !common.Kforum.NoRecaptcha && !user.Can(server.PERM_NO_ROLL) && !user.PassRoll() {
+		_testCount, _ := common.KbadUsers.Get(user.ID)
 		testCount, _ := _testCount.(int)
 		if testCount++; testCount > 10 {
-			badUsers.Remove(user.ID)
-			forum.Block(user.ID)
-			forum.Block(ipAddr)
+			common.KbadUsers.Remove(user.ID)
+			common.Kforum.Block(user.ID)
+			common.Kforum.Block(ipAddr)
 			badRequest()
 			return
 		}
@@ -183,16 +184,16 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		recaptcha := strings.TrimSpace(r.FormValue("token"))
 		if recaptcha == "" {
 			writeSimpleJSON(w, "success", false, "error", "recaptcha-needed")
-			badUsers.Add(user.ID, testCount)
+			common.KbadUsers.Add(user.ID, testCount)
 			return
 		}
 
 		resp, err := (&http.Client{Timeout: time.Second * 5}).PostForm("https://www.recaptcha.net/recaptcha/api/siteverify", url.Values{
-			"secret":   []string{forum.Recaptcha},
+			"secret":   []string{common.Kforum.Recaptcha},
 			"response": []string{recaptcha},
 		})
 		if err != nil {
-			forum.Error("recaptcha error: %v", err)
+			common.Kforum.Error("recaptcha error: %v", err)
 			internalError()
 			return
 		}
@@ -204,13 +205,13 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(buf, &recaptchaResult)
 
 		if r, _ := recaptchaResult["success"].(bool); !r {
-			forum.Error("recaptcha failed: %v", string(buf))
-			badUsers.Add(user.ID, testCount)
+			common.Kforum.Error("recaptcha failed: %v", string(buf))
+			common.KbadUsers.Add(user.ID, testCount)
 			writeSimpleJSON(w, "success", false, "error", "recaptcha-failed")
 			return
 		}
 	}
-	badUsers.Remove(user.ID)
+	common.KbadUsers.Remove(user.ID)
 
 	subject := strings.Replace(r.FormValue("subject"), "<", "&lt;", -1)
 	msg := strings.TrimSpace(r.FormValue("message"))
@@ -218,26 +219,26 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 
 	// validate the fields
 
-	if modCode(forum, user, msg) {
+	if modCode(common.Kforum, user, msg) {
 		_, username := server.Format8Bytes(user.ID)
 		ipstr, _ := server.Format8Bytes(ipAddr)
-		forum.Notice("mod %s from %s has performed: %s", username, ipstr, msg)
+		common.Kforum.Notice("mod %s from %s has performed: %s", username, ipstr, msg)
 		writeSimpleJSON(w, "success", true, "mod-operation", msg)
 		return
 	}
 
 	// simple mechanism to prevent double post only
 	uuid := server.DecodeUUID(r.FormValue("uuid"))
-	if _, existed := uuids.Get(uuid); existed {
+	if _, existed := common.Kuuids.Get(uuid); existed {
 		badRequest()
 		return
 	}
-	uuids.Add(uuid, true)
+	common.Kuuids.Add(uuid, true)
 
 	if topic.ID == 0 {
-		if tmp := []rune(subject); len(tmp) > forum.MaxSubjectLen {
-			tmp[forum.MaxSubjectLen-1], tmp[forum.MaxSubjectLen-2], tmp[forum.MaxSubjectLen-3] = '.', '.', '.'
-			subject = string(tmp[:forum.MaxSubjectLen])
+		if tmp := []rune(subject); len(tmp) > common.Kforum.MaxSubjectLen {
+			tmp[common.Kforum.MaxSubjectLen-1], tmp[common.Kforum.MaxSubjectLen-2], tmp[common.Kforum.MaxSubjectLen-3] = '.', '.', '.'
+			subject = string(tmp[:common.Kforum.MaxSubjectLen])
 		}
 	}
 
@@ -251,17 +252,17 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if image != nil && imageInfo != nil && forum.NoImageUpload {
+	if image != nil && imageInfo != nil && common.Kforum.NoImageUpload {
 		writeSimpleJSON(w, "success", false, "error", "image-upload-disabled")
 		return
 	}
 
-	if len(msg) > forum.MaxMessageLen {
+	if len(msg) > common.Kforum.MaxMessageLen {
 		// hard trunc
-		msg = msg[:forum.MaxMessageLen]
+		msg = msg[:common.Kforum.MaxMessageLen]
 	}
 
-	if len(msg) < forum.MinMessageLen && image == nil {
+	if len(msg) < common.Kforum.MinMessageLen && image == nil {
 		writeSimpleJSON(w, "success", false, "error", "message-too-short")
 		return
 	}
@@ -271,7 +272,7 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	forum.SetUser(w, user)
+	common.Kforum.SetUser(w, user)
 
 	var aImage *server.Image
 	if image != nil && imageInfo != nil {
@@ -286,44 +287,44 @@ func handleNewPost(w http.ResponseWriter, r *http.Request) {
 		t := time.Now().Format("2006-01-02/15")
 		aImage.Name = sanitizeFilename(imageInfo.Filename)
 		aImage.Path = fmt.Sprintf("%s/%s_%x%s", t, aImage.Name, hash[:4], ext)
-		os.MkdirAll(DATA_IMAGES+t, 0755)
+		os.MkdirAll(common.DATA_IMAGES+t, 0755)
 
-		of, err := os.Create(DATA_IMAGES + aImage.Path)
+		of, err := os.Create(common.DATA_IMAGES + aImage.Path)
 		if err != nil {
 			writeSimpleJSON(w, "success", false, "error", "image-disk-error")
-			forum.Error("copy image to dest: %v", err)
+			common.Kforum.Error("copy image to dest: %v", err)
 			return
 		}
 
 		nw, _ := io.Copy(of, image)
 		aImage.Size = uint32(nw)
-		iq.Push(DATA_IMAGES + aImage.Path)
+		common.Kiq.Push(common.DATA_IMAGES + aImage.Path)
 		of.Close()
 	}
 
 	var postLongID uint64
 	if topic.ID == 0 {
-		postLongID, err = forum.Store.NewTopic(subject, msg, aImage, user.ID, ipAddr)
+		postLongID, err = common.Kforum.Store.NewTopic(subject, msg, aImage, user.ID, ipAddr)
 		if err != nil {
-			forum.Error("failed to create new topic: %v", err)
+			common.Kforum.Error("failed to create new topic: %v", err)
 			internalError()
 			return
 		}
 		topicID, _ := server.SplitID(postLongID)
 		if sage {
-			forum.Store.OperateTopic(topicID, server.OP_SAGE)
+			common.Kforum.Store.OperateTopic(topicID, server.OP_SAGE)
 		}
-		if forum.Rand.Intn(64) == 0 || (!*inProduction && forum.Rand.Intn(3) == 0) {
+		if common.Kforum.Rand.Intn(64) == 0 || (!common.Kforum.InProduction && common.Kforum.Rand.Intn(3) == 0) {
 			go func() {
 				start := time.Now()
-				forum.ArchiveJob()
-				forum.Notice("archive threads in %.2fs", time.Since(start).Seconds())
+				common.Kforum.ArchiveJob()
+				common.Kforum.Notice("archive threads in %.2fs", time.Since(start).Seconds())
 			}()
 		}
 	} else {
-		postLongID, err = forum.Store.NewPost(topic.ID, msg, aImage, user.ID, ipAddr)
+		postLongID, err = common.Kforum.Store.NewPost(topic.ID, msg, aImage, user.ID, ipAddr)
 		if err != nil {
-			forum.Error("failed to create new post to %d: %v", topic.ID, err)
+			common.Kforum.Error("failed to create new post to %d: %v", topic.ID, err)
 			internalError()
 			return
 		}
@@ -361,47 +362,50 @@ func modCode(forum *server.Forum, u server.User, msg string) bool {
 			}
 			switch v {
 			case "cookie":
-				forum.NoMoreNewUsers = !forum.NoMoreNewUsers
+				common.Kforum.NoMoreNewUsers = !common.Kforum.NoMoreNewUsers
 			case "image":
-				forum.NoImageUpload = !forum.NoImageUpload
+				common.Kforum.NoImageUpload = !common.Kforum.NoImageUpload
 			case "recaptcha":
-				forum.NoRecaptcha = !forum.NoRecaptcha
+				common.Kforum.NoRecaptcha = !common.Kforum.NoRecaptcha
+			case "production":
+				common.Kforum.InProduction = !common.Kforum.InProduction
+				common.Kforum.Logger.UseStdout = !common.Kforum.InProduction
 			}
 			opcode = true
 		case "max-message-len":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
 			}
-			forum.MaxMessageLen = int(vint)
+			common.Kforum.MaxMessageLen = int(vint)
 			opcode = true
 		case "max-subject-len":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
 			}
-			forum.MaxSubjectLen = int(vint)
+			common.Kforum.MaxSubjectLen = int(vint)
 			opcode = true
 		case "search-timeout":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
 			}
-			forum.SearchTimeout = int(vint)
+			common.Kforum.SearchTimeout = int(vint)
 			opcode = true
 		case "cooldown":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
 			}
-			forum.Cooldown = int(vint)
+			common.Kforum.Cooldown = int(vint)
 			opcode = true
 		case "max-image-size":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
 			}
-			forum.MaxImageSize = int(vint)
+			common.Kforum.MaxImageSize = int(vint)
 			opcode = true
 		case "delete":
-			res := forum.Store.DeletePost(u, uint64(vint), func(img string) {
-				os.Remove(DATA_IMAGES + img)
-				os.Remove(DATA_IMAGES + img + ".thumb.jpg")
+			res := common.Kforum.Store.DeletePost(u, uint64(vint), func(img string) {
+				os.Remove(common.DATA_IMAGES + img)
+				os.Remove(common.DATA_IMAGES + img + ".thumb.jpg")
 			})
 			opcode = true
 			if res != nil {
@@ -411,56 +415,56 @@ func modCode(forum *server.Forum, u server.User, msg string) bool {
 			if !u.Can(server.PERM_STICKY_PURGE) {
 				return true
 			}
-			forum.Store.OperateTopic(uint32(vint), server.OP_STICKY)
+			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_STICKY)
 			opcode = true
 		case "lock":
 			if !u.Can(server.PERM_LOCK_SAGE_DELETE) {
 				return true
 			}
-			forum.Store.OperateTopic(uint32(vint), server.OP_LOCK)
+			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_LOCK)
 			opcode = true
 		case "purge":
 			if !u.Can(server.PERM_STICKY_PURGE) {
 				return true
 			}
-			forum.Store.OperateTopic(uint32(vint), server.OP_PURGE)
+			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_PURGE)
 			opcode = true
 		case "free-reply":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
 			}
-			forum.Store.OperateTopic(uint32(vint), server.OP_FREEREPLY)
+			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_FREEREPLY)
 			opcode = true
 		case "sage":
 			if !u.Can(server.PERM_LOCK_SAGE_DELETE) {
 				return true
 			}
-			forum.Store.OperateTopic(uint32(vint), server.OP_SAGE)
+			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_SAGE)
 			opcode = true
 		case "block":
 			if !u.Can(server.PERM_BLOCK) {
 				return true
 			}
-			forum.Store.Block(server.Parse8Bytes(v))
+			common.Kforum.Store.Block(server.Parse8Bytes(v))
 			opcode = true
 		case "title":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
 			}
-			forum.Title = v
+			common.Kforum.Title = v
 			opcode = true
 		case "url":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
 			}
-			forum.URL = v
+			common.Kforum.URL = v
 			opcode = true
 		}
 	}
 
 	if opcode {
-		buf, _ := json.Marshal(forum.ForumConfig)
-		ioutil.WriteFile(DATA_CONFIG, buf, 0755)
+		buf, _ := json.Marshal(common.Kforum.ForumConfig)
+		ioutil.WriteFile(common.DATA_CONFIG, buf, 0755)
 	}
 
 	return opcode
