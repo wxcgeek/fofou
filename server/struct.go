@@ -193,6 +193,7 @@ const (
 	PERM_LOCK_SAGE_DELETE
 	PERM_STICKY_PURGE
 	PERM_BLOCK
+	PERM_APPEND
 )
 
 type User struct {
@@ -210,7 +211,7 @@ func (u User) IsValid() bool { return u.ID != default8Bytes }
 func (u User) Can(perm byte) bool { return u.M&perm > 0 }
 
 func (u User) CanModerate() bool {
-	return u.Can(PERM_ADMIN) || u.Can(PERM_LOCK_SAGE_DELETE) || u.Can(PERM_STICKY_PURGE) || u.Can(PERM_BLOCK)
+	return u.Can(PERM_ADMIN) || u.Can(PERM_LOCK_SAGE_DELETE) || u.Can(PERM_STICKY_PURGE) || u.Can(PERM_BLOCK) || u.Can(PERM_APPEND)
 }
 
 type SafeJSON struct {

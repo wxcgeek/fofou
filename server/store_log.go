@@ -15,7 +15,7 @@ import (
 	"github.com/coyove/common/rand"
 )
 
-func findPostToDelUndel(r *buffer, topicIDToTopic map[uint32]*Topic) (*Post, error) {
+func findPost(r *buffer, topicIDToTopic map[uint32]*Topic) (*Post, error) {
 	topicID, err1 := r.ReadUInt32()
 	postID, err2 := r.ReadUInt16()
 	panicif(err1 != nil || err2 != nil, "invalid post ID/topic ID")
@@ -199,10 +199,16 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 			}
 
 			store.moveTopicToFront(t)
+		case OP_APPEND:
+			post, err := findPost(r, topicIDToTopic)
+			panicif(err != nil, err)
+			msg, err := r.ReadString()
+			panicif(err != nil, err)
+			post.Message += msg
 		case OP_IMAGE:
 			parseImage(r, topicIDToTopic)
 		case OP_DELETE:
-			post, err := findPostToDelUndel(r, topicIDToTopic)
+			post, err := findPost(r, topicIDToTopic)
 			panicif(err != nil, err)
 			post.IsDeleted = !post.IsDeleted
 		case OP_BLOCK:

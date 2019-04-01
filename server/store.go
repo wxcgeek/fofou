@@ -23,6 +23,7 @@ const (
 	OP_TOPIC     = 'T'
 	OP_TOPICNUM  = 't'
 	OP_POST      = 'P'
+	OP_APPEND    = 'a'
 	OP_IMAGE     = 'I'
 	OP_DELETE    = 'D'
 	OP_BLOCK     = 'B'
@@ -164,35 +165,62 @@ func (store *Store) GetTopic(id uint32, filter func(*Topic) Topic) Topic {
 	return filter(t)
 }
 
-// DeletePost deletes/restores a post
-func (store *Store) DeletePost(u User, postLongID uint64, onImageDelete func(string)) error {
-	store.Lock()
-	defer store.Unlock()
-
+func (store *Store) getPostPtrUnlocked(postLongID uint64) (*Post, error) {
 	topicID, postID := SplitID(postLongID)
 	topic := store.topicByIDUnlocked(topicID)
 	if nil == topic {
-		return fmt.Errorf("can't find topic ID: %d", topicID)
+		return nil, fmt.Errorf("can't find topic ID: %d", topicID)
 	}
 	if int(postID) > len(topic.Posts) {
-		return fmt.Errorf("can't find post ID: %d", postID)
+		return nil, fmt.Errorf("can't find post ID: %d", postID)
 	}
 
 	post := &topic.Posts[postID-1]
+	return post, nil
+}
+
+// DeletePost deletes/restores a post
+func (store *Store) DeletePost(u User, postLongID uint64, onImageDelete func(*Image)) error {
+	store.Lock()
+	defer store.Unlock()
+
+	post, err := store.getPostPtrUnlocked(postLongID)
+	if err != nil {
+		return err
+	}
+
 	if !u.Can(PERM_LOCK_SAGE_DELETE) && u.ID != post.user {
 		return fmt.Errorf("can't delete the post")
 	}
 
 	var p buffer
-	if err := store.append(p.WriteByte(OP_DELETE).WriteUInt32(topicID).WriteUInt16(postID).Bytes()); err != nil {
+	if err := store.append(p.WriteByte(OP_DELETE).WriteUInt32(post.Topic.ID).WriteUInt16(post.ID).Bytes()); err != nil {
 		return err
 	}
 
 	post.IsDeleted = !post.IsDeleted
 
 	if post.Image != nil {
-		onImageDelete(post.Image.Path)
+		onImageDelete(post.Image)
 	}
+	return nil
+}
+
+func (store *Store) AppendPost(postLongID uint64, msg string) error {
+	store.Lock()
+	defer store.Unlock()
+
+	post, err := store.getPostPtrUnlocked(postLongID)
+	if err != nil {
+		return err
+	}
+
+	var p buffer
+	if err := store.append(p.WriteByte(OP_APPEND).WriteUInt32(post.Topic.ID).WriteUInt16(post.ID).WriteString(msg).Bytes()); err != nil {
+		return err
+	}
+
+	post.Message += msg
 	return nil
 }
 
@@ -307,7 +335,7 @@ func (topic *Topic) marshal() buffer {
 			WriteUInt32(p.CreatedAt).
 			Write8Bytes(p.ip).
 			Write8Bytes(p.user).
-			WriteString(p.Message)
+			WriteString(p.Message) // this will include OP_APPEND
 
 		if p.Image != nil {
 			buf.WriteByte(OP_IMAGE).
