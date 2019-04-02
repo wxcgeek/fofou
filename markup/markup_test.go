@@ -33,6 +33,7 @@ func TestDo(t *testing.T) {
 	assert("abc\ndef", true, "abc<br>def")
 	assert("abc\n>>def", true, "abc<br>&gt;&gt;def")
 	assert("abc\n>>1.2", true, "abc<br>#TEST#1#TEST#.2")
+	assert("abc\n>>1", true, "abc<br>#TEST#1#TEST#")
 	assert("abc\n===", true, "abc<br>===")
 	assert("abc\n====", true, "abc<br><hr>")
 	assert("abc\n`====`", true, "abc<br>`<hr>`")

@@ -122,8 +122,12 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_FREEREPLY)
 			opcode = true
 		case "sage":
-			res := common.Kforum.Store.SageTopic(uint32(vint), u)
 			opcode = true
+			if !u.Can(server.PERM_LOCK_SAGE_DELETE) && (u.Posts < u.N) {
+				// special case: normal users can't sage their threads until certain criterias met
+				return true
+			}
+			res := common.Kforum.Store.SageTopic(uint32(vint), u)
 			if res != nil {
 				break
 			}

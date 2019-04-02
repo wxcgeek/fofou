@@ -223,5 +223,14 @@ func Do(in string, allowHTML bool, maxLength int) string {
 		out.WriteString(Do(inLink.String(), allowHTML, 0))
 	}
 
+	if inRef != nil && *inRef > 0 {
+		// >>abc
+		if test {
+			out.WriteString(fmt.Sprintf("#TEST#%d#TEST#", *inRef))
+		} else {
+			out.WriteString(fmt.Sprintf("<a href='javascript:void(0)' onclick='_ref(this,%d)'>&gt;&gt;%d</a>", *inRef, *inRef))
+		}
+	}
+
 	return out.String()
 }

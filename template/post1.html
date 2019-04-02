@@ -21,35 +21,35 @@
         <span class="nowrap"> [ <a href="/t/{{.Topic.ID}}" target="_blank">展开</a> ] </span>
     {{end}}
 
-    <span class="dropdown icon-down-dir" onclick="$(this).toggleClass('active')" {{if .Topic.T_IsAdmin}}>
+    <span class="dropdown icon-down-dir" onclick="$(this).toggleClass('active')">
         <div>
+        {{if .Topic.T_IsAdmin}}
             {{if .T_IsFirst}}
             <a class="group-header">主题</a>
             <a class="item" href="javascript:_submit(null,'!!free-reply={{.Topic.ID}}')">自由回复</a>
             <a class="item" href="javascript:_submit(null,'!!lock={{.Topic.ID}}')">锁定</a>
             <a class="item" href="javascript:_submit(null,'!!stick={{.Topic.ID}}')">置顶</a>
             <a class="item" href="javascript:_submit(null,'!!sage={{.Topic.ID}}')">SAGE</a>
-            <a class="item" style="color:red" href="javascript:confirm()?_submit(null,'!!purge={{.Topic.ID}}'):0">永久删除</a>
+            <a class="item" href="javascript:confirm()?_submit(null,'!!purge={{.Topic.ID}}'):0">永久删除</a>
             {{end}}
             <a class="group-header">回复</a>
             <a class="item" href="javascript:_reply({{.LongID}},'a')">附加内容</a>
             <a class="item" href="javascript:_submit(null,'!!block={{.User}}',function(){location.href='/list?q={{.User}}'})">封/解ID</a>
             <a class="item" href="javascript:_submit(null,'!!block={{.IP}}',function(){location.href='/list?q={{.IP}}'})">封/解IP</a>
-            <a class="item" href="javascript:_submit(null,'!!delete={{.LongID}}')" style="color:red">{{if .IsDeleted}}恢复{{else}}删除{{end}}该回复</a>
-            <a class="item" href="javascript:confirm()?_submit(null,'!!delete-image={{.LongID}}'):0" style="color:red">删除附图</a>
-        </div>
-    {{else}}
-    style="display: none">
-        <div>
+            <a class="item" href="javascript:_submit(null,'!!delete={{.LongID}}')">{{if .IsDeleted}}恢复{{else}}删除{{end}}该回复</a>
+            <a class="item" href="javascript:confirm()?_submit(null,'!!delete-image={{.LongID}}'):0">删除附图</a>
+        {{else}}
             {{if .T_IsFirst}}
-            <a class="group-header">主题</a>
-            <a class="item" href="javascript:_reply({{.Topic.ID}},'s')">SAGE</a>
+            <a class="group-header item-normally-hidden">主题</a>
+            <a class="item item-normally-hidden" href="javascript:_reply({{.Topic.ID}},'s')">SAGE</a>
             {{end}}
             <a class="group-header">回复</a>
-            <a class="item" href="javascript:_reply({{.LongID}},'d')">删除该回复</a>
-            <a class="item" href="javascript:_reply({{.LongID}},'di')">删除附图</a>
+            <a class="item item-normally-hidden" href="javascript:_reply({{.LongID}},'d')">删除该回复</a>
+            <a class="item item-normally-hidden" href="javascript:_reply({{.LongID}},'di')">删除附图</a>
+            <a class="item" href="javascript:_reply({{.LongID}},'r')">举报</a>
+            <a class="item" href="javascript:_reply('{{.User}}','ru')">举报ID</a>
+        {{end}}
         </div>
-    {{end}}
     </span>
 </div>
 {{if .Image}}

@@ -219,6 +219,10 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 	msg := r.FormValue("message")
 	sage := r.FormValue("sage") != "" && user.Posts >= user.N
 
+	if strings.HasPrefix(subject, "!!") {
+		topic.ID = 0
+	}
+
 	// validate the fields
 	if !user.Can(server.PERM_ADMIN) && strings.Contains(msg, "```") {
 		msg = reMessage.ReplaceAllString(msg, "```")

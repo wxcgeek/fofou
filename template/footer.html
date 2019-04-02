@@ -40,10 +40,8 @@
 
         $(".post .info").each(function(i, el) {
             if ($(el).find(".author").text() != id) return;
-            $(el).parent().find('.dropdown').first().show();
+            $(el).parent().find('.dropdown').first().find('.item-normally-hidden').css('display', 'block');
         });
-        $(el).hide();
-
     })()
 </script>
 

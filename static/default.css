@@ -115,6 +115,7 @@ div.topic-status, div.ref { font-size: 90%; }
     z-index: 10000;
     right: 0;
     min-width: 100px;
+    box-shadow: 0 1px 5px #ccc;
 }
 
 .dropdown div a {
@@ -138,7 +139,9 @@ div.topic-status, div.ref { font-size: 90%; }
 
 .dropdown div a:first-child { border-top: none; }
 
-.dropdown div a.item:hover { background: #eee; }
+.dropdown div a.item:hover { background: #676677; color: white; border-color: #676677; }
+
+.dropdown .item-normally-hidden { display: none; }
 
 div.ref .subject { display: none; }
 
@@ -213,7 +216,7 @@ div.post .image-large {
     max-height: 100%;
 }
 
-.icon-minus-squared, .icon-plus-squared {
+.icon-minus-squared, .icon-plus-squared, .icon-down-dir {
     color: #667;
 }
 

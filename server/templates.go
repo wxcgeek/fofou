@@ -31,7 +31,7 @@ var (
 func LoadTemplates(prod bool) {
 
 	for _, name := range templateNames {
-		templatePaths = append(templatePaths, filepath.Join("tmpl", name))
+		templatePaths = append(templatePaths, filepath.Join("template", name))
 	}
 
 	m := template.FuncMap{
