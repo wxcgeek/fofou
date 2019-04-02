@@ -78,7 +78,7 @@ function _togglePost(id) {
     localStorage.setItem("fold", JSON.stringify(s));
 }
 
-function _submit(btn, msg) {
+function _submit(btn, msg, callback) {
     btn ? $(btn).attr('disabled', 'true') : 0;
     var form = new FormData();
     if (msg) {
@@ -101,7 +101,11 @@ function _submit(btn, msg) {
                 var resp = xhr.responseText;
                 resp = JSON.parse(resp);
                 if (resp.success) {
-                    resp.longid ? location.href = "/p/" + resp.longid : location.reload();
+                    if (callback) {
+                        callback();
+                    } else {
+                        resp.longid ? location.href = "/p/" + resp.longid : location.reload();
+                    }
                     return;
                 }
                 alert("发生错误：\ncode: " + resp.error + "\n" + ({

@@ -18,17 +18,6 @@
             {{template "post1.html" .}}
         {{end}}
 
-        {{ if $.T_IsAdmin }}
-        <div style="font-size:12px;">
-            <span class="mod-ip">
-            <a href="/list?q={{.IP}}" target="_blank">{{.IP}}</a>
-            <a href="javascript:_submit(null, '!!delete={{.LongID}}')" style="color:red">
-                {{if .IsDeleted}} 恢复删除 {{else}} 删除 {{end}}
-            </a>
-            </span>
-        </div>
-        {{ end }}
-
         {{if .T_IsFirst}}
             <div class="topic-status">
                     {{if $.T_TotalPosts}}<span class="icon-chat-empty"><b>共{{$.T_TotalPosts}}回复{{if $.T_IsExpand}}，展开以查看更多{{end}}</b></span>{{end}}

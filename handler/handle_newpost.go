@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -109,6 +110,8 @@ func sanitizeFilename(name string) string {
 	}
 	return string(buf)
 }
+
+var reMessage = regexp.MustCompile("(`{3,})")
 
 func PostAPI(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, int64(common.Kforum.MaxImageSize)*1024*1024)
@@ -213,10 +216,13 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 	common.KbadUsers.Remove(user.ID)
 
 	subject := strings.Replace(r.FormValue("subject"), "<", "&lt;", -1)
-	msg := strings.TrimSpace(r.FormValue("message"))
+	msg := r.FormValue("message")
 	sage := r.FormValue("sage") != "" && user.Posts >= user.N
 
 	// validate the fields
+	if !user.Can(server.PERM_ADMIN) && strings.Contains(msg, "```") {
+		msg = reMessage.ReplaceAllString(msg, "```")
+	}
 
 	if modCode(common.Kforum, user, subject, msg) {
 		_, username := server.Format8Bytes(user.ID)

@@ -114,6 +114,8 @@ div.topic-status, div.ref { font-size: 90%; }
     background: #fafbfc;
     display: none;
     z-index: 10000;
+    right: 0;
+    min-width: 100px;
 }
 
 .dropdown div a {
@@ -121,17 +123,23 @@ div.topic-status, div.ref { font-size: 90%; }
     text-decoration: none;
     white-space: nowrap;
     color: black;
-    padding: 2px 4px;
+    padding: 2px 6px;
     border-top: solid 1px #ddd;
     cursor: pointer;
     text-align: left;
+}
+
+.dropdown div a.group-header {
+    font-weight: bold;
+    background: #ddd;
+    font-size: 12px;
 }
 
 .dropdown.active div { display: block; }
 
 .dropdown div a:first-child { border-top: none; }
 
-.dropdown div a:hover { background: #eee; }
+.dropdown div a.item:hover { background: #eee; }
 
 div.ref .subject { display: none; }
 

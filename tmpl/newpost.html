@@ -5,14 +5,14 @@
 
 <table cellspacing="0" id="newpost" uuid="{{.PostToken}}" style="margin: 0 auto">
     <tbody>
-        {{if not .TopicID}}
-        <tr>
+        <tr {{if .TopicID}}style="display:none"{{end}}>
             <th><label for="subject">标题:</label></th>
             <td>
                 <input maxlength="256" id="subject" type="edit" placeholder="留空">
             </td>
         </tr>
 
+        {{if not .TopicID}}
         <tr>
             <th><label for="sage">sage:</label></th>
             <td>
@@ -68,12 +68,11 @@ if (p && n) {
     $('#submit-newpost').append(" (0.00)").focus();
 }
 
-function _reply(longid, del) {
+function _reply(longid, del, append) {
     $('#message').append(del ? "!!delete=" + longid + "\n请将该内容作为新主题提交以删除：" + longid : "\n>>" + longid).trigger('render');
+    if (append) $("#subject").val("!!append=" + longid).parents().show();
     $('#expand-newpost').hide();
-    $([document.documentElement, document.body]).animate({
-        scrollTop: $('#newpost').show().offset().top
-    }, 500);
+    $([document.documentElement, document.body]).animate({ scrollTop: $('#newpost').show().offset().top }, 500);
 }
                 </script>
             </td> 

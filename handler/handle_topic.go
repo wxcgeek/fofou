@@ -74,7 +74,7 @@ NEXT:
 		topic.Posts = tmp
 	}
 	topic.Posts[0].T_SetStatus(server.POST_ISFIRST)
-	topic.Posts[0].Topic = &topic
+	topic.Reparent()
 
 	model := struct {
 		server.Forum
@@ -116,7 +116,7 @@ func Topics(w http.ResponseWriter, r *http.Request) {
 			t.Posts = tmp
 		}
 		t.Posts[0].T_SetStatus(server.POST_ISFIRST)
-		t.Posts[0].Topic = &t
+		t.Reparent()
 		return t
 	})
 
@@ -167,6 +167,7 @@ NEXT:
 	topic.T_IsExpand = true
 	topic.Posts = []server.Post{topic.Posts[postID-1]}
 	topic.Posts[0].T_SetStatus(server.POST_ISREF)
+	topic.Reparent()
 
 	model := struct {
 		server.Forum

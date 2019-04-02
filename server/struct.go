@@ -3,11 +3,10 @@ package server
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
+
+	"github.com/coyove/fofou/markup"
 )
 
 const (
@@ -43,35 +42,7 @@ func (p *Post) T_IsRef() bool { return p.T_Status&POST_ISREF > 0 }
 
 func (p *Post) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
 
-func (p *Post) MessageHTML() string {
-	return urlRx.ReplaceAllStringFunc(p.Message, func(in string) string {
-		switch in {
-		case " ":
-			return "&nbsp;"
-		case "\n":
-			return "<br>"
-		case "<":
-			return "&lt;"
-		default:
-			if strings.HasPrefix(in, "```") {
-				return "<code>" + strings.Replace(in[3:len(in)-3], "<", "&lt;", -1) + "</code>"
-			} else if strings.HasPrefix(in, ">>") {
-				old := in
-				if strings.HasPrefix(in, ">>#") {
-					in = in[3:]
-				} else if strings.HasPrefix(in, ">>No.") {
-					in = in[5:]
-				} else {
-					in = in[2:]
-				}
-				longid, _ := strconv.Atoi(in)
-				return fmt.Sprintf("<a href='javascript:void(0)' onclick='_ref(this, %d)'>%s</a>", longid, old)
-			} else {
-				return "<a href='" + in + "' target=_blank>" + in + "</a>"
-			}
-		}
-	})
-}
+func (p *Post) MessageHTML() string { return markup.Do(p.Message, true, 0) }
 
 func (p *Post) IPXor() [8]byte {
 	x := p.ip
@@ -155,6 +126,12 @@ func (p *Topic) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(s
 func (p *Topic) LastDate() string { return time.Unix(int64(p.ModifiedAt), 0).Format(stdTimeFormat) }
 
 func (t *Topic) FirstPostID() uint16 { return t.Posts[0].ID }
+
+func (t *Topic) Reparent() {
+	for i := 0; i < len(t.Posts); i++ {
+		t.Posts[i].Topic = t
+	}
+}
 
 // ForumConfig is a static configuration of a single forum
 type ForumConfig struct {

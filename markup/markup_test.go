@@ -14,10 +14,10 @@ func assert(a string, f bool, b string) {
 
 func TestDoCode(t *testing.T) {
 	assert("```a``````b```", true, "<code>a</code><code>b</code>")
+	assert("```a``````b```", false, "<code>a</code><code>b</code>")
 	assert("```a`````b```", true, "<code>a</code>``b<code></code>")
 	assert("````a`````b```", true, "a`b<code></code>")
 	assert("````a`````b```", false, "<code>`a</code>``b<code></code>")
-	assert("```a``````b```", false, "<code>a</code><code>b</code>")
 	assert("```>>1```", false, "<code>&gt;&gt;1</code>")
 	assert("```====```", false, "<code>====</code>")
 	assert("``a`````<b>`", true, "``a`<b>`")

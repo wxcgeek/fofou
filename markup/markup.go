@@ -14,6 +14,14 @@ func isDigit(r rune) bool {
 	return r >= '0' && r <= '9'
 }
 
+func lastHR(buf *bytes.Buffer) bool {
+	if buf.Len() >= 4 {
+		p, i := buf.Bytes(), buf.Len()-4
+		return p[i] == '<' && p[i+1] == 'h' && p[i+2] == 'r' && p[i+3] == '>'
+	}
+	return false
+}
+
 func Do(in string, allowHTML bool, maxLength int) string {
 	if test && strings.HasPrefix(in, "DBG") {
 		debug = true
@@ -104,7 +112,7 @@ func Do(in string, allowHTML bool, maxLength int) string {
 		case '\n':
 			if inCode {
 				out.WriteRune(r)
-			} else {
+			} else if !lastHR(&out) {
 				out.WriteString("<br>")
 			}
 		case '<':
