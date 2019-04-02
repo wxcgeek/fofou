@@ -71,7 +71,7 @@ func RSS(w http.ResponseWriter, r *http.Request) {
 		`<link>`, common.Kforum.URL, `</link>`,
 	}
 
-	topics := common.Kforum.GetTopics(0, 20, server.DefaultTopicFilter)
+	topics := common.Kforum.GetTopics(0, 20, common.TopicFilter1, server.DefaultTopicMapper)
 	for _, g := range topics {
 		var message string
 		if len(g.Posts) > 0 {

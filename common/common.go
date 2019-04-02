@@ -2,6 +2,7 @@ package common
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/coyove/common/lru"
 	"github.com/coyove/fofou/server"
@@ -21,3 +22,6 @@ var (
 	Kuuids     *lru.Cache
 	KdirServer http.Handler
 )
+
+var TopicFilter1 = func(t *server.Topic) bool { return !strings.HasPrefix(t.Subject, "!!") }
+var TopicFilter2 = func(t *server.Topic) bool { return strings.HasPrefix(t.Subject, "!!") }

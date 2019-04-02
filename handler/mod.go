@@ -39,7 +39,7 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 
 		v := msg[eidx+1:]
 		vint, _ := strconv.ParseInt(v, 10, 64)
-		switch msg[2:eidx] {
+		switch op := msg[2:eidx]; op {
 		case "moat":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
@@ -86,10 +86,12 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			}
 			common.Kforum.MaxImageSize = int(vint)
 			opcode = true
-		case "delete":
-			res := common.Kforum.Store.DeletePost(u, uint64(vint), func(img *server.Image) {
-				os.Remove(common.DATA_IMAGES + img.Path)
-				os.Remove(common.DATA_IMAGES + img.Path + ".thumb.jpg")
+		case "delete", "delete-image":
+			res := common.Kforum.Store.DeletePost(u, uint64(vint), op == "delete-image", func(img *server.Image) {
+				if img != nil {
+					os.Remove(common.DATA_IMAGES + img.Path)
+					os.Remove(common.DATA_IMAGES + img.Path + ".thumb.jpg")
+				}
 			})
 			opcode = true
 			if res != nil {

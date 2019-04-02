@@ -128,7 +128,7 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 
 	topicID, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("topic")))
 	if topicID > 0 {
-		if topic = common.Kforum.Store.GetTopic(uint32(topicID), server.DefaultTopicFilter); topic.ID == 0 {
+		if topic = common.Kforum.Store.GetTopic(uint32(topicID), server.DefaultTopicMapper); topic.ID == 0 {
 			common.Kforum.Notice("invalid topic ID: %d\n", topicID)
 			badRequest()
 			return

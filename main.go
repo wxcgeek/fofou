@@ -155,6 +155,7 @@ func main() {
 	smux.HandleFunc("/data.bin", preHandle(handler.Help, false))
 	smux.HandleFunc("/t/", preHandle(handler.Topic, true))
 	smux.HandleFunc("/p/", preHandle(handler.Post, false))
+	smux.HandleFunc("/tagged", preHandle(handler.Topics, true))
 	smux.HandleFunc("/", preHandle(handler.Topics, true))
 
 	srv := &http.Server{Handler: smux}

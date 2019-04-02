@@ -36,6 +36,7 @@
             <a class="item" href="javascript:_submit(null,'!!block={{.User}}',function(){location.href='/list?q={{.User}}'})">封/解ID</a>
             <a class="item" href="javascript:_submit(null,'!!block={{.IP}}',function(){location.href='/list?q={{.IP}}'})">封/解IP</a>
             <a class="item" href="javascript:_submit(null,'!!delete={{.LongID}}')" style="color:red">{{if .IsDeleted}}恢复{{else}}删除{{end}}该回复</a>
+            <a class="item" href="javascript:confirm()?_submit(null,'!!delete-image={{.LongID}}'):0" style="color:red">删除附图</a>
         </div>
     {{else}}
     style="display: none">
@@ -46,6 +47,7 @@
             {{end}}
             <a class="group-header">回复</a>
             <a class="item" href="javascript:_reply({{.LongID}},'d')">删除该回复</a>
+            <a class="item" href="javascript:_reply({{.LongID}},'di')">删除附图</a>
         </div>
     {{end}}
     </span>

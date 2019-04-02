@@ -144,19 +144,24 @@ func (store *Store) TopicsCount() int {
 	return int(store.topicsCount)
 }
 
-var DefaultTopicFilter = func(t *Topic) Topic { return *t }
+var DefaultTopicMapper = func(t *Topic) Topic { return *t }
+var DefaultTopicFilter = func(t *Topic) bool { return true }
 
 // GetTopics retuns topics
-func (store *Store) GetTopics(start, length int, filter func(*Topic) Topic) []Topic {
+func (store *Store) GetTopics(start, length int, filter func(*Topic) bool, mapper func(*Topic) Topic) []Topic {
 	res := make([]Topic, 0, length)
 	store.RLock()
 	defer store.RUnlock()
 
-	topic, i, end := store.rootTopic.Next, 0, start+length
+	topic, i := store.rootTopic.Next, 0
 	for ; topic != store.endTopic; topic, i = topic.Next, i+1 {
-		if i >= start && i < end {
-			res = append(res, filter(topic))
-		} else if i >= end {
+		if i >= start && len(res) < length {
+			if filter(topic) {
+				res = append(res, mapper(topic))
+				continue
+			}
+		}
+		if len(res) >= length {
 			break
 		}
 	}
@@ -197,33 +202,6 @@ func (store *Store) getPostPtrUnlocked(postLongID uint64) (*Post, error) {
 
 	post := &topic.Posts[postID-1]
 	return post, nil
-}
-
-// DeletePost deletes/restores a post
-func (store *Store) DeletePost(u User, postLongID uint64, onImageDelete func(*Image)) error {
-	store.Lock()
-	defer store.Unlock()
-
-	post, err := store.getPostPtrUnlocked(postLongID)
-	if err != nil {
-		return err
-	}
-
-	if !u.Can(PERM_LOCK_SAGE_DELETE) && u.ID != post.user {
-		return fmt.Errorf("can't delete the post")
-	}
-
-	var p buffer
-	if err := store.append(p.WriteByte(OP_DELETE).WriteUInt32(post.Topic.ID).WriteUInt16(post.ID).Bytes()); err != nil {
-		return err
-	}
-
-	post.IsDeleted = !post.IsDeleted
-
-	if post.Image != nil {
-		onImageDelete(post.Image)
-	}
-	return nil
 }
 
 func (store *Store) AppendPost(postLongID uint64, msg string) error {
@@ -470,26 +448,6 @@ func (store *Store) NewPost(topicID uint32, msg string, image *Image, user [8]by
 		}
 	}
 	return postLongID, err
-}
-
-// BlockIP blocks/unblocks IP address
-func (store *Store) Block(term [8]byte) {
-	store.Lock()
-	defer store.Unlock()
-	if term == default8Bytes {
-		return
-	}
-	var p buffer // := fmt.Sprintf("B%s\n", ipAddrInternal)
-	if err := store.append(p.WriteByte(OP_BLOCK).Write8Bytes(term).Bytes()); err == nil {
-		store.markBlockedOrUnblocked(term)
-	}
-}
-
-// IsBlocked checks if the term is blocked
-func (store *Store) IsBlocked(q [8]byte) bool {
-	store.RLock()
-	defer store.RUnlock()
-	return store.blocked[q]
 }
 
 func (store *Store) GetPostsBy(q [8]byte, qtext string, max int, timeout int64) ([]Post, int) {
