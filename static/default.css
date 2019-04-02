@@ -11,13 +11,16 @@ body {
 	background-color: rgb(252, 252, 244);
 }
 
+a { 
+    text-decoration: none;
+}
+
 a:visited {
     color: #54638c;
 }
 
 a:link {
     color: #0035c7;
-    text-decoration: underline;
 }
 
 .header .item {
@@ -27,10 +30,6 @@ a:link {
 	*display:inline;
 	margin: 0 0 0 8px;
 	text-decoration: none;
-}
-
-.header a.item:hover {
-	text-decoration: underline;
 }
 
 .header {
@@ -218,9 +217,4 @@ div.post .image-large {
     color: #667;
 }
 
-.mod-ip {
-    margin: 2px;
-    display:inline-block;padding:4px 8px;background:white;
-    border-radius: 3px;
-    border: dotted 1px #667;
-}
+#expand-newpost { font-size: 16px; }

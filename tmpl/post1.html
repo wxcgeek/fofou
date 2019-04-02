@@ -21,8 +21,7 @@
         <span class="nowrap"> [ <a href="/t/{{.Topic.ID}}" target="_blank">展开</a> ] </span>
     {{end}}
 
-    {{if .Topic.T_IsAdmin}}
-    <span class="dropdown icon-down-dir admin-topic-ops" onclick="$(this).toggleClass('active')">
+    <span class="dropdown icon-down-dir" onclick="$(this).toggleClass('active')" {{if .Topic.T_IsAdmin}}>
         <div>
             {{if .T_IsFirst}}
             <a class="group-header">主题</a>
@@ -33,13 +32,23 @@
             <a class="item" style="color:red" href="javascript:confirm()?_submit(null,'!!purge={{.Topic.ID}}'):0">永久删除</a>
             {{end}}
             <a class="group-header">回复</a>
-            <a class="item" href="javascript:_reply({{.LongID}},false,true)">附加内容</a>
+            <a class="item" href="javascript:_reply({{.LongID}},'a')">附加内容</a>
             <a class="item" href="javascript:_submit(null,'!!block={{.User}}',function(){location.href='/list?q={{.User}}'})">封/解ID</a>
             <a class="item" href="javascript:_submit(null,'!!block={{.IP}}',function(){location.href='/list?q={{.IP}}'})">封/解IP</a>
             <a class="item" href="javascript:_submit(null,'!!delete={{.LongID}}')" style="color:red">{{if .IsDeleted}}恢复{{else}}删除{{end}}该回复</a>
         </div>
-    </span>
+    {{else}}
+    style="display: none">
+        <div>
+            {{if .T_IsFirst}}
+            <a class="group-header">主题</a>
+            <a class="item" href="javascript:_reply({{.Topic.ID}},'s')">SAGE</a>
+            {{end}}
+            <a class="group-header">回复</a>
+            <a class="item" href="javascript:_reply({{.LongID}},'d')">删除该回复</a>
+        </div>
     {{end}}
+    </span>
 </div>
 {{if .Image}}
 <div class="image-div">

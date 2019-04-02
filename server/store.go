@@ -107,6 +107,26 @@ func (store *Store) OperateTopic(topicID uint32, action byte) {
 	}
 }
 
+func (store *Store) SageTopic(topicID uint32, u User) error {
+	store.Lock()
+	defer store.Unlock()
+	t := store.topicByIDUnlocked(topicID)
+	if t == nil {
+		return fmt.Errorf("invalid topic ID: %d", topicID)
+	}
+	if !u.Can(PERM_LOCK_SAGE_DELETE) && u.ID != t.Posts[0].user {
+		return fmt.Errorf("can't sage the topic")
+	}
+
+	var p buffer
+	if err := store.append(p.WriteByte(OP_SAGE).WriteUInt32(topicID).Bytes()); err != nil {
+		return err
+	}
+
+	t.Saged = !t.Saged
+	return nil
+}
+
 // PostsCount returns number of posts
 func (store *Store) PostsCount() (int, int) {
 	store.RLock()

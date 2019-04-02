@@ -125,9 +125,8 @@ function _submit(btn, msg, callback) {
                 alert("发生错误：\n" + ex);
                 console.error(resp);
             }
-
         }
-        btn ? $(btn).attr('disabled', '') : 0;
+        btn ? $(btn).removeAttr('disabled') : 0;
     };
     xhr.open('post', "/api");
     xhr.send(form);

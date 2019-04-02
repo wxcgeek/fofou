@@ -120,11 +120,11 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_FREEREPLY)
 			opcode = true
 		case "sage":
-			if !u.Can(server.PERM_LOCK_SAGE_DELETE) {
-				return true
-			}
-			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_SAGE)
+			res := common.Kforum.Store.SageTopic(uint32(vint), u)
 			opcode = true
+			if res != nil {
+				break
+			}
 		case "block":
 			if !u.Can(server.PERM_BLOCK) {
 				return true

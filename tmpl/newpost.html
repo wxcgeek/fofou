@@ -1,6 +1,6 @@
 <div style="margin: 4px 0">
     <div style="text-align: center">
-<button onclick="$(this).hide();$('#newpost').show()" id="expand-newpost">{{if .TopicID}}回复主题{{else}}发布新主题{{end}}</button>
+        <a href="javascript:void(0)" onclick="$(this).hide();$('#newpost').show()" id="expand-newpost">[ {{if .TopicID}}回复主题{{else}}发布新主题{{end}} ]</a>
     </div>
 
 <table cellspacing="0" id="newpost" uuid="{{.PostToken}}" style="margin: 0 auto">
@@ -68,9 +68,17 @@ if (p && n) {
     $('#submit-newpost').append(" (0.00)").focus();
 }
 
-function _reply(longid, del, append) {
-    $('#message').append(del ? "!!delete=" + longid + "\n请将该内容作为新主题提交以删除：" + longid : "\n>>" + longid).trigger('render');
-    if (append) $("#subject").val("!!append=" + longid).parents().show();
+function _reply(longid, mode) {
+    switch (mode) {
+        case 'd':
+            $('#message').append("!!delete=" + longid + "\n请将该内容作为新主题提交以删除：" + longid).trigger('render'); break;
+        case 's':
+            $('#message').append("!!sage=" + longid + "\n请将该内容作为新主题提交以sage：" + longid).trigger('render'); break;
+        case 'a':
+            $("#subject").val("!!append=" + longid).parents().show(); break;
+        default:
+            $('#message').append("\n>>" + longid).trigger('render');
+    }
     $('#expand-newpost').hide();
     $([document.documentElement, document.body]).animate({ scrollTop: $('#newpost').show().offset().top }, 500);
 }
