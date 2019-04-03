@@ -78,7 +78,7 @@ function _reply(longid, mode) {
         case 'a':  $("#subject").val("!!append=" + longid).parents().show(); break;
         case 'ru':
             $("#subject").val("!!report-id=" + longid).parents().show(); 
-            $('#message').append("[" + location.origin + "/list?q=" + longid + "]").trigger('render');
+            $('#message').append("举报ID：" + longid + "\n[" + location.origin + "/list?q=" + longid + "]").trigger('render');
             break;
         case 'r':  $("#subject").val("!!report-post=" + longid).parents().show(); // fall through
         default:   $('#message').append("\n>>" + longid).trigger('render');
