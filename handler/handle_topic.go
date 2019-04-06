@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/coyove/fofou/common"
 	"github.com/coyove/fofou/server"
 )
+
+var rxBot = regexp.MustCompile(`(bot|crawl|spider)`)
 
 func intmin(a, b int) int {
 	if a < b {
@@ -75,7 +78,7 @@ NEXT:
 		topic.Posts = tmp
 	}
 	topic.Posts[0].T_SetStatus(server.POST_ISFIRST)
-	topic.Reparent()
+	topic.Reparent(rxBot.MatchString(r.UserAgent()))
 
 	model := struct {
 		server.Forum
@@ -124,7 +127,7 @@ func Topics(w http.ResponseWriter, r *http.Request) {
 				t.Posts = tmp
 			}
 			t.Posts[0].T_SetStatus(server.POST_ISFIRST)
-			t.Reparent()
+			t.Reparent(rxBot.MatchString(r.UserAgent()))
 			return t
 		})
 
@@ -175,7 +178,7 @@ NEXT:
 	topic.T_IsExpand = true
 	topic.Posts = []server.Post{topic.Posts[postID-1]}
 	topic.Posts[0].T_SetStatus(server.POST_ISREF)
-	topic.Reparent()
+	topic.Reparent(rxBot.MatchString(r.UserAgent()))
 
 	model := struct {
 		server.Forum

@@ -62,6 +62,10 @@ func (p *Post) IP() string {
 	return i
 }
 
+func (p *Post) WipeUser() {
+	p.user = default8Bytes
+}
+
 func (p *Post) LongID() uint64 {
 	if p.ID >= 1<<12 || p.ID == 0 {
 		panic("invalid post ID")
@@ -128,30 +132,33 @@ func (p *Topic) LastDate() string { return time.Unix(int64(p.ModifiedAt), 0).For
 
 func (t *Topic) FirstPostID() uint16 { return t.Posts[0].ID }
 
-func (t *Topic) Reparent() {
+func (t *Topic) Reparent(wipeID bool) {
 	for i := 0; i < len(t.Posts); i++ {
 		t.Posts[i].Topic = t
+		if wipeID {
+			t.Posts[i].user = default8Bytes
+		}
 	}
 }
 
 // ForumConfig is a static configuration of a single forum
 type ForumConfig struct {
-	Title          string
-	Salt           [16]byte `json:"-"`
-	NoMoreNewUsers bool
-	NoImageUpload  bool
-	NoRecaptcha    bool
-	MaxImageSize   int
-	MaxSubjectLen  int
-	MaxMessageLen  int
-	MinMessageLen  int
-	SearchTimeout  int
-	Cooldown       int
-	PostsPerPage   int
-	TopicsPerPage  int
-	Recaptcha      string
-	RecaptchaToken string
-	URL            string
+	Title           string
+	Salt            [16]byte `json:"-"`
+	NoMoreNewUsers  bool
+	NoImageUpload   bool
+	NoRecaptcha     bool
+	MaxImageSize    int
+	MaxSubjectLen   int
+	MaxMessageLen   int
+	MinMessageLen   int
+	SearchTimeout   int
+	Cooldown        int
+	PostsPerPage    int
+	TopicsPerPage   int
+	URL             string
+	RecaptchaToken  string `json:"-"`
+	RecaptchaSecret string `json:"-"`
 }
 
 func (config *ForumConfig) CorrectValues() {

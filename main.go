@@ -37,6 +37,9 @@ func newForum(logger *server.Logger) *server.Forum {
 			store.GetConfig(forum.ForumConfig)
 			forum.ForumConfig.CorrectValues()
 			forum.SetSalt(*salt)
+			forum.RecaptchaSecret = os.Getenv("f2_secret")
+			forum.RecaptchaToken = os.Getenv("f2_token")
+			forum.Notice("recaptcha: token: %s, secret: %s", forum.RecaptchaToken, forum.RecaptchaSecret)
 		})
 
 	common.KbadUsers = lru.NewCache(1024)

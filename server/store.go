@@ -20,6 +20,7 @@ import (
 )
 
 const (
+	OP_NOP       = 'x'
 	OP_TOPIC     = 'T'
 	OP_TOPICNUM  = 't'
 	OP_POST      = 'P'

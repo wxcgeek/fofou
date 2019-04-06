@@ -249,10 +249,12 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 			panicif(err != nil, err)
 			print("\nmax live topics updated, old: %d, new: %d\n", store.maxLiveTopics, m)
 			store.maxLiveTopics = int(m)
-			// if the new maxLiveTopics is smaller,
-			// then multiple OP_ARCHIVEs shall be presented afterwards
+		// if the new maxLiveTopics is smaller,
+		// then multiple OP_ARCHIVEs shall be presented afterwards
+		case OP_NOP:
+			// do nothing
 		default:
-			panicif(true, "unexpected line type: %x", op)
+			panicif(true, "unexpected line type: %s(%x)", string(op), op)
 		}
 	}
 

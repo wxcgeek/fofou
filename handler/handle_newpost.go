@@ -191,7 +191,7 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 		}
 
 		resp, err := (&http.Client{Timeout: time.Second * 5}).PostForm("https://www.recaptcha.net/recaptcha/api/siteverify", url.Values{
-			"secret":   []string{common.Kforum.Recaptcha},
+			"secret":   []string{common.Kforum.RecaptchaSecret},
 			"response": []string{recaptcha},
 		})
 		if err != nil {

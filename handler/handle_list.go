@@ -43,9 +43,13 @@ func List(w http.ResponseWriter, r *http.Request) {
 
 	posts, total := store.GetPostsBy(query, qt, maxTopics, int64(common.Kforum.SearchTimeout)*1e6)
 	isBlocked := store.IsBlocked(query)
+	isBot := rxBot.MatchString(r.UserAgent())
 
 	for i := range posts {
 		posts[i].T_SetStatus(server.POST_ISREF)
+		if isBot {
+			posts[i].WipeUser()
+		}
 	}
 
 	model.Topic = server.Topic{
