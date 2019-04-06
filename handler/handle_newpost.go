@@ -323,7 +323,7 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 		if sage {
 			common.Kforum.Store.OperateTopic(topicID, server.OP_SAGE)
 		}
-		if common.Kforum.Rand.Intn(64) == 0 || (!common.Kforum.InProduction && common.Kforum.Rand.Intn(3) == 0) {
+		if common.Kforum.Rand.Intn(64) == 0 || (!common.Kprod && common.Kforum.Rand.Intn(3) == 0) {
 			go func() {
 				start := time.Now()
 				common.Kforum.ArchiveJob()

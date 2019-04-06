@@ -170,7 +170,7 @@ div.ref .post {
     background-color: rgba(255, 255, 255, 0.3);
 }
 
-div.post.fold, div.post.fold a { color: #aaa !important; }
+div.post.fold .info2, div.post.fold .info2 a { color: #aaa; }
 
 div.post.fold.fold-hide { display: none; }
 
@@ -214,6 +214,10 @@ div.post .image-div {
 div.post .image-large {
     max-width: 100%;
     max-height: 100%;
+}
+
+div.post hr {
+    border: dashed 1px #bbb;
 }
 
 .icon-minus-squared, .icon-plus-squared, .icon-down-dir {

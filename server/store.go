@@ -33,6 +33,8 @@ const (
 	OP_ARCHIVE   = 'A'
 	OP_PURGE     = 'X'
 	OP_FREEREPLY = 'F'
+	OP_CONFIG    = 'C'
+	OP_MAXTOPICS = 'M'
 )
 
 // Store describes store
@@ -40,24 +42,28 @@ type Store struct {
 	sync.RWMutex
 	*Logger
 
-	MaxLiveTopics int
 	LiveTopicsNum int
 	Rand          *rand.Rand
 
-	block        cipher.Block
-	ready        uintptr
-	ptr          int64
-	dataFilePath string
-	rootTopic    *Topic
-	endTopic     *Topic
-	topicsCount  uint32
-	blocked      map[[8]byte]bool
-	dataFile     *os.File
+	block         cipher.Block
+	ready         uintptr
+	ptr           int64
+	maxLiveTopics int
+	dataFilePath  string
+	configStr     string
+	configLock    sync.RWMutex
+	rootTopic     *Topic
+	endTopic      *Topic
+	topicsCount   uint32
+	blocked       map[[8]byte]bool
+	dataFile      *os.File
 }
 
 func (store *Store) LoadingProgress() float64 { return float64(atomic.LoadUintptr(&store.ready)) / 1000 }
 
 func (store *Store) IsReady() bool { return atomic.LoadUintptr(&store.ready) == 1000 }
+
+func (store *Store) MaxLiveTopics() int { return store.maxLiveTopics }
 
 func (store *Store) markBlockedOrUnblocked(term [8]byte) {
 	if store.blocked[term] {
@@ -362,31 +368,35 @@ func archive(topic *Topic, saveToPath string) error {
 	return ioutil.WriteFile(saveToPath, hdr, 0755)
 }
 
-func (store *Store) Dup() {
+func (store *Store) Dup(path string) error {
 	store.RLock()
 	defer store.RUnlock()
 
-	os.Remove(store.dataFilePath + ".snapshot")
-	of, err := os.Create(store.dataFilePath + ".snapshot")
+	os.Remove(path)
+	of, err := os.Create(path)
 	if err != nil {
-		return
+		return err
 	}
 
 	defer of.Close()
 	if _, err := store.dataFile.Seek(0, 0); err != nil {
-		return
+		return err
 	}
 
-	io.Copy(of, store.dataFile)
+	_, err = io.Copy(of, store.dataFile)
+	return err
 }
 
-func (store *Store) ArchiveJob() {
+func (store *Store) ArchiveJob() error {
 	store.Lock()
 	defer store.Unlock()
+	return store.archiveJob(store.maxLiveTopics)
+}
 
+func (store *Store) archiveJob(maxLiveTopics int) error {
 	topic, i := store.rootTopic.Next, 0
 	for ; topic != store.endTopic; topic = topic.Next {
-		if i++; i == store.MaxLiveTopics {
+		if i++; i == maxLiveTopics {
 			break
 		}
 	}
@@ -394,18 +404,17 @@ func (store *Store) ArchiveJob() {
 	for topic != store.endTopic.Prev && topic != store.endTopic {
 		t := store.endTopic.Prev
 		if err := archive(t, store.buildArchivePath(t.ID)); err != nil {
-			store.Error("failed to archive %d: %v", t.ID, err)
-			break
+			return err
 		}
 		var p buffer
 		if err := store.append(p.WriteByte(OP_ARCHIVE).WriteUInt32(t.ID).Bytes()); err != nil {
-			store.Error("failed to archive %d: %v", t.ID, err)
-			break
+			return err
 		}
 		t.Prev.Next = t.Next
 		t.Next.Prev = t.Prev
 		store.LiveTopicsNum--
 	}
+	return nil
 }
 
 func (store *Store) NewTopic(subject, msg string, image *Image, user [8]byte, ipAddr [8]byte) (uint64, error) {

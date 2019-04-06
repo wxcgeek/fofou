@@ -122,7 +122,7 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	}
 }
 
-func (store *Store) loadDB(path string, slient bool) (err error) {
+func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err error) {
 	fh, err := os.Open(path)
 	if err != nil {
 		return err
@@ -155,6 +155,7 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 
 	fsize := int64(binary.BigEndian.Uint64(header[2+header[3]*6:]) & 0xffffffffffff)
 	store.ptr = 16
+
 	r := &buffer{}
 	r.SetReader(bufio.NewReaderSize(fh, 1024*1024*10))
 	r.pos = store.ptr
@@ -239,9 +240,29 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 				store.LiveTopicsNum--
 				delete(topicIDToTopic, t.ID)
 			}
+		case OP_CONFIG:
+			cs, err := r.ReadString()
+			panicif(err != nil, err)
+			store.configStr = cs
+		case OP_MAXTOPICS:
+			m, err := r.ReadUInt32()
+			panicif(err != nil, err)
+			print("\nmax live topics updated, old: %d, new: %d\n", store.maxLiveTopics, m)
+			store.maxLiveTopics = int(m)
+			// if the new maxLiveTopics is smaller,
+			// then multiple OP_ARCHIVEs shall be presented afterwards
 		default:
 			panicif(true, "unexpected line type: %x", op)
 		}
+	}
+
+	testConfig := map[string]interface{}{}
+	if err := store.GetConfig(&testConfig); err != nil {
+		panicif(true, err)
+	}
+
+	if onload != nil {
+		onload(store)
 	}
 
 	atomic.StoreUintptr(&store.ready, 1000)
@@ -249,14 +270,14 @@ func (store *Store) loadDB(path string, slient bool) (err error) {
 	return nil
 }
 
-func NewStore(path string, password [16]byte, maxLiveTopics int, logger *Logger) *Store {
+func NewStore(path string, password [16]byte, logger *Logger, onload func(*Store)) *Store {
 	store := &Store{
 		dataFilePath:  path,
 		rootTopic:     &Topic{},
 		endTopic:      &Topic{},
 		blocked:       make(map[[8]byte]bool),
 		Rand:          rand.New(),
-		MaxLiveTopics: maxLiveTopics,
+		maxLiveTopics: 1024,
 		Logger:        logger,
 	}
 
@@ -272,9 +293,8 @@ func NewStore(path string, password [16]byte, maxLiveTopics int, logger *Logger)
 		panicif(err != nil, "can't write initial DB %s: %v", store.dataFilePath, err)
 		f.Close()
 	}
-
 	go func() {
-		store.loadDB(store.dataFilePath, false)
+		store.loadDB(store.dataFilePath, false, onload)
 		for topic := store.rootTopic.Next; topic != store.endTopic; topic = topic.Next {
 			panicif(0 == len(topic.Posts), "topic %d has no posts!", topic.ID)
 		}
@@ -338,7 +358,7 @@ func (store *Store) LoadArchivedTopic(topicID uint32, password [16]byte) (Topic,
 	store.block, _ = aes.NewCipher(password[:])
 
 	var err error
-	if err = store.loadDB(path, true); err != nil {
+	if err = store.loadDB(path, true, nil); err != nil {
 		return Topic{}, err
 	}
 

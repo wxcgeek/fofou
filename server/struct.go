@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/coyove/fofou/markup"
@@ -136,12 +137,10 @@ func (t *Topic) Reparent() {
 // ForumConfig is a static configuration of a single forum
 type ForumConfig struct {
 	Title          string
-	Salt           [16]byte
+	Salt           [16]byte `json:"-"`
 	NoMoreNewUsers bool
 	NoImageUpload  bool
 	NoRecaptcha    bool
-	InProduction   bool
-	MaxLiveTopics  int
 	MaxImageSize   int
 	MaxSubjectLen  int
 	MaxMessageLen  int
@@ -153,6 +152,24 @@ type ForumConfig struct {
 	Recaptcha      string
 	RecaptchaToken string
 	URL            string
+}
+
+func (config *ForumConfig) CorrectValues() {
+	checkInt := func(i *int, v int) { *i = int(^(^uint32(*i-1)>>31)&1)*v + *i }
+	checkInt(&config.MaxSubjectLen, 60)
+	checkInt(&config.MaxMessageLen, 10000)
+	checkInt(&config.MinMessageLen, 3)
+	checkInt(&config.SearchTimeout, 100)
+	checkInt(&config.MaxImageSize, 4)
+	checkInt(&config.Cooldown, 2)
+	checkInt(&config.PostsPerPage, 20)
+	checkInt(&config.TopicsPerPage, 15)
+}
+
+func (config *ForumConfig) SetSalt(v string) [16]byte {
+	v = strings.Repeat(v, 16) + "a-16chars-string"
+	copy(config.Salt[:], v)
+	return config.Salt
 }
 
 // Forum describes forum

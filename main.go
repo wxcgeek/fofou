@@ -2,11 +2,8 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"runtime"
@@ -15,26 +12,33 @@ import (
 	"time"
 
 	"github.com/coyove/common/lru"
-	"github.com/coyove/common/rand"
 	"github.com/coyove/fofou/common"
 	"github.com/coyove/fofou/handler"
 	"github.com/coyove/fofou/server"
 )
 
 var (
-	httpAddr = flag.String("addr", ":5010", "HTTP server address")
-	makeID   = flag.String("make", "", "Make an ID")
+	listen   = flag.String("addr", ":5010", "HTTP server address")
+	makeID   = flag.String("make", "", "Make ID, format: ID,MASK")
 	snapshot = flag.String("ss", "", "Make snapshot of main.txt")
+	salt     = flag.String("s", "0123456789", "A secret string")
+	inProd   = flag.Bool("prod", false, "Run server in production environment")
 )
 
-func newForum(config *server.ForumConfig, logger *server.Logger) *server.Forum {
-	forum := &server.Forum{
-		ForumConfig: config,
-		Logger:      logger,
-	}
+func newForum(logger *server.Logger) *server.Forum {
+	forum := &server.Forum{Logger: logger}
 
 	start := time.Now()
-	forum.Store = server.NewStore(common.DATA_MAIN, config.Salt, config.MaxLiveTopics, logger)
+	forum.Store = server.NewStore(common.DATA_MAIN,
+		(&server.ForumConfig{}).SetSalt(*salt),
+		logger,
+		func(store *server.Store) {
+			forum.ForumConfig = &server.ForumConfig{}
+			store.GetConfig(forum.ForumConfig)
+			forum.ForumConfig.CorrectValues()
+			forum.SetSalt(*salt)
+		})
+
 	common.KbadUsers = lru.NewCache(1024)
 	common.Kuuids = lru.NewCache(1024)
 	common.KthrotIPID = lru.NewCache(256)
@@ -91,36 +95,7 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	flag.Parse()
-	logger := server.NewLogger(1024, 1024, true)
-
-	var config server.ForumConfig
-	b, err := ioutil.ReadFile(common.DATA_CONFIG)
-	if err != nil {
-		panic(err)
-	}
-
-	err = json.Unmarshal(b, &config)
-	if err != nil {
-		panic(err)
-	}
-
-	checkInt := func(i *int, v int) { *i = int(^(^uint32(*i-1)>>31)&1)*v + *i }
-	checkInt(&config.MaxSubjectLen, 60)
-	checkInt(&config.MaxMessageLen, 10000)
-	checkInt(&config.MinMessageLen, 3)
-	checkInt(&config.SearchTimeout, 100)
-	checkInt(&config.MaxImageSize, 4)
-	checkInt(&config.Cooldown, 2)
-	checkInt(&config.PostsPerPage, 20)
-	checkInt(&config.TopicsPerPage, 15)
-
-	if bytes.Equal(config.Salt[:], make([]byte, 16)) {
-		copy(config.Salt[:], rand.New().Fetch(16))
-	}
-
-	configbuf, _ := json.MarshalIndent(&config, "", "  ")
-	logger.Notice("%s", string(configbuf))
-	ioutil.WriteFile(common.DATA_CONFIG, configbuf, 0755)
+	logger := server.NewLogger(1024, 1024, !*inProd)
 
 	if *makeID != "" {
 		u, parts := server.User{}, strings.Split(*makeID, ",")
@@ -129,15 +104,17 @@ func main() {
 		u.M = byte(m)
 
 		forum := &server.Forum{}
-		forum.ForumConfig = &config
+		forum.ForumConfig = &server.ForumConfig{}
+		forum.ForumConfig.SetSalt(*salt)
 		forum.SetUser(nil, u)
 		return
 	}
 
-	common.Kforum = newForum(&config, logger)
+	common.Kforum = newForum(logger)
 	common.Kiq = server.NewImageQueue(logger, 200, runtime.NumCPU())
+	common.Kprod = *inProd
 
-	server.LoadTemplates(config.InProduction)
+	server.LoadTemplates(*inProd)
 
 	smux := &http.ServeMux{}
 	common.KdirServer = http.StripPrefix("/browse/", http.FileServer(http.Dir(common.DATA_IMAGES)))
@@ -159,19 +136,21 @@ func main() {
 	smux.HandleFunc("/", preHandle(handler.Topics, true))
 
 	srv := &http.Server{Handler: smux}
-	srv.Addr = *httpAddr
+	srv.Addr = *listen
 	logger.Notice("running on %s", srv.Addr)
 
 	go func() {
 		for {
-			if common.Kforum.InProduction {
+			if *inProd {
 				time.Sleep(time.Hour * 6)
 			} else {
 				time.Sleep(time.Minute)
 			}
 
 			start := time.Now()
-			common.Kforum.Store.Dup()
+			if err := common.Kforum.Store.Dup(common.DATA_MAIN + ".snapshot"); err != nil {
+				logger.Error("dup error: %v", err)
+			}
 			logger.Notice("dup: %.2fs", time.Since(start).Seconds())
 		}
 	}()

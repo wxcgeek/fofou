@@ -2,8 +2,6 @@ package handler
 
 import (
 	"bufio"
-	"encoding/json"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -52,8 +50,8 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			case "recaptcha":
 				common.Kforum.NoRecaptcha = !common.Kforum.NoRecaptcha
 			case "production":
-				common.Kforum.InProduction = !common.Kforum.InProduction
-				common.Kforum.Logger.UseStdout = !common.Kforum.InProduction
+				common.Kprod = !common.Kprod
+				common.Kforum.Logger.UseStdout = !common.Kprod
 			}
 			opcode = true
 		case "max-message-len":
@@ -143,6 +141,12 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			}
 			common.Kforum.Title = v
 			opcode = true
+		case "max-live-topics":
+			if !u.Can(server.PERM_ADMIN) {
+				return true
+			}
+			common.Kforum.SetMaxLiveTopics(int(vint))
+			opcode = true
 		case "url":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
@@ -153,8 +157,10 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 	}
 
 	if opcode {
-		buf, _ := json.Marshal(common.Kforum.ForumConfig)
-		ioutil.WriteFile(common.DATA_CONFIG, buf, 0755)
+		err := forum.UpdateConfig(common.Kforum.ForumConfig)
+		if err != nil {
+			forum.Logger.Error("update config: %v", err)
+		}
 	}
 
 	return opcode

@@ -54,7 +54,7 @@
     <tr><th>Heap Alloc:</th><td>{{formatBytes .MemStats.HeapAlloc}}</td></tr>
     <tr><th>Heap Sys:</th><td>{{formatBytes .MemStats.HeapSys}}</td></tr>
     <tr><th colspan=2><hr></th></tr>
-    <tr><th>Production:</th><td>{{if .Forum.InProduction}}<b style="color:green">Online</b>{{else}}<span style="color:red">Testing</span>{{end}} <a href="javascript:_submit(null,'!!moat=production')">Toggle</a></td></tr>
+    <tr><th>Production:</th><td>{{if not .Forum.Logger.UseStdout}}<b style="color:green">Online</b>{{else}}<span style="color:red">Testing</span>{{end}} <a href="javascript:_submit(null,'!!moat=production')">Toggle</a></td></tr>
     <tr><th>Title:</th><td><input class=long value="{{.Forum.Title}}"> <a href="#" onclick="_submit(null,'!!title='+$(this).prev().val())">Update</a></td></tr>
     <tr><th>Main URL:</th><td><input class=long value="{{.Forum.URL}}"> <a href="#" onclick="_submit(null,'!!url='+$(this).prev().val())">Update</a></td></tr>
     <tr><th>Uploaded Images:</th><td><a href="/browse" target="_blank">Browse</a></td></tr>
@@ -62,6 +62,7 @@
     <tr><th>Max Image Size:</th><td><input value="{{.Forum.MaxImageSize}}"> MB <a href="#" onclick="_intval('max-image-size', this)">Update</a></td></tr>
     <tr><th>Search Timeout:</th><td><input value="{{.Forum.SearchTimeout}}"> ms <a href="#" onclick="_intval('search-timeout', this)">Update</a></td></tr>
     <tr><th>Cooldown:</th><td><input value="{{.Forum.Cooldown}}"> s <a href="#" onclick="_intval('cooldown', this)">Update</a></td></tr>
+    <tr><th>Max Live Topics:</th><td><input value="{{.Forum.MaxLiveTopics}}"> s <a href="#" onclick="_intval('max-live-topics', this)">Update</a></td></tr>
     <tr><th>No Cookies:</th><td>{{.Forum.NoMoreNewUsers}} <a href="javascript:_submit(null,'!!moat=cookie')">Toggle</a></td></tr>
     <tr><th>No Images Upload:</th><td>{{.Forum.NoImageUpload}} <a href="javascript:_submit(null,'!!moat=image')">Toggle</a></td></tr>
     <tr><th>No Recaptcha:</th><td>{{.Forum.NoRecaptcha}} <a href="javascript:_submit(null,'!!moat=recaptcha')">Toggle</a></td></tr>

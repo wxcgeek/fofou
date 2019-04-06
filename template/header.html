@@ -121,6 +121,10 @@ function _submit(btn, msg, callback) {
                     "image-invalid-format": "图片格式不支持",
                     "image-disk-error": "图片上传失败",
                 })[resp.error]);
+                $("#newpost").attr("uuid", 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                }));
             } catch (ex) {
                 alert("发生错误：\n" + ex);
                 console.error(resp);

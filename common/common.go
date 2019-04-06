@@ -11,7 +11,6 @@ import (
 const (
 	DATA_IMAGES = "data/images/"
 	DATA_MAIN   = "data/main.txt"
-	DATA_CONFIG = "data/main.json"
 )
 
 var (
@@ -21,6 +20,7 @@ var (
 	KbadUsers  *lru.Cache
 	Kuuids     *lru.Cache
 	KdirServer http.Handler
+	Kprod      bool
 )
 
 var TopicFilter1 = func(t *server.Topic) bool { return !strings.HasPrefix(t.Subject, "!!") }

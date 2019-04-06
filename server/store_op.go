@@ -1,21 +1,24 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 )
 
 // BlockIP blocks/unblocks IP address
-func (store *Store) Block(term [8]byte) {
+func (store *Store) Block(term [8]byte) error {
 	store.Lock()
 	defer store.Unlock()
 	if term == default8Bytes {
-		return
+		return nil
 	}
 	var p buffer // := fmt.Sprintf("B%s\n", ipAddrInternal)
-	if err := store.append(p.WriteByte(OP_BLOCK).Write8Bytes(term).Bytes()); err == nil {
-		store.markBlockedOrUnblocked(term)
+	if err := store.append(p.WriteByte(OP_BLOCK).Write8Bytes(term).Bytes()); err != nil {
+		return err
 	}
+	store.markBlockedOrUnblocked(term)
+	return nil
 }
 
 // IsBlocked checks if the term is blocked
@@ -102,6 +105,9 @@ func SnapshotStore(output string, store *Store) {
 		write(p.Reset().WriteByte(OP_BLOCK).Write8Bytes(k).Bytes())
 	}
 
+	write(p.Reset().WriteByte(OP_CONFIG).WriteString(store.configStr).Bytes())
+	write(p.Reset().WriteByte(OP_MAXTOPICS).WriteUInt32(uint32(store.maxLiveTopics)).Bytes())
+
 	n, err := dst.Seek(0, 1)
 	panicif(err != nil, "%v", err)
 
@@ -109,4 +115,49 @@ func SnapshotStore(output string, store *Store) {
 	panicif(err != nil, "%v", err)
 
 	write(p.Reset().WriteUInt48(uint64(n)).Bytes())
+}
+
+func (store *Store) SetMaxLiveTopics(num int) error {
+	store.configLock.Lock()
+	defer store.configLock.Unlock()
+
+	if num < store.maxLiveTopics {
+		// new maxLiveTopics is smaller than before
+		// so archive those which should be archived
+		if err := store.archiveJob(num); err != nil {
+			return err
+		}
+	}
+
+	var p buffer
+	if err := store.append(p.WriteByte(OP_MAXTOPICS).WriteUInt32(uint32(num)).Bytes()); err != nil {
+		return err
+	}
+
+	store.maxLiveTopics = num
+	return nil
+}
+
+func (store *Store) GetConfig(v interface{}) error {
+	store.configLock.RLock()
+	defer store.configLock.RUnlock()
+	if store.configStr == "" {
+		return nil
+	}
+	return json.Unmarshal([]byte(store.configStr), v)
+}
+
+func (store *Store) UpdateConfig(v interface{}) error {
+	store.configLock.Lock()
+	defer store.configLock.Unlock()
+
+	buf, _ := json.Marshal(v)
+
+	var p buffer
+	if err := store.append(p.WriteByte(OP_CONFIG).WriteString(string(buf)).Bytes()); err != nil {
+		json.Unmarshal([]byte(store.configStr), v)
+		return err
+	}
+	store.configStr = string(buf)
+	return nil
 }
