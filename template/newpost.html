@@ -70,11 +70,12 @@ if (p && n) {
 
 function _reply(longid, mode) {
     var p = "\n请将该内容作为新主题提交以";
+    var append = function(msg) { return $('#message').val($('#message').val() + msg) }
     $("#message").val('');
     switch (mode) {
-        case 'd':  $('#message').append("!!delete=" + longid + p + "删除：" + longid + "\n").trigger('render'); break;
-        case 'di': $('#message').append("!!delete-image=" + longid + p + "删除：" + longid + "的附图\n").trigger('render'); break;
-        case 's':  $('#message').append("!!sage=" + longid + p + "以sage：" + longid + "\n").trigger('render'); break;
+        case 'd':  append("!!delete=" + longid + p + "删除：" + longid + "\n").trigger('render'); break;
+        case 'di': append("!!delete-image=" + longid + p + "删除：" + longid + "的附图\n").trigger('render'); break;
+        case 's':  append("!!sage=" + longid + p + "以sage：" + longid + "\n").trigger('render'); break;
         case 'a':  $("#subject").val("!!append=" + longid).parents().show(); break;
         case 'an':
             $("#subject").val("!!announce").parents().show();
@@ -82,10 +83,10 @@ function _reply(longid, mode) {
             break;
         case 'ru':
             $("#subject").val("!!report-id=" + longid).parents().show(); 
-            $('#message').append("举报ID：" + longid + "\n[" + location.origin + "/list?q=" + longid + "]").trigger('render');
+            append("举报ID：" + longid + "\n[" + location.origin + "/list?q=" + longid + "]").trigger('render');
             break;
         case 'r':  $("#subject").val("!!report-post=" + longid).parents().show(); // fall through
-        default:   $('#message').append("\n>>" + longid).trigger('render');
+        default:   append("\n>>" + longid).trigger('render');
     }
     $('#expand-newpost').hide();
     $([document.documentElement, document.body]).animate({ scrollTop: $('#newpost').show().offset().top }, 500);
