@@ -76,6 +76,10 @@ function _reply(longid, mode) {
         case 'di': $('#message').append("!!delete-image=" + longid + p + "删除：" + longid + "的附图\n").trigger('render'); break;
         case 's':  $('#message').append("!!sage=" + longid + p + "以sage：" + longid + "\n").trigger('render'); break;
         case 'a':  $("#subject").val("!!append=" + longid).parents().show(); break;
+        case 'an':
+            $("#subject").val("!!announce").parents().show();
+            $("#message").val($("#announcement").html());
+            break;
         case 'ru':
             $("#subject").val("!!report-id=" + longid).parents().show(); 
             $('#message').append("举报ID：" + longid + "\n[" + location.origin + "/list?q=" + longid + "]").trigger('render');
@@ -91,6 +95,19 @@ function _reply(longid, mode) {
         </tr>
     </tbody>
 </table>
+{{if not .TopicID}}
+{{if .Forum.Announcement}}
+<div style="margin: 0 auto; width: 100%; max-width: 350px">
+    <div id="announcement">
+    {{.Forum.Announcement}}
+    </div>
+    {{if .IsAdmin}}
+    <div><a href="javascript:_reply(null,'an')">Edit Announcement</a></div>
+    {{end}}
+</div>
+{{end}}
+{{end}}
+
 <hr>
 </div>
 
@@ -112,5 +129,4 @@ function _reply(longid, mode) {
 
 $('#newpost').hide();
 </script>
-
 

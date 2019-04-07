@@ -143,22 +143,25 @@ func (t *Topic) Reparent(wipeID bool) {
 
 // ForumConfig is a static configuration of a single forum
 type ForumConfig struct {
-	Title           string
+	Title          string
+	NoMoreNewUsers bool
+	NoImageUpload  bool
+	NoRecaptcha    bool
+	MaxImageSize   int
+	MaxSubjectLen  int
+	MaxMessageLen  int
+	MinMessageLen  int
+	SearchTimeout  int
+	Cooldown       int
+	PostsPerPage   int
+	TopicsPerPage  int
+	URL            string
+	Announcement   string
+
+	// omit
 	Salt            [16]byte `json:"-"`
-	NoMoreNewUsers  bool
-	NoImageUpload   bool
-	NoRecaptcha     bool
-	MaxImageSize    int
-	MaxSubjectLen   int
-	MaxMessageLen   int
-	MinMessageLen   int
-	SearchTimeout   int
-	Cooldown        int
-	PostsPerPage    int
-	TopicsPerPage   int
-	URL             string
-	RecaptchaToken  string `json:"-"`
-	RecaptchaSecret string `json:"-"`
+	RecaptchaToken  string   `json:"-"`
+	RecaptchaSecret string   `json:"-"`
 }
 
 func (config *ForumConfig) CorrectValues() {
@@ -194,7 +197,7 @@ const (
 	PERM_LOCK_SAGE_DELETE
 	PERM_STICKY_PURGE
 	PERM_BLOCK
-	PERM_APPEND
+	PERM_APPEND_ANNOUNCE
 )
 
 type User struct {
@@ -212,7 +215,7 @@ func (u User) IsValid() bool { return u.ID != default8Bytes }
 func (u User) Can(perm byte) bool { return u.M&perm > 0 }
 
 func (u User) CanModerate() bool {
-	return u.Can(PERM_ADMIN) || u.Can(PERM_LOCK_SAGE_DELETE) || u.Can(PERM_STICKY_PURGE) || u.Can(PERM_BLOCK) || u.Can(PERM_APPEND)
+	return u.Can(PERM_ADMIN) || u.Can(PERM_LOCK_SAGE_DELETE) || u.Can(PERM_STICKY_PURGE) || u.Can(PERM_BLOCK) || u.Can(PERM_APPEND_ANNOUNCE)
 }
 
 type SafeJSON struct {

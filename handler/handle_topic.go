@@ -30,6 +30,7 @@ func intdivceil(a, b int) int {
 type newPostInfo struct {
 	TopicID   int
 	PostToken string
+	IsAdmin   bool
 }
 
 // url: /t/{tid}
@@ -94,6 +95,7 @@ NEXT:
 	}
 	model.TopicID = topicID
 	_, model.PostToken = common.Kforum.UUID()
+	model.IsAdmin = isAdmin
 	server.Render(w, server.TmplTopic, model)
 }
 
@@ -145,6 +147,7 @@ func Topics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, model.PostToken = common.Kforum.UUID()
+	model.IsAdmin = isAdmin
 	server.Render(w, server.TmplForum, model)
 }
 

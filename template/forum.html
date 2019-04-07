@@ -23,7 +23,7 @@
                     c.append($("<a>").attr("href", "?p=" + i).html(i).addClass(i == p ? "current" : ""));
             }
 
-            c.append($("<a>").attr("href", "?p=" + (p + 1)).html(">"));
+            c.append($("<a>").attr("href", "?p=" + (p + 1)).html("&nbsp;>&nbsp;"));
             document.title += " - P" + p;
         })()
     </script>

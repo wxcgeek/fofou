@@ -11,14 +11,22 @@ import (
 )
 
 func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
-	if strings.HasPrefix(subject, "!!append=") && u.Can(server.PERM_APPEND) {
-		vint, _ := strconv.ParseInt(subject[9:], 10, 64)
-		common.Kforum.AppendPost(uint64(vint), "\n"+msg)
-		return true
-	}
-
 	r := bufio.NewReader(strings.NewReader(msg))
 	opcode := false
+
+	if u.Can(server.PERM_APPEND_ANNOUNCE) {
+		if strings.HasPrefix(subject, "!!append=") {
+			vint, _ := strconv.ParseInt(subject[9:], 10, 64)
+			common.Kforum.AppendPost(uint64(vint), "\n"+msg)
+			return true
+		}
+		if strings.HasPrefix(subject, "!!announce") {
+			common.Kforum.ForumConfig.Announcement = msg
+			opcode = true
+			goto UPDATE
+		}
+	}
+
 	for {
 		line, _, err := r.ReadLine()
 		if err != nil {
@@ -156,6 +164,7 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 		}
 	}
 
+UPDATE:
 	if opcode {
 		err := forum.UpdateConfig(common.Kforum.ForumConfig)
 		if err != nil {
