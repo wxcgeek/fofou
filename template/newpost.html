@@ -75,7 +75,8 @@ function _reply(longid, mode) {
     switch (mode) {
         case 'd':  append("!!delete=" + longid + p + "删除：" + longid + "\n").trigger('render'); break;
         case 'di': append("!!delete-image=" + longid + p + "删除：" + longid + "的附图\n").trigger('render'); break;
-        case 's':  append("!!sage=" + longid + p + "以sage：" + longid + "\n").trigger('render'); break;
+        case 's':  append("!!sage=" + longid + p + "sage：" + longid + "\n").trigger('render'); break;
+        case 'n':  append("!!nsfw=" + longid + p + "nsfw：" + longid + "\n").trigger('render'); break;
         case 'a':  $("#subject").val("!!append=" + longid).parents().show(); break;
         case 'an':
             $("#subject").val("!!announce").parents().show();

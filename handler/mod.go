@@ -92,6 +92,19 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			}
 			common.Kforum.MaxImageSize = int(vint)
 			opcode = true
+		case "nsfw":
+			res := common.Kforum.Store.FlagPost(u, uint64(vint), server.OP_NSFW, func(p *server.Post) {
+				if p.IsNSFW() {
+					p.T_UnsetStatus(server.POST_ISNSFW)
+				} else {
+					p.T_SetStatus(server.POST_ISNSFW)
+				}
+			})
+			opcode = true
+			if res != nil {
+				common.Kforum.Error("%v", res)
+				break
+			}
 		case "delete", "delete-image":
 			res := common.Kforum.Store.DeletePost(u, uint64(vint), op == "delete-image", func(img *server.Image) {
 				if img != nil {
@@ -101,6 +114,7 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			})
 			opcode = true
 			if res != nil {
+				common.Kforum.Error("%v", res)
 				break
 			}
 		case "stick":

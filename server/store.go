@@ -36,6 +36,7 @@ const (
 	OP_FREEREPLY = 'F'
 	OP_CONFIG    = 'C'
 	OP_MAXTOPICS = 'M'
+	OP_NSFW      = 'W'
 )
 
 // Store describes store
@@ -307,6 +308,12 @@ func (store *Store) addNewPost(msg string, image *Image, user [8]byte, ipAddr [8
 			WriteUInt32(image.Size).
 			WriteUInt16(image.X).
 			WriteUInt16(image.Y)
+	}
+
+	if p.IsNSFW() {
+		topicStr.WriteByte(OP_NSFW).
+			WriteUInt32(topic.ID).
+			WriteUInt16(p.ID)
 	}
 
 	if err := store.append(topicStr.Bytes()); err != nil {

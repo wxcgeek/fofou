@@ -19,8 +19,10 @@ var (
 	KthrotIPID *lru.Cache
 	KbadUsers  *lru.Cache
 	Kuuids     *lru.Cache
+	Karchive   *lru.Cache
 	KdirServer http.Handler
 	Kprod      bool
+	Kpassword  string
 )
 
 var TopicFilter1 = func(t *server.Topic) bool { return !strings.HasPrefix(t.Subject, "!!") }

@@ -79,6 +79,18 @@ func RobotsTxt(w http.ResponseWriter, r *http.Request) {
 }
 
 func Cookie(w http.ResponseWriter, r *http.Request) {
+	if m := r.FormValue("admin"); m == common.Kpassword {
+		// admin requesting a cookie
+		u, parts := server.User{}, strings.Split(r.FormValue("makeid"), ",")
+		copy(u.ID[:], parts[0])
+		u.M, _, _, _, _, _, _, _, _, _ = atoi(parts[1])
+		if len(parts) > 2 {
+			_, _, _, _, u.N, _, _, _, _, _ = atoi(parts[2])
+		}
+		http.Redirect(w, r, "/", 302)
+		common.Kforum.SetUser(w, u)
+		return
+	}
 	if m := r.FormValue("makeid"); m != "" {
 		if !common.Kforum.GetUser(r).Can(server.PERM_ADMIN) {
 			w.WriteHeader(http.StatusBadRequest)

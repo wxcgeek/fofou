@@ -59,6 +59,28 @@ func (store *Store) DeletePost(u User, postLongID uint64, imageOnly bool, onImag
 	return nil
 }
 
+func (store *Store) FlagPost(u User, postLongID uint64, flag byte, callback func(p *Post)) error {
+	store.Lock()
+	defer store.Unlock()
+
+	post, err := store.getPostPtrUnlocked(postLongID)
+	if err != nil {
+		return err
+	}
+
+	if !u.Can(PERM_LOCK_SAGE_DELETE) && u.ID != post.user {
+		return fmt.Errorf("can't flag the post")
+	}
+
+	var p buffer
+	if err := store.append(p.WriteByte(flag).WriteUInt32(post.Topic.ID).WriteUInt16(post.ID).Bytes()); err != nil {
+		return err
+	}
+
+	callback(post)
+	return nil
+}
+
 func SnapshotStore(output string, store *Store) {
 	os.Remove(output)
 	dst, err := os.Create(output)

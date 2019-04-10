@@ -13,6 +13,7 @@ import (
 const (
 	POST_ISFIRST = 1 << iota
 	POST_ISREF
+	POST_ISNSFW
 )
 
 type Image struct {
@@ -37,9 +38,13 @@ type Post struct {
 
 func (p *Post) T_SetStatus(v byte) { p.T_Status |= v }
 
+func (p *Post) T_UnsetStatus(v byte) { p.T_Status &= ^v }
+
 func (p *Post) T_IsFirst() bool { return p.T_Status&POST_ISFIRST > 0 }
 
 func (p *Post) T_IsRef() bool { return p.T_Status&POST_ISREF > 0 }
+
+func (p *Post) IsNSFW() bool { return p.T_Status&POST_ISNSFW > 0 }
 
 func (p *Post) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
 

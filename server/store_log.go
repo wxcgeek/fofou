@@ -81,6 +81,25 @@ func parseImage(r *buffer, topicIDToTopic map[uint32]*Topic) {
 		Y:    y,
 	}
 }
+
+func parseNSFW(r *buffer, topicIDToTopic map[uint32]*Topic) {
+	topicID, err := r.ReadUInt32()
+	panicif(err != nil, "invalid topic ID")
+
+	t, ok := topicIDToTopic[topicID]
+	panicif(!ok, "invalid topic ID")
+
+	id, err := r.ReadUInt16()
+	panicif(err != nil || int(id) > len(t.Posts) || id == 0, "invalid post ID")
+
+	p := &t.Posts[id-1]
+	if p.IsNSFW() {
+		p.T_UnsetStatus(POST_ISNSFW)
+	} else {
+		p.T_SetStatus(POST_ISNSFW)
+	}
+}
+
 func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	topicID, err := r.ReadUInt32()
 	panicif(err != nil, "invalid topic ID")
@@ -208,6 +227,8 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 			post.Message += msg
 		case OP_IMAGE:
 			parseImage(r, topicIDToTopic)
+		case OP_NSFW:
+			parseNSFW(r, topicIDToTopic)
 		case OP_DELETE:
 			post, err := findPost(r, topicIDToTopic)
 			panicif(err != nil, err)

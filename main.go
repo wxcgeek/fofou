@@ -44,6 +44,7 @@ func newForum(logger *server.Logger) *server.Forum {
 
 	common.KbadUsers = lru.NewCache(1024)
 	common.Kuuids = lru.NewCache(1024)
+	common.Karchive = lru.NewCache(256)
 	common.KthrotIPID = lru.NewCache(256)
 
 	go func() {
@@ -99,6 +100,7 @@ func main() {
 
 	flag.Parse()
 	logger := server.NewLogger(1024, 1024, !*inProd)
+	common.Kpassword = *salt
 
 	if *makeID != "" {
 		u, parts := server.User{}, strings.Split(*makeID, ",")
