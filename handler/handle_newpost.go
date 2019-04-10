@@ -218,6 +218,7 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 	subject := strings.Replace(r.FormValue("subject"), "<", "&lt;", -1)
 	msg := r.FormValue("message")
 	sage := r.FormValue("sage") != "" && user.Posts >= user.N
+	nsfw := r.FormValue("nsfw") != ""
 
 	if strings.HasPrefix(subject, "!!") {
 		topic.ID = 0
@@ -322,6 +323,11 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 		topicID, _ := server.SplitID(postLongID)
 		if sage {
 			common.Kforum.Store.OperateTopic(topicID, server.OP_SAGE)
+		}
+		if nsfw {
+			common.Kforum.Store.FlagPost(user, postLongID, server.OP_NSFW, func(p *server.Post) {
+				p.T_SetStatus(server.POST_ISNSFW)
+			})
 		}
 		if common.Kforum.Rand.Intn(64) == 0 || (!common.Kprod && common.Kforum.Rand.Intn(3) == 0) {
 			go func() {

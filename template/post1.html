@@ -39,7 +39,7 @@
             <a class="item" href="javascript:_submit(null,'!!block={{.IP}}',function(){location.href='/list?q={{.IP}}'})">封/解IP</a>
             <a class="item" href="javascript:_submit(null,'!!delete={{.LongID}}')">{{if .IsDeleted}}恢复{{else}}删除{{end}}该回复</a>
             <a class="item" href="javascript:confirm()?_submit(null,'!!delete-image={{.LongID}}'):0">删除附图</a>
-            <a class="item" href="javascript:_submit(null,'!!nsfw={{.LongID}}')">NSFW</a>
+            <a class="item" href="javascript:_submit(null,'!!nsfw={{.LongID}}')">标记NSFW</a>
         {{else}}
             {{if .T_IsFirst}}
             <a class="group-header item-normally-hidden">主题</a>
@@ -48,7 +48,7 @@
             <a class="group-header">回复</a>
             <a class="item item-normally-hidden" href="javascript:_reply({{.LongID}},'d')">删除该回复</a>
             <a class="item item-normally-hidden" href="javascript:_reply({{.LongID}},'di')">删除附图</a>
-            <a class="item item-normally-hidden" href="javascript:_reply({{.LongID}},'n')">NSFW</a>
+            <a class="item item-normally-hidden" href="javascript:_reply({{.LongID}},'n')">标记NSFW</a>
             <a class="item" href="javascript:_reply({{.LongID}},'r')">举报</a>
             <a class="item" href="javascript:_reply('{{.User}}','ru')">举报ID</a>
         {{end}}
@@ -59,7 +59,10 @@
 <div class="image-div">
     <a target="_blank" href="/i/{{.Image.Path}}">{{.Image.Name}}</a> ({{formatBytes32 .Image.Size}}) <span class="loading"></span><br>
     {{if .IsNSFW}}
-    <span style="color:red"><b>NSFW</b></span>
+    <span style="color:red;cursor:pointer" onclick="_enlarge($(this).hide().next().show(),'/i/{{.Image.Path}}')">
+        <b>NSFW图片，点击展开</b>
+    </span>
+    <img class="image image-base" onclick="_enlarge(this,'/i/{{.Image.Path}}')" style="display: none"/>
     {{else}}
     <img class="image image-base" onclick="_enlarge(this,'/i/{{.Image.Path}}')" src="/i/{{.Image.Path}}?thumb=1" />
     {{end}}

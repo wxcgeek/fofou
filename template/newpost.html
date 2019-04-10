@@ -8,25 +8,14 @@
         <tr {{if .TopicID}}style="display:none"{{end}}>
             <th><label for="subject">标题:</label></th>
             <td>
-                <input maxlength="256" id="subject" type="edit" placeholder="留空">
+                <input class="long" maxlength="256" id="subject" type="edit" placeholder="留空">
             </td>
         </tr>
-
-        {{if not .TopicID}}
-        <tr>
-            <th><label for="sage">sage:</label></th>
-            <td>
-                <input type="checkbox" id="sage" name="sage" style="width: 20px">
-            </td>
-        </tr>
-        {{else}}
-        <script> window.TOPIC_ID = {{.TopicID}} </script>
-        {{end}}
 
         <tr>
             <th>正文:</th>
             <td>
-                <textarea id="message" rows="10" wrap="virtual"></textarea>
+                <textarea class="long" id="message" rows="10" wrap="virtual"></textarea>
             </td>
         </tr>
 
@@ -34,7 +23,7 @@
         <tr>
             <th>图片:</th>
             <td>
-                <input type="file" id="select-image"/>
+                <input class="long" type="file" id="select-image"/>
             </td>
         </tr>
         {{end}}
@@ -47,6 +36,18 @@
             </td>
         </tr>
         {{end}}
+
+        <tr>
+            <th>选项:</th>
+            <td>
+        {{if not .TopicID}}
+                <input type="checkbox" id="sage" name="sage"><label for="sage">SAGE主题</label>
+        {{else}}
+                <script> window.TOPIC_ID = {{.TopicID}} </script>
+        {{end}}
+        <input type="checkbox" id="nsfw" name="nsfw"><label for="nsfw">NSFW</label>
+            </td>
+        </tr>
 
         <tr>
             <td></td>
@@ -75,8 +76,8 @@ function _reply(longid, mode) {
     switch (mode) {
         case 'd':  append("!!delete=" + longid + p + "删除：" + longid + "\n").trigger('render'); break;
         case 'di': append("!!delete-image=" + longid + p + "删除：" + longid + "的附图\n").trigger('render'); break;
-        case 's':  append("!!sage=" + longid + p + "sage：" + longid + "\n").trigger('render'); break;
-        case 'n':  append("!!nsfw=" + longid + p + "nsfw：" + longid + "\n").trigger('render'); break;
+        case 's':  append("!!sage=" + longid + p + "SAGE：" + longid + "\n").trigger('render'); break;
+        case 'n':  append("!!nsfw=" + longid + p + "标记：" + longid + "为NSFW\n").trigger('render'); break;
         case 'a':  $("#subject").val("!!append=" + longid).parents().show(); break;
         case 'an':
             $("#subject").val("!!announce").parents().show();

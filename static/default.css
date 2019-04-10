@@ -64,7 +64,7 @@ table th {
     text-align: left;
 }
 
-table textarea, table input {
+table textarea, table input.long {
 	width: 100%;
     resize: vertical;
 } 

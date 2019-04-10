@@ -310,12 +310,6 @@ func (store *Store) addNewPost(msg string, image *Image, user [8]byte, ipAddr [8
 			WriteUInt16(image.Y)
 	}
 
-	if p.IsNSFW() {
-		topicStr.WriteByte(OP_NSFW).
-			WriteUInt32(topic.ID).
-			WriteUInt16(p.ID)
-	}
-
 	if err := store.append(topicStr.Bytes()); err != nil {
 		return 0, err
 	}
@@ -358,6 +352,12 @@ func (topic *Topic) marshal() buffer {
 				WriteUInt32(p.Image.Size).
 				WriteUInt16(p.Image.X).
 				WriteUInt16(p.Image.Y)
+		}
+
+		if p.IsNSFW() {
+			buf.WriteByte(OP_NSFW).
+				WriteUInt32(topic.ID).
+				WriteUInt16(p.ID)
 		}
 	}
 
