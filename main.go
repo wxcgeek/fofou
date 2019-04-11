@@ -17,12 +17,13 @@ import (
 	"github.com/coyove/fofou/server"
 )
 
+const testPassword = "passw0rd"
+
 var (
 	listen   = flag.String("addr", ":5010", "HTTP server address")
 	makeID   = flag.String("make", "", "Make ID, format: ID,MASK")
 	snapshot = flag.String("ss", "", "Make snapshot of main.txt")
-	salt     = flag.String("s", "0123456789", "A secret string")
-	inProd   = flag.Bool("prod", false, "Run server in production environment")
+	salt     = flag.String("s", testPassword, "A secret string used as both salt and admin password")
 )
 
 func newForum(logger *server.Logger) *server.Forum {
@@ -99,8 +100,16 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	flag.Parse()
-	logger := server.NewLogger(1024, 1024, !*inProd)
+	logger := server.NewLogger(1024, 1024, true)
 	common.Kpassword = *salt
+
+	if *salt == testPassword {
+		logger.Notice("you are using the test password/salt, fofou will run in test mode\n")
+	} else {
+		logger.Notice("production mode on\n")
+		logger.UseStdout = true
+		common.Kprod = true
+	}
 
 	if *makeID != "" {
 		u, parts := server.User{}, strings.Split(*makeID, ",")
@@ -117,9 +126,8 @@ func main() {
 
 	common.Kforum = newForum(logger)
 	common.Kiq = server.NewImageQueue(logger, 200, runtime.NumCPU())
-	common.Kprod = *inProd
 
-	server.LoadTemplates(*inProd)
+	server.LoadTemplates(common.Kprod)
 
 	smux := &http.ServeMux{}
 	common.KdirServer = http.StripPrefix("/browse/", http.FileServer(http.Dir(common.DATA_IMAGES)))
@@ -146,7 +154,7 @@ func main() {
 
 	go func() {
 		for {
-			if *inProd {
+			if common.Kprod {
 				time.Sleep(time.Hour * 6)
 			} else {
 				time.Sleep(time.Minute)

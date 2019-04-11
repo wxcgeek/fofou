@@ -87,8 +87,8 @@ func Cookie(w http.ResponseWriter, r *http.Request) {
 		if len(parts) > 2 {
 			_, _, _, _, u.N, _, _, _, _, _ = atoi(parts[2])
 		}
-		http.Redirect(w, r, "/", 302)
 		common.Kforum.SetUser(w, u)
+		http.Redirect(w, r, "/", 302)
 		return
 	}
 	if m := r.FormValue("makeid"); m != "" {
@@ -118,11 +118,11 @@ func Cookie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Write([]byte("<html><title>Boon</title><form><input name='admin'/> <input name='makeid'/> <input type='submit'/></form></html>"))
+
 	uid, _ := r.Cookie("uid")
 	if uid != nil {
-		w.Write([]byte(uid.Value))
-	} else {
-		w.Write([]byte("no cookie"))
+		w.Write([]byte("[uid]: " + uid.Value))
 	}
 }
 
