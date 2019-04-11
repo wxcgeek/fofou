@@ -39,9 +39,15 @@ func Topic(w http.ResponseWriter, r *http.Request) {
 	topic := common.Kforum.Store.GetTopic(uint32(topicID), server.DefaultTopicMapper)
 	if topic.ID == 0 {
 		var err error
+		if i, ok := common.Karchive.Get(topicID); ok {
+			topic = i.(server.Topic)
+			goto NEXT
+		}
+
 		topic, err = common.Kforum.LoadArchivedTopic(uint32(topicID), common.Kforum.Salt)
 		if err == nil {
 			topic.Archived = true
+			common.Karchive.Add(topicID, topic)
 			goto NEXT
 		}
 

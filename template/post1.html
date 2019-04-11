@@ -22,7 +22,7 @@
         <span class="nowrap"> [ <a href="/t/{{.Topic.ID}}" target="_blank">展开</a> ] </span>
     {{end}}
     </span>
-    <span class="dropdown icon-down-dir" onclick="$(this).toggleClass('active')">
+    <span class="dropdown icon-down-dir" onclick="_dropdownHeight($(this).toggleClass('active'))">
         <div>
         {{if .Topic.T_IsAdmin}}
             {{if .T_IsFirst}}
