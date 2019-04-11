@@ -3,6 +3,7 @@ package common
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/coyove/common/lru"
 	"github.com/coyove/fofou/server"
@@ -23,6 +24,7 @@ var (
 	KdirServer http.Handler
 	Kprod      bool
 	Kpassword  string
+	Kstart     time.Time
 )
 
 var TopicFilter1 = func(t *server.Topic) bool { return !strings.HasPrefix(t.Subject, "!!") }

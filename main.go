@@ -83,14 +83,17 @@ func preHandle(fn func(http.ResponseWriter, *http.Request), footer bool) http.Ha
 		duration := time.Since(startTime)
 
 		if footer && w.(*server.ResponseWriterWrapper).Code == http.StatusOK {
-			server.Render(w, server.TmplFooter, struct{ RenderTime int64 }{duration.Nanoseconds() / 1e6})
+			server.Render(w, server.TmplFooter, struct {
+				RenderTime  int64
+				RunningTime int64
+			}{duration.Nanoseconds() / 1e6, int64(time.Since(common.Kstart).Seconds() / 3600)})
 		}
 		if duration.Seconds() > 0.1 {
 			url := r.URL.Path
 			if len(r.URL.RawQuery) > 0 {
 				url = fmt.Sprintf("%s?%s", url, r.URL.RawQuery)
 			}
-			common.Kforum.Notice("%q took %f seconds to serve", url, duration.Seconds())
+			common.Kforum.Notice("%q took %fs to serve", url, duration.Seconds())
 		}
 	}
 }
@@ -154,21 +157,27 @@ func main() {
 
 	go func() {
 		for {
+			if !common.Kforum.Store.IsReady() {
+				time.Sleep(time.Second)
+				continue
+			}
+
+			start := time.Now()
+			if err := common.Kforum.Store.Dup(common.DATA_MAIN + ".snapshot"); err != nil {
+				logger.Error("failed to dup the store: %v", err)
+			}
+			logger.Notice("dup the store in %.2fs", time.Since(start).Seconds())
+
 			if common.Kprod {
 				time.Sleep(time.Hour * 6)
 			} else {
 				time.Sleep(time.Minute)
 			}
-
-			start := time.Now()
-			if err := common.Kforum.Store.Dup(common.DATA_MAIN + ".snapshot"); err != nil {
-				logger.Error("dup error: %v", err)
-			}
-			logger.Notice("dup: %.2fs", time.Since(start).Seconds())
 		}
 	}()
 
+	common.Kstart = time.Now()
 	if err := srv.ListenAndServe(); err != nil {
-		fmt.Printf("http.ListendAndServer() failed with %s\n", err)
+		fmt.Println("http.ListendAndServe() failed with %s", err)
 	}
 }
