@@ -163,6 +163,7 @@ func (t *Topic) Reparent(wipeID bool) {
 
 // ForumConfig is a static configuration of a single forum
 type ForumConfig struct {
+	Invalidate     int64
 	Title          string
 	NoMoreNewUsers bool
 	NoImageUpload  bool

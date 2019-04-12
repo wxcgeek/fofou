@@ -69,6 +69,7 @@ function _togglePost(id) {
 function _submit(btn, msg, callback) {
     btn ? $(btn).attr('disabled', 'true') : 0;
     var form = new FormData();
+    var options = $('#options').val();
     if (msg) {
         form.append('message', msg);
     } else {
@@ -77,7 +78,7 @@ function _submit(btn, msg, callback) {
         form.append('image', $('#select-image').get(0).files[0]);
         form.append('topic', window.TOPIC_ID || 0);
         form.append('uuid', $('#newpost').attr('uuid'));
-        form.append('options', $('#options').val());
+        form.append('options', options);
         try {
             form.append('token', grecaptcha.getResponse());
         } catch (ex) {}
@@ -89,10 +90,12 @@ function _submit(btn, msg, callback) {
                 var resp = xhr.responseText;
                 resp = JSON.parse(resp);
                 if (resp.success) {
+                    localStorage.setItem("options", options ? options : "");
                     if (callback) {
                         callback();
                     } else {
-                        resp.longid ? location.href = "/p/" + resp.longid : location.reload();
+                        resp.longid && (options || "").indexOf("nonoko") == -1
+                            ? location.href = "/p/" + resp.longid : location.reload();
                     }
                     return;
                 }

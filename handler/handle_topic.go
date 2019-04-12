@@ -3,29 +3,13 @@ package handler
 
 import (
 	"fmt"
-	"math"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/coyove/fofou/common"
 	"github.com/coyove/fofou/server"
 )
-
-var rxBot = regexp.MustCompile(`(bot|crawl|spider)`)
-
-func intmin(a, b int) int {
-	if a < b {
-		return a
-	} else {
-		return b
-	}
-}
-
-func intdivceil(a, b int) int {
-	return int(math.Ceil(float64(a) / float64(b)))
-}
 
 type newPostInfo struct {
 	TopicID   int

@@ -6,18 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/coyove/fofou/common"
 	"github.com/coyove/fofou/server"
 )
-
-func atoi(v string) (byte, int8, uint16, int16, uint32, int32, uint64, int64, uint, int) {
-	i, _ := strconv.ParseUint(v, 10, 64)
-	return byte(i), int8(i), uint16(i), int16(i), uint32(i), int32(i), i, int64(i), uint(i), int(i)
-}
 
 func serveFileFromDir(w http.ResponseWriter, r *http.Request, dir, fileName string) {
 	filePath := filepath.Join(dir, fileName)

@@ -53,6 +53,7 @@
                 当前未持有cookie的匿名用户无法发言
                 {{end}}
                 <script>
+                    $('#options').val(localStorage.getItem('options') || '');
                     var p = document.cookie.match(/'Posts':(\d+)/);
                     var n = document.cookie.match(/'N':(\d+)/);
 if (p && n) {

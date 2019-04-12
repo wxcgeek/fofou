@@ -37,6 +37,7 @@ func newForum(logger *server.Logger) *server.Forum {
 			forum.ForumConfig = &server.ForumConfig{}
 			store.GetConfig(forum.ForumConfig)
 			forum.ForumConfig.CorrectValues()
+			forum.ForumConfig.Invalidate = time.Now().Unix()
 			forum.SetSalt(*salt)
 			forum.RecaptchaSecret = os.Getenv("f2_secret")
 			forum.RecaptchaToken = os.Getenv("f2_token")
@@ -76,6 +77,9 @@ func preHandle(fn func(http.ResponseWriter, *http.Request), footer bool) http.Ha
 		}
 		if footer {
 			w = &server.ResponseWriterWrapper{w, http.StatusOK}
+		}
+		if !common.Kprod {
+			common.Kforum.Invalidate = time.Now().Unix()
 		}
 
 		startTime := time.Now()

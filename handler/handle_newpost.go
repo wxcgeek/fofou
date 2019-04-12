@@ -2,18 +2,15 @@
 package handler
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -21,97 +18,6 @@ import (
 	"github.com/coyove/fofou/common"
 	"github.com/coyove/fofou/server"
 )
-
-func getIPAddress(r *http.Request) (v [8]byte) {
-	ipAddr := ""
-	hdrRealIP, hdrForwardedFor := r.Header.Get("X-Real-Ip"), r.Header.Get("X-Forwarded-For")
-
-	if hdrRealIP == "" && hdrForwardedFor == "" {
-		s := r.RemoteAddr
-		idx := strings.LastIndex(s, ":")
-		if idx == -1 {
-			ipAddr = s
-		} else {
-			ipAddr = s[:idx]
-		}
-	} else if hdrForwardedFor != "" {
-		parts := strings.Split(hdrForwardedFor, ",")
-		ipAddr = strings.TrimSpace(parts[0])
-	} else {
-		ipAddr = hdrRealIP
-	}
-
-	ip := net.ParseIP(ipAddr)
-	if len(ip) == 0 {
-		return
-	}
-	ipv4 := ip.To4()
-	if len(ipv4) == 0 {
-		copy(v[:], ip)
-		return
-	}
-	copy(v[4:], ipv4[:3])
-	return
-}
-
-func throtNewPost(ip, id [8]byte) bool {
-	now := time.Now().Unix()
-	ts, ok := common.KthrotIPID.Get(ip)
-	if !ok {
-		ts, ok = common.KthrotIPID.Get(id)
-		if !ok {
-			common.KthrotIPID.Add(ip, now)
-			common.KthrotIPID.Add(id, now)
-			return true
-		}
-	}
-	t := ts.(int64)
-	if now-t > int64(common.Kforum.Cooldown) {
-		common.KthrotIPID.Add(ip, now)
-		common.KthrotIPID.Add(id, now)
-		return true
-	}
-	return false
-}
-
-func writeSimpleJSON(w http.ResponseWriter, args ...interface{}) {
-	var p bytes.Buffer
-	p.WriteString("{")
-	for i := 0; i < len(args); i += 2 {
-		k, _ := args[i].(string)
-		p.WriteByte('"')
-		p.WriteString(k)
-		p.WriteString(`":`)
-		buf, _ := json.Marshal(args[i+1])
-		p.Write(buf)
-		p.WriteByte(',')
-	}
-	if len(args) > 0 {
-		p.Truncate(p.Len() - 1)
-	}
-	p.WriteString("}")
-	w.Write(p.Bytes())
-}
-
-func sanitizeFilename(name string) string {
-	const needle = "\\/:*?\"<>| "
-	if !strings.ContainsAny(name, needle) && len(name) <= 32 {
-		return name
-	}
-	buf := []rune(name)
-	for i := 0; i < len(buf); i++ {
-		if i >= 32 {
-			buf = buf[:i]
-			break
-		}
-		if strings.ContainsRune(needle, buf[i]) {
-			buf[i] = '_'
-		}
-	}
-	return string(buf)
-}
-
-var reMessage = regexp.MustCompile("(`{3,})")
 
 func PostAPI(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, int64(common.Kforum.MaxImageSize)*1024*1024)
