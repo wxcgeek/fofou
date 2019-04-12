@@ -77,8 +77,7 @@ function _submit(btn, msg, callback) {
         form.append('image', $('#select-image').get(0).files[0]);
         form.append('topic', window.TOPIC_ID || 0);
         form.append('uuid', $('#newpost').attr('uuid'));
-        form.append('sage', ($('#sage').get(0) || {}).checked ? "sage" : "");
-        form.append('nsfw', ($('#nsfw').get(0) || {}).checked ? "nsfw" : "");
+        form.append('options', $('#options').val());
         try {
             form.append('token', grecaptcha.getResponse());
         } catch (ex) {}

@@ -84,7 +84,7 @@ NEXT:
 		copy(tmp[1:], posts)
 		topic.Posts = tmp
 	}
-	topic.Posts[0].T_SetStatus(server.POST_ISFIRST)
+	topic.Posts[0].T_SetStatus(server.POST_T_ISFIRST)
 	topic.Reparent(rxBot.MatchString(r.UserAgent()))
 
 	model := struct {
@@ -134,7 +134,7 @@ func Topics(w http.ResponseWriter, r *http.Request) {
 				copy(tmp, t.Posts)
 				t.Posts = tmp
 			}
-			t.Posts[0].T_SetStatus(server.POST_ISFIRST)
+			t.Posts[0].T_SetStatus(server.POST_T_ISFIRST)
 			t.Reparent(rxBot.MatchString(r.UserAgent()))
 			return t
 		})
@@ -186,7 +186,7 @@ NEXT:
 	topic.T_TotalPosts = uint16(len(topic.Posts) - 1)
 	topic.T_IsExpand = true
 	topic.Posts = []server.Post{topic.Posts[postID-1]}
-	topic.Posts[0].T_SetStatus(server.POST_ISREF)
+	topic.Posts[0].T_SetStatus(server.POST_T_ISREF)
 	topic.Reparent(rxBot.MatchString(r.UserAgent()))
 
 	model := struct {

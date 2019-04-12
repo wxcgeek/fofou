@@ -217,8 +217,10 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 
 	subject := strings.Replace(r.FormValue("subject"), "<", "&lt;", -1)
 	msg := r.FormValue("message")
-	sage := r.FormValue("sage") != "" && user.Posts >= user.N
-	nsfw := r.FormValue("nsfw") != ""
+	options := r.FormValue("options")
+	sage := strings.Contains(options, "sage")
+	nsfw := strings.Contains(options, "nsfw")
+	nocookie := strings.Contains(options, "nocookie")
 
 	if strings.HasPrefix(subject, "!!") {
 		topic.ID = 0
@@ -282,7 +284,9 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	common.Kforum.SetUser(w, user)
+	if !nocookie {
+		common.Kforum.SetUser(w, user)
+	}
 
 	var aImage *server.Image
 	if image != nil && imageInfo != nil {
@@ -314,19 +318,15 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 
 	var postLongID uint64
 	if topic.ID == 0 {
-		postLongID, err = common.Kforum.Store.NewTopic(subject, msg, aImage, user.ID, ipAddr)
+		postLongID, err = common.Kforum.Store.NewTopic(subject, msg, aImage, user.ID, ipAddr, sage)
 		if err != nil {
 			common.Kforum.Error("failed to create new topic: %v", err)
 			internalError()
 			return
 		}
-		topicID, _ := server.SplitID(postLongID)
-		if sage {
-			common.Kforum.Store.OperateTopic(topicID, server.OP_SAGE)
-		}
 		if nsfw {
 			common.Kforum.Store.FlagPost(user, postLongID, server.OP_NSFW, func(p *server.Post) {
-				p.T_SetStatus(server.POST_ISNSFW)
+				p.T_SetStatus(server.POST_T_ISNSFW)
 			})
 		}
 		if common.Kforum.Rand.Intn(64) == 0 || (!common.Kprod && common.Kforum.Rand.Intn(3) == 0) {
@@ -337,7 +337,7 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 			}()
 		}
 	} else {
-		postLongID, err = common.Kforum.Store.NewPost(topic.ID, msg, aImage, user.ID, ipAddr)
+		postLongID, err = common.Kforum.Store.NewPost(topic.ID, msg, aImage, user.ID, ipAddr, sage)
 		if err != nil {
 			common.Kforum.Error("failed to create new post to %d: %v", topic.ID, err)
 			internalError()

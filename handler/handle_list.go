@@ -46,7 +46,7 @@ func List(w http.ResponseWriter, r *http.Request) {
 	isBot := rxBot.MatchString(r.UserAgent())
 
 	for i := range posts {
-		posts[i].T_SetStatus(server.POST_ISREF)
+		posts[i].T_SetStatus(server.POST_T_ISREF)
 		if isBot {
 			posts[i].WipeUser()
 		}

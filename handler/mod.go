@@ -94,11 +94,7 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			opcode = true
 		case "nsfw":
 			res := common.Kforum.Store.FlagPost(u, uint64(vint), server.OP_NSFW, func(p *server.Post) {
-				if p.IsNSFW() {
-					p.T_UnsetStatus(server.POST_ISNSFW)
-				} else {
-					p.T_SetStatus(server.POST_ISNSFW)
-				}
+				p.T_InvertStatus(server.POST_T_ISNSFW)
 			})
 			opcode = true
 			if res != nil {
@@ -124,7 +120,7 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_STICKY)
 			opcode = true
 		case "lock":
-			if !u.Can(server.PERM_LOCK_SAGE_DELETE) {
+			if !u.Can(server.PERM_LOCK_SAGE_DELETE_FLAG) {
 				return true
 			}
 			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_LOCK)
@@ -143,12 +139,9 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			opcode = true
 		case "sage":
 			opcode = true
-			if !u.Can(server.PERM_LOCK_SAGE_DELETE) && (u.Posts < u.N) {
-				// special case: normal users can't sage their threads until certain criterias met
-				return true
-			}
 			res := common.Kforum.Store.SageTopic(uint32(vint), u)
 			if res != nil {
+				common.Kforum.Error("sage %v", res)
 				break
 			}
 		case "block":

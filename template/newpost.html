@@ -3,12 +3,20 @@
         <a href="javascript:void(0)" onclick="$(this).hide();$('#newpost').show()" id="expand-newpost">[ {{if .TopicID}}回复主题{{else}}发布新主题{{end}} ]</a>
     </div>
 
+<script> window.TOPIC_ID = {{.TopicID}} </script>
 <table cellspacing="0" id="newpost" uuid="{{.PostToken}}" style="margin: 0 auto">
     <tbody>
         <tr {{if .TopicID}}style="display:none"{{end}}>
             <th><label for="subject">标题:</label></th>
             <td>
                 <input class="long" maxlength="256" id="subject" type="edit" placeholder="留空">
+            </td>
+        </tr>
+
+        <tr>
+            <th>选项:</th>
+            <td>
+                <input class="long" id="options" name="options">
             </td>
         </tr>
 
@@ -36,18 +44,6 @@
             </td>
         </tr>
         {{end}}
-
-        <tr>
-            <th>选项:</th>
-            <td>
-        {{if not .TopicID}}
-                <input type="checkbox" id="sage" name="sage"><label for="sage">SAGE主题</label>
-        {{else}}
-                <script> window.TOPIC_ID = {{.TopicID}} </script>
-        {{end}}
-        <input type="checkbox" id="nsfw" name="nsfw"><label for="nsfw">附图为NSFW</label>
-            </td>
-        </tr>
 
         <tr>
             <td></td>

@@ -58,7 +58,7 @@
 {{if .Image}}
 <div class="image-div">
     <a target="_blank" href="/i/{{.Image.Path}}">{{.Image.Name}}</a> ({{formatBytes32 .Image.Size}}) <span class="loading"></span><br>
-    {{if .IsNSFW}}
+    {{if .T_IsNSFW}}
     <span style="color:red;cursor:pointer" onclick="_enlarge($(this).hide().next().show(),'/i/{{.Image.Path}}')">
         <b>NSFW图片，点击展开</b>
     </span>

@@ -11,9 +11,14 @@ import (
 )
 
 const (
-	POST_ISFIRST = 1 << iota
-	POST_ISREF
-	POST_ISNSFW
+	POST_ISDELETE = 1 << iota // used in archive only, normal deletion will have OP_DELETE
+	POST_ISSAGE
+)
+
+const (
+	POST_T_ISFIRST = 1 << iota
+	POST_T_ISREF
+	POST_T_ISNSFW // since NSFW is controlled by OP_NSFW and can be altered anytime, it is a transient status
 )
 
 type Image struct {
@@ -31,20 +36,30 @@ type Post struct {
 	ip        [8]byte
 	CreatedAt uint32
 	ID        uint16
-	IsDeleted bool
+	Status    byte
 	T_Status  byte
 	Topic     *Topic
 }
 
 func (p *Post) T_SetStatus(v byte) { p.T_Status |= v }
 
+func (p *Post) SetStatus(v byte) { p.Status |= v }
+
 func (p *Post) T_UnsetStatus(v byte) { p.T_Status &= ^v }
 
-func (p *Post) T_IsFirst() bool { return p.T_Status&POST_ISFIRST > 0 }
+func (p *Post) T_InvertStatus(v byte) { p.T_Status ^= v }
 
-func (p *Post) T_IsRef() bool { return p.T_Status&POST_ISREF > 0 }
+func (p *Post) InvertStatus(v byte) { p.Status ^= v }
 
-func (p *Post) IsNSFW() bool { return p.T_Status&POST_ISNSFW > 0 }
+func (p *Post) T_IsFirst() bool { return p.T_Status&POST_T_ISFIRST > 0 }
+
+func (p *Post) T_IsRef() bool { return p.T_Status&POST_T_ISREF > 0 }
+
+func (p *Post) T_IsNSFW() bool { return p.T_Status&POST_T_ISNSFW > 0 }
+
+func (p *Post) IsDeleted() bool { return p.Status&POST_ISDELETE > 0 }
+
+func (p *Post) IsSaged() bool { return p.Status&POST_ISSAGE > 0 }
 
 func (p *Post) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
 
@@ -199,7 +214,7 @@ const userStructSize = 8 + 4 + 4 + 8 + 8
 const (
 	PERM_ADMIN = 1 << iota
 	PERM_NO_ROLL
-	PERM_LOCK_SAGE_DELETE
+	PERM_LOCK_SAGE_DELETE_FLAG
 	PERM_STICKY_PURGE
 	PERM_BLOCK
 	PERM_APPEND_ANNOUNCE
@@ -220,7 +235,7 @@ func (u User) IsValid() bool { return u.ID != default8Bytes }
 func (u User) Can(perm byte) bool { return u.M&perm > 0 }
 
 func (u User) CanModerate() bool {
-	return u.Can(PERM_ADMIN) || u.Can(PERM_LOCK_SAGE_DELETE) || u.Can(PERM_STICKY_PURGE) || u.Can(PERM_BLOCK) || u.Can(PERM_APPEND_ANNOUNCE)
+	return u.Can(PERM_ADMIN) || u.Can(PERM_LOCK_SAGE_DELETE_FLAG) || u.Can(PERM_STICKY_PURGE) || u.Can(PERM_BLOCK) || u.Can(PERM_APPEND_ANNOUNCE)
 }
 
 type SafeJSON struct {

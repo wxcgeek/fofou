@@ -122,7 +122,7 @@ func (store *Store) SageTopic(topicID uint32, u User) error {
 	if t == nil {
 		return fmt.Errorf("invalid topic ID: %d", topicID)
 	}
-	if !u.Can(PERM_LOCK_SAGE_DELETE) && u.ID != t.Posts[0].user {
+	if !u.Can(PERM_LOCK_SAGE_DELETE_FLAG) && u.ID != t.Posts[0].user {
 		return fmt.Errorf("can't sage the topic")
 	}
 
@@ -264,7 +264,8 @@ func (store *Store) moveTopicToFront(topic *Topic) {
 
 var errTooManyPosts = fmt.Errorf("too many posts")
 
-func (store *Store) addNewPost(msg string, image *Image, user [8]byte, ipAddr [8]byte, topic *Topic, newTopic bool) (uint64, error) {
+func (store *Store) addNewPost(msg string, image *Image, user, ipAddr [8]byte, topic *Topic, sage bool) (uint64, error) {
+	newTopic := len(topic.Posts) == 0
 	nextID := len(topic.Posts) + 1
 	if nextID > 4000 {
 		return 0, errTooManyPosts
@@ -275,25 +276,31 @@ func (store *Store) addNewPost(msg string, image *Image, user [8]byte, ipAddr [8
 		CreatedAt: uint32(time.Now().Unix()),
 		user:      user,
 		ip:        ipAddr,
-		IsDeleted: false,
 		Topic:     topic,
 		Message:   msg,
 		Image:     image,
 	}
 
 	p.ip = p.IPXor()
+	if sage {
+		p.SetStatus(POST_ISSAGE)
+	}
 
 	var topicStr buffer
 	if newTopic {
 		topicStr.WriteByte(OP_TOPIC)
 		topicStr.WriteUInt32(uint32(topic.ID))
 		topicStr.WriteString(topic.Subject)
+
+		if sage {
+			topicStr.WriteByte(OP_SAGE).WriteUInt32(topic.ID)
+		}
 	}
 
 	topicStr.WriteByte(OP_POST)
 	topicStr.WriteUInt32(topic.ID)
 	topicStr.WriteUInt16(p.ID)
-	topicStr.WriteBool(false)
+	topicStr.WriteByte(p.Status)
 	topicStr.WriteUInt32(p.CreatedAt)
 	topicStr.Write8Bytes(p.ip)
 	topicStr.Write8Bytes(user)
@@ -315,7 +322,12 @@ func (store *Store) addNewPost(msg string, image *Image, user [8]byte, ipAddr [8
 	}
 
 	topic.Posts = append(topic.Posts, *p)
-	store.moveTopicToFront(topic)
+
+	if !sage || newTopic {
+		// as a new topic, even it is saged, it still has the opportunity to stay at the top for once
+		store.moveTopicToFront(topic)
+	}
+
 	if newTopic {
 		topic.CreatedAt = p.CreatedAt
 	} else {
@@ -337,7 +349,7 @@ func (topic *Topic) marshal() buffer {
 		buf.WriteByte(OP_POST).
 			WriteUInt32(topic.ID).
 			WriteUInt16(p.ID).
-			WriteBool(p.IsDeleted).
+			WriteByte(p.Status).
 			WriteUInt32(p.CreatedAt).
 			Write8Bytes(p.ip).
 			Write8Bytes(p.user).
@@ -354,7 +366,7 @@ func (topic *Topic) marshal() buffer {
 				WriteUInt16(p.Image.Y)
 		}
 
-		if p.IsNSFW() {
+		if p.T_IsNSFW() {
 			buf.WriteByte(OP_NSFW).
 				WriteUInt32(topic.ID).
 				WriteUInt16(p.ID)
@@ -425,7 +437,7 @@ func (store *Store) archiveJob(maxLiveTopics int) error {
 	return nil
 }
 
-func (store *Store) NewTopic(subject, msg string, image *Image, user [8]byte, ipAddr [8]byte) (uint64, error) {
+func (store *Store) NewTopic(subject, msg string, image *Image, user, ipAddr [8]byte, sage bool) (uint64, error) {
 	store.Lock()
 	defer store.Unlock()
 
@@ -440,7 +452,7 @@ func (store *Store) NewTopic(subject, msg string, image *Image, user [8]byte, ip
 		store:   store,
 	}
 
-	postLongID, err := store.addNewPost(msg, image, user, ipAddr, topic, true)
+	postLongID, err := store.addNewPost(msg, image, user, ipAddr, topic, sage)
 	if err == nil {
 		store.topicsCount++
 		store.LiveTopicsNum++
@@ -449,7 +461,7 @@ func (store *Store) NewTopic(subject, msg string, image *Image, user [8]byte, ip
 	return postLongID, err
 }
 
-func (store *Store) NewPost(topicID uint32, msg string, image *Image, user [8]byte, ipAddr [8]byte) (uint64, error) {
+func (store *Store) NewPost(topicID uint32, msg string, image *Image, user, ipAddr [8]byte, sage bool) (uint64, error) {
 	store.Lock()
 	defer store.Unlock()
 
@@ -457,7 +469,8 @@ func (store *Store) NewPost(topicID uint32, msg string, image *Image, user [8]by
 	if topic == nil {
 		return 0, errors.New("invalid topic ID")
 	}
-	postLongID, err := store.addNewPost(msg, image, user, ipAddr, topic, false)
+
+	postLongID, err := store.addNewPost(msg, image, user, ipAddr, topic, sage)
 	if err == errTooManyPosts {
 		var p buffer
 		if err = store.append(p.WriteByte(OP_LOCK).WriteUInt32(topicID).Bytes()); err == nil {

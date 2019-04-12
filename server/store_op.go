@@ -37,7 +37,7 @@ func (store *Store) DeletePost(u User, postLongID uint64, imageOnly bool, onImag
 		return err
 	}
 
-	if !u.Can(PERM_LOCK_SAGE_DELETE) && u.ID != post.user {
+	if !u.Can(PERM_LOCK_SAGE_DELETE_FLAG) && u.ID != post.user {
 		return fmt.Errorf("can't delete the post")
 	}
 
@@ -51,7 +51,7 @@ func (store *Store) DeletePost(u User, postLongID uint64, imageOnly bool, onImag
 		return err
 	}
 
-	post.IsDeleted = !post.IsDeleted
+	post.InvertStatus(POST_ISDELETE)
 
 	if post.Image != nil {
 		onImageDelete(post.Image)
@@ -68,7 +68,7 @@ func (store *Store) FlagPost(u User, postLongID uint64, flag byte, callback func
 		return err
 	}
 
-	if !u.Can(PERM_LOCK_SAGE_DELETE) && u.ID != post.user {
+	if !u.Can(PERM_LOCK_SAGE_DELETE_FLAG) && u.ID != post.user {
 		return fmt.Errorf("can't flag the post")
 	}
 

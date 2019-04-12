@@ -93,11 +93,7 @@ func parseNSFW(r *buffer, topicIDToTopic map[uint32]*Topic) {
 	panicif(err != nil || int(id) > len(t.Posts) || id == 0, "invalid post ID")
 
 	p := &t.Posts[id-1]
-	if p.IsNSFW() {
-		p.T_UnsetStatus(POST_ISNSFW)
-	} else {
-		p.T_SetStatus(POST_ISNSFW)
-	}
+	p.T_InvertStatus(POST_T_ISNSFW)
 }
 
 func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
@@ -107,7 +103,7 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 	id, err := r.ReadUInt16()
 	panicif(err != nil, "invalid post ID")
 
-	deleted, err := r.ReadBool()
+	status, err := r.ReadByte()
 	panicif(err != nil, "invalid deletion marker")
 
 	createdOnSeconds, err := r.ReadUInt32()
@@ -134,8 +130,7 @@ func parsePost(r *buffer, topicIDToTopic map[uint32]*Topic) Post {
 		CreatedAt: createdOnSeconds,
 		user:      userName,
 		ip:        ipAddrInternal,
-		// if this flag is set to true (only can be done in archive()), then no other OP_DELETE shall be performed on this post
-		IsDeleted: deleted,
+		Status:    status,
 		Topic:     t,
 		Message:   message,
 	}
@@ -198,6 +193,8 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 		switch op {
 		case OP_TOPIC:
 			t := parseTopic(r, store)
+			// here the topic is moved to the front
+			// if it is a saged topic, this OP_TOPIC will be followed by a saged OP_POST
 			store.moveTopicToFront(t)
 			store.topicsCount++
 			store.LiveTopicsNum++
@@ -217,8 +214,9 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 			} else {
 				t.ModifiedAt = post.CreatedAt
 			}
-
-			store.moveTopicToFront(t)
+			if !post.IsSaged() {
+				store.moveTopicToFront(t)
+			}
 		case OP_APPEND:
 			post, err := findPost(r, topicIDToTopic)
 			panicif(err != nil, err)
@@ -232,7 +230,7 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 		case OP_DELETE:
 			post, err := findPost(r, topicIDToTopic)
 			panicif(err != nil, err)
-			post.IsDeleted = !post.IsDeleted
+			post.InvertStatus(POST_ISDELETE)
 		case OP_BLOCK:
 			str, err := r.Read8Bytes()
 			panicif(err != nil, "invalid object to block")
@@ -348,10 +346,10 @@ func NewStore(path string, password [16]byte, logger *Logger, onload func(*Store
 					}
 
 					if r.Intn(10) == 1 {
-						longID, _ := store.NewTopic(subject, msg, img, userName, ipAddr)
+						longID, _ := store.NewTopic(subject, msg, img, userName, ipAddr, false)
 						curTopicId, _ = SplitID(longID)
 					} else if curTopicId > 0 {
-						store.NewPost(uint32(r.Intn(int(curTopicId))+1), msg, img, userName, ipAddr)
+						store.NewPost(uint32(r.Intn(int(curTopicId))+1), msg, img, userName, ipAddr, false)
 					}
 					wg.Done()
 				}()
