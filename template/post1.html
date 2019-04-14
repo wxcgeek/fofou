@@ -12,9 +12,11 @@
     {{end}}
 
     {{.Date}}
-    <a href="/list?q={{.User}}" target="_blank" class="author">{{.User}}</a>
+
+    {{if .T_IsYou}}{{if not .T_IsFirst}}<b>OP</b>{{end}}{{end}}
 
     {{if .Topic.T_IsAdmin}}
+    <a href="/list?q={{.User}}" target="_blank" class="author">{{.User}}</a>
     (<a href="/list?q={{.IP}}" target="_blank">{{.IP}}</a>)
     {{end}}
 
@@ -41,16 +43,19 @@
             <a class="item" href="javascript:confirm()?_submit(null,'!!delete-image={{.LongID}}'):0">删除附图</a>
             <a class="item" href="javascript:_submit(null,'!!nsfw={{.LongID}}')">标记NSFW</a>
         {{else}}
-            {{if .T_IsFirst}}
-            <a class="group-header item-normally-hidden">主题</a>
-            <a class="item item-normally-hidden" href="javascript:_reply({{.Topic.ID}},'s')">SAGE</a>
+            {{if and .T_IsYou .T_IsFirst}}
+            <a class="group-header">主题</a>
+            <a class="item" href="javascript:_reply({{.Topic.ID}},'s')">SAGE</a>
             {{end}}
             <a class="group-header">回复</a>
-            <a class="item item-normally-hidden" href="javascript:_reply({{.LongID}},'d')">删除该回复</a>
-            <a class="item item-normally-hidden" href="javascript:_reply({{.LongID}},'di')">删除附图</a>
-            <a class="item item-normally-hidden" href="javascript:_reply({{.LongID}},'n')">标记NSFW</a>
+            {{if .T_IsYou}}
+            <a class="item" href="javascript:_reply({{.LongID}},'d')">删除该回复</a>
+            <a class="item" href="javascript:_reply({{.LongID}},'di')">删除附图</a>
+            <a class="item" href="javascript:_reply({{.LongID}},'n')">标记NSFW</a>
+            {{else}}
             <a class="item" href="javascript:_reply({{.LongID}},'r')">举报</a>
             <a class="item" href="javascript:_reply('{{.User}}','ru')">举报ID</a>
+            {{end}}
         {{end}}
         </div>
     </span>

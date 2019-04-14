@@ -6,12 +6,14 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/coyove/fofou/markup"
 )
 
 const (
 	POST_ISDELETE = 1 << iota // used in archive only, normal deletion will have OP_DELETE
+	POST_SHOWID
 	POST_ISSAGE
 )
 
@@ -19,6 +21,7 @@ const (
 	POST_T_ISFIRST = 1 << iota
 	POST_T_ISREF
 	POST_T_ISNSFW // since NSFW is controlled by OP_NSFW and can be altered anytime, it is a transient status
+	POST_T_ISYOU
 )
 
 type Image struct {
@@ -57,6 +60,8 @@ func (p *Post) T_IsRef() bool { return p.T_Status&POST_T_ISREF > 0 }
 
 func (p *Post) T_IsNSFW() bool { return p.T_Status&POST_T_ISNSFW > 0 }
 
+func (p *Post) T_IsYou() bool { return p.T_Status&POST_T_ISYOU > 0 }
+
 func (p *Post) IsDeleted() bool { return p.Status&POST_ISDELETE > 0 }
 
 func (p *Post) IsSaged() bool { return p.Status&POST_ISSAGE > 0 }
@@ -65,26 +70,27 @@ func (p *Post) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(st
 
 func (p *Post) MessageHTML() string { return markup.Do(p.Message, true, 0) }
 
-func (p *Post) IPXor() [8]byte {
-	x := p.ip
+func (p *Post) aes128(a [8]byte) [8]byte {
 	iv := [16]byte{}
-	copy(iv[:], p.user[:])
-	binary.BigEndian.PutUint64(iv[8:], p.LongID())
+	binary.BigEndian.PutUint32(iv[:], p.CreatedAt)
+	binary.BigEndian.PutUint32(iv[4:], p.Topic.ID)
+	binary.BigEndian.PutUint16(iv[8:], p.ID)
 	p.Topic.store.block.Encrypt(iv[:], iv[:])
-	for i := 0; i < len(x); i++ {
-		x[i] ^= iv[i]
-	}
-	return x
+
+	*(*uint64)(unsafe.Pointer(&a)) ^= *(*uint64)(unsafe.Pointer(&iv[0]))
+	*(*uint64)(unsafe.Pointer(&a)) ^= *(*uint64)(unsafe.Pointer(&iv[8]))
+	return a
 }
 
-func (p *Post) IP() string {
-	i, _ := Format8Bytes(p.IPXor())
-	return i
-}
+func (p *Post) IPXor() [8]byte { return p.aes128(p.ip) }
 
-func (p *Post) WipeUser() {
-	p.user = default8Bytes
-}
+func (p *Post) UserXor() [8]byte { return p.aes128(p.user) }
+
+func (p *Post) IP() string { i, _ := Format8Bytes(p.IPXor()); return i }
+
+func (p *Post) User() string { _, i := Format8Bytes(p.UserXor()); return i }
+
+func (p *Post) IsOP() bool { return p.Topic.Posts[0].UserXor() == p.UserXor() }
 
 func (p *Post) LongID() uint64 {
 	if p.ID >= 1<<12 || p.ID == 0 {
@@ -122,8 +128,6 @@ func SplitID(longid uint64) (uint32, uint16) {
 	return uint32(longid >> 14), uint16(longid>>10&0xf)<<8 + uint16(longid>>5&0xf)<<4 + uint16(longid&0xf) + 1
 }
 
-func (p *Post) User() string { _, i := Format8Bytes(p.user); return i }
-
 // Topic describes topic
 type Topic struct {
 	ID         uint32
@@ -150,13 +154,11 @@ func (p *Topic) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(s
 
 func (p *Topic) LastDate() string { return time.Unix(int64(p.ModifiedAt), 0).Format(stdTimeFormat) }
 
-func (t *Topic) FirstPostID() uint16 { return t.Posts[0].ID }
-
-func (t *Topic) Reparent(wipeID bool) {
+func (t *Topic) Reparent(u [8]byte) {
 	for i := 0; i < len(t.Posts); i++ {
 		t.Posts[i].Topic = t
-		if wipeID {
-			t.Posts[i].user = default8Bytes
+		if t.Posts[i].UserXor() == u {
+			t.Posts[i].T_SetStatus(POST_T_ISYOU)
 		}
 	}
 }

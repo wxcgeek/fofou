@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unsafe"
 )
 
@@ -58,14 +59,15 @@ func Format8Bytes(b [8]byte) (string, string) {
 	}
 	buf.WriteString("x")
 
-	if b[0] == '^' {
+	if unicode.IsLetter(rune(b[0])) {
 		idx := bytes.IndexByte(b[:], 0)
 		if idx == -1 {
 			idx = 8
 		}
-		bufid.WriteString(string(b[:idx]))
+		bufid.WriteByte('*')
+		bufid.Write(b[:idx])
 	} else {
-		base64.NewEncoder(base64.URLEncoding, &bufid).Write(b[:6])
+		base64.NewEncoder(base64.URLEncoding, &bufid).Write(b[2:])
 	}
 	return buf.String(), bufid.String()
 }
@@ -92,11 +94,11 @@ func Parse8Bytes(str string) (b [8]byte) {
 		}
 		return
 	}
-	if strings.HasPrefix(str, "^") {
-		copy(b[:], str)
+	if strings.HasPrefix(str, "*") {
+		copy(b[:], str[1:])
 		return
 	}
-	base64.URLEncoding.Decode(b[:], []byte(str))
+	base64.URLEncoding.Decode(b[2:], []byte(str))
 	return
 }
 

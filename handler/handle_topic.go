@@ -39,8 +39,10 @@ func Topic(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", 302)
 		return
 	}
+
 NEXT:
-	isAdmin := common.Kforum.GetUser(r).CanModerate()
+	user := common.Kforum.GetUser(r)
+	isAdmin := user.CanModerate()
 	if len(topic.Posts) == 0 {
 		http.Redirect(w, r, "/", 302)
 		return
@@ -69,7 +71,7 @@ NEXT:
 		topic.Posts = tmp
 	}
 	topic.Posts[0].T_SetStatus(server.POST_T_ISFIRST)
-	topic.Reparent(rxBot.MatchString(r.UserAgent()))
+	topic.Reparent(topic.Posts[0].UserXor())
 
 	model := struct {
 		server.Forum
@@ -96,7 +98,8 @@ func Topics(w http.ResponseWriter, r *http.Request) {
 		p = 1
 	}
 
-	isAdmin := common.Kforum.GetUser(r).CanModerate()
+	user := common.Kforum.GetUser(r)
+	isAdmin := user.CanModerate()
 	filter := common.TopicFilter1
 	if showSpecial {
 		filter = common.TopicFilter2
@@ -119,7 +122,7 @@ func Topics(w http.ResponseWriter, r *http.Request) {
 				t.Posts = tmp
 			}
 			t.Posts[0].T_SetStatus(server.POST_T_ISFIRST)
-			t.Reparent(rxBot.MatchString(r.UserAgent()))
+			t.Reparent(t.Posts[0].UserXor())
 			return t
 		})
 
@@ -171,7 +174,7 @@ NEXT:
 	topic.T_IsExpand = true
 	topic.Posts = []server.Post{topic.Posts[postID-1]}
 	topic.Posts[0].T_SetStatus(server.POST_T_ISREF)
-	topic.Reparent(rxBot.MatchString(r.UserAgent()))
+	topic.Reparent([8]byte{})
 
 	model := struct {
 		server.Forum

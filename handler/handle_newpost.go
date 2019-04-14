@@ -65,10 +65,7 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 			writeSimpleJSON(w, "success", false, "error", "no-more-new-users")
 			return
 		}
-		copy(user.ID[:], common.Kforum.Rand.Fetch(6))
-		if user.ID[0] == '^' {
-			user.ID[0]++ // ^ means mod
-		}
+		copy(user.ID[2:], common.Kforum.Rand.Fetch(6))
 		user.T = time.Now().Unix()
 		if topic.ID == 0 {
 			user.N = uint32(common.Kforum.Rand.Intn(10) + 10)

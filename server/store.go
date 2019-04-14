@@ -122,7 +122,7 @@ func (store *Store) SageTopic(topicID uint32, u User) error {
 	if t == nil {
 		return fmt.Errorf("invalid topic ID: %d", topicID)
 	}
-	if !u.Can(PERM_LOCK_SAGE_DELETE_FLAG) && u.ID != t.Posts[0].user {
+	if !u.Can(PERM_LOCK_SAGE_DELETE_FLAG) && u.ID != t.Posts[0].UserXor() {
 		return fmt.Errorf("can't sage the topic")
 	}
 
@@ -282,6 +282,8 @@ func (store *Store) addNewPost(msg string, image *Image, user, ipAddr [8]byte, t
 	}
 
 	p.ip = p.IPXor()
+	p.user = p.UserXor()
+
 	if sage {
 		p.SetStatus(POST_ISSAGE)
 	}
@@ -303,7 +305,7 @@ func (store *Store) addNewPost(msg string, image *Image, user, ipAddr [8]byte, t
 	topicStr.WriteByte(p.Status)
 	topicStr.WriteUInt32(p.CreatedAt)
 	topicStr.Write8Bytes(p.ip)
-	topicStr.Write8Bytes(user)
+	topicStr.Write8Bytes(p.user)
 	topicStr.WriteString(msg)
 
 	if image != nil {
@@ -504,7 +506,7 @@ func (store *Store) GetPostsBy(q [8]byte, qtext string, max int, timeout int64) 
 						res = append(res, post)
 					}
 				}
-			} else if post.IPXor() == q || post.user == q {
+			} else if post.IPXor() == q || post.UserXor() == q {
 				if total++; total <= max {
 					res = append(res, post)
 				}
