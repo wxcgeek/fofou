@@ -4,6 +4,7 @@
     </div>
 
 <script> window.TOPIC_ID = {{.TopicID}} </script>
+<style> .openpgp { display: none } </style>
 <table cellspacing="0" id="newpost" uuid="{{.PostToken}}" style="margin: 0 auto">
     <tbody>
         <tr {{if .TopicID}}style="display:none"{{end}}>
@@ -21,9 +22,21 @@
         </tr>
 
         <tr>
-            <th>正文:</th>
+            <th>正文:<br>
+                <a href="javascript:void(0)" onclick="$(this).hide();$('.openpgp').show()">PGP</a>
+            </th>
             <td>
                 <textarea class="long" id="message" rows="10" wrap="virtual"></textarea>
+            </td>
+        </tr>
+
+        <tr class="openpgp">
+            <td colspan=2>
+                <table style="min-width:0">
+                <tr><th>私钥:</th><td><input class="long" type="file" id="openpgp-key"/></td></tr>
+                <tr><th>私钥密码:</th><td><input class="long" id="openpgp-pass" type=password placeholder="空"></td></tr>
+                <tr><th></th><td><button onclick="_sign(this)">签名正文</button></td></tr>
+                </table>
             </td>
         </tr>
 
@@ -64,6 +77,22 @@ if (p && n) {
     $('#submit-newpost').append(" (" + y.toFixed(2) + ")").focus();
 } else {
     $('#submit-newpost').append(" (0.00)").focus();
+}
+
+function _sign(el) {
+    var file = $("#openpgp-key").get(0).files[0];
+    if (!file) return;
+
+    $(el).attr("disabled", "disabled");
+    var reader = new FileReader();
+    reader.readAsText(file, "UTF-8");
+    reader.onload = function (evt) {
+        _openpgpSign(evt.target.result, $("#openpgp-pass").val(), $("#message").val(), function(signed) {
+            var d = signed.data;
+            d ? $("#message").val(d) : 0;
+            $(el).removeAttr("disabled");
+        });
+    }
 }
 
 function _reply(longid, mode) {

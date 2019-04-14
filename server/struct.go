@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	"unsafe"
 
 	"github.com/coyove/fofou/markup"
 )
@@ -22,6 +21,7 @@ const (
 	POST_T_ISREF
 	POST_T_ISNSFW // since NSFW is controlled by OP_NSFW and can be altered anytime, it is a transient status
 	POST_T_ISYOU
+	POST_T_ISOP
 )
 
 type Image struct {
@@ -60,6 +60,8 @@ func (p *Post) T_IsRef() bool { return p.T_Status&POST_T_ISREF > 0 }
 
 func (p *Post) T_IsNSFW() bool { return p.T_Status&POST_T_ISNSFW > 0 }
 
+func (p *Post) T_IsOP() bool { return p.T_Status&POST_T_ISOP > 0 }
+
 func (p *Post) T_IsYou() bool { return p.T_Status&POST_T_ISYOU > 0 }
 
 func (p *Post) IsDeleted() bool { return p.Status&POST_ISDELETE > 0 }
@@ -76,9 +78,9 @@ func (p *Post) aes128(a [8]byte) [8]byte {
 	binary.BigEndian.PutUint32(iv[4:], p.Topic.ID)
 	binary.BigEndian.PutUint16(iv[8:], p.ID)
 	p.Topic.store.block.Encrypt(iv[:], iv[:])
-
-	*(*uint64)(unsafe.Pointer(&a)) ^= *(*uint64)(unsafe.Pointer(&iv[0]))
-	*(*uint64)(unsafe.Pointer(&a)) ^= *(*uint64)(unsafe.Pointer(&iv[8]))
+	for i := 2; i < 8; i++ {
+		a[i] ^= iv[i-2]
+	}
 	return a
 }
 
@@ -91,6 +93,13 @@ func (p *Post) IP() string { i, _ := Format8Bytes(p.IPXor()); return i }
 func (p *Post) User() string { _, i := Format8Bytes(p.UserXor()); return i }
 
 func (p *Post) IsOP() bool { return p.Topic.Posts[0].UserXor() == p.UserXor() }
+
+func (p *Post) UserHTML() string {
+	if p.user[0] == 0 {
+		return ""
+	}
+	return "<span class='special-user'>" + p.User()[1:] + "</span>"
+}
 
 func (p *Post) LongID() uint64 {
 	if p.ID >= 1<<12 || p.ID == 0 {
@@ -154,10 +163,14 @@ func (p *Topic) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(s
 
 func (p *Topic) LastDate() string { return time.Unix(int64(p.ModifiedAt), 0).Format(stdTimeFormat) }
 
-func (t *Topic) Reparent(u [8]byte) {
+func (t *Topic) Reparent(u, you [8]byte) {
 	for i := 0; i < len(t.Posts); i++ {
 		t.Posts[i].Topic = t
-		if t.Posts[i].UserXor() == u {
+		x := t.Posts[i].UserXor()
+		if x == u {
+			t.Posts[i].T_SetStatus(POST_T_ISOP)
+		}
+		if x == you {
 			t.Posts[i].T_SetStatus(POST_T_ISYOU)
 		}
 	}

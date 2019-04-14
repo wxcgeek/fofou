@@ -60,12 +60,18 @@ func Format8Bytes(b [8]byte) (string, string) {
 	buf.WriteString("x")
 
 	if unicode.IsLetter(rune(b[0])) {
-		idx := bytes.IndexByte(b[:], 0)
-		if idx == -1 {
-			idx = 8
-		}
 		bufid.WriteByte('*')
-		bufid.Write(b[:idx])
+		for _, x := range b {
+			if x == 0 {
+				break
+			}
+			if !unicode.IsLetter(rune(x)) {
+				bufid.Reset()
+				base64.NewEncoder(base64.URLEncoding, &bufid).Write(b[2:])
+				break
+			}
+			bufid.WriteByte(x)
+		}
 	} else {
 		base64.NewEncoder(base64.URLEncoding, &bufid).Write(b[2:])
 	}

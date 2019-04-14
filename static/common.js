@@ -132,3 +132,25 @@ function _dropdownHeight(el) {
     var diff = el.height() + el.offset().top - $(window).scrollTop() - $(window).height();
     if (diff > 0) el.css('height', el.height() - diff - 5).css('overflow-y', 'scroll');
 }
+
+function _openpgpSign(privkey, passphrase, text, callback) {
+    var sign = function() {
+        openpgp.key.readArmored(privkey).then(function(data) {
+            var privKeyObj = data.keys[0];
+            var sign = function() {
+                var options = {
+                    message: openpgp.cleartext.fromText(text),
+                    privateKeys: [privKeyObj]                
+                };
+                openpgp.sign(options).then(callback);
+            };
+            privKeyObj.decrypt(passphrase).then(sign).catch(sign);
+        });
+    };
+
+    if (!window.openpgp) {
+        $.getScript("/s/openpgp.min.js", sign);
+    } else {
+        sign();
+    }
+}

@@ -71,7 +71,7 @@ NEXT:
 		topic.Posts = tmp
 	}
 	topic.Posts[0].T_SetStatus(server.POST_T_ISFIRST)
-	topic.Reparent(topic.Posts[0].UserXor())
+	topic.Reparent(topic.Posts[0].UserXor(), user.ID)
 
 	model := struct {
 		server.Forum
@@ -122,7 +122,7 @@ func Topics(w http.ResponseWriter, r *http.Request) {
 				t.Posts = tmp
 			}
 			t.Posts[0].T_SetStatus(server.POST_T_ISFIRST)
-			t.Reparent(t.Posts[0].UserXor())
+			t.Reparent(t.Posts[0].UserXor(), user.ID)
 			return t
 		})
 
@@ -147,6 +147,8 @@ func Topics(w http.ResponseWriter, r *http.Request) {
 func Post(w http.ResponseWriter, r *http.Request) {
 	longID, _ := strconv.ParseInt(r.URL.Path[len("/p/"):], 10, 64)
 	topicID, postID := server.SplitID(uint64(longID))
+	user := common.Kforum.GetUser(r)
+
 	if r.FormValue("raw") != "1" {
 		p := intdivceil(int(postID), common.Kforum.PostsPerPage)
 		http.Redirect(w, r, fmt.Sprintf("/t/%d?p=%d#post-%d", topicID, p, longID), 302)
@@ -174,7 +176,7 @@ NEXT:
 	topic.T_IsExpand = true
 	topic.Posts = []server.Post{topic.Posts[postID-1]}
 	topic.Posts[0].T_SetStatus(server.POST_T_ISREF)
-	topic.Reparent([8]byte{})
+	topic.Reparent([8]byte{}, user.ID)
 
 	model := struct {
 		server.Forum
