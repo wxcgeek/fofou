@@ -4,12 +4,12 @@
 #ranking {
     width: 100%;
     max-width: 360px;
-        margin: 4px 0;
+    margin: 4px 0;
 }
 
-pre {
-	font-family: "Lucida Console", Monaco, monospace;
-}
+pre { font-family: "Lucida Console", Monaco, monospace; }
+
+code {display: inline}
 </style>
 
 {{if not .Forum.NoRecaptcha}}
@@ -143,16 +143,27 @@ if (p && n) {
 <h3>标记语言</h3>
 
 <ol>
-    <li>使用<code>```code```</code>括住代码</li>
-    <li>使用<code>&gt;&gt;1234</code>引用其他人的发言</li>
+    <li>使用 <code>```code```</code> 括住代码</li>
+    <li>使用 <code>&gt;&gt;1234</code> 引用其他人的发言</li>
+    <li>使用 <code>[URL]</code> 标记一个链接</li>
 </ol>
 
-<h3>删除模式</h3>
+<h3>选项命令</h3>
+
+<ol>
+    <li><code>sage</code>: sage主题/回复</li>
+    <li><code>nsfw</code>: 附图包含不适宜公共场合浏览之内容</li>
+    <li><code>nocookie</code>: 不需要服务端返回cookie</li>
+    <li>以上命令可以组合出现，使用任意分隔符均可</li>
+</ol>
+
+<h3>OpenPGP签名</h3>
 <ul>
-    <li>用户可以删除自己的发言。该动作通过发布一条特殊命令来实现，所以需要机器人验证</li>
+    <li>如果你不知道这是什么意思，那你就不会用到它</li>
+    <li>openpgp.js测试在以下环境中正常工作：IE 11, Chrome 26, Firefox 35</li>
 </ul>
 
-<h3>其他</h3>
+<h3>服务端参数</h3>
 <ul>
     <li>正文最大长度：{{.Forum.MaxMessageLen}} 字节</li>
     <li>标题最大长度：{{.Forum.MaxSubjectLen}} 字</li>

@@ -32,10 +32,10 @@
 
         <tr class="openpgp">
             <td colspan=2>
-                <table style="min-width:0">
+                <table style="min-width:0;width:100%">
                 <tr><th>私钥:</th><td><input class="long" type="file" id="openpgp-key"/></td></tr>
                 <tr><th>私钥密码:</th><td><input class="long" id="openpgp-pass" type=password placeholder="空"></td></tr>
-                <tr><th></th><td><button onclick="_sign(this)">签名正文</button></td></tr>
+                <tr><td colspan=2 style="text-align:center"><button onclick="_sign(this)">签名正文</button></td></tr>
                 </table>
             </td>
         </tr>
@@ -129,7 +129,6 @@ function _reply(longid, mode) {
     </tbody>
 </table>
 {{if not .TopicID}}
-{{if .Forum.Announcement}}
 <div style="margin: 0 auto; width: 100%; max-width: 350px">
     <div id="announcement">
     {{.Forum.Announcement}}
@@ -138,7 +137,6 @@ function _reply(longid, mode) {
     <div><a href="javascript:_reply(null,'an')">Edit Announcement</a></div>
     {{end}}
 </div>
-{{end}}
 {{end}}
 
 <hr>
