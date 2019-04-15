@@ -52,11 +52,12 @@ a:link {
 code {
 	white-space: pre-wrap;
 	font-family: "Lucida Console", Monaco, monospace;
+    display: block;
 }
 
-code.pgp-header { font-size: 90%; color: #666 }
+code.pgp-header { font-size: 90%; margin: 4px 0; color: #666 }
 
-code.pgp-sign { font-size: 6px; display: block; color: #ff5722 }
+code.pgp-sign { font-size: 6px; color: #ff5722 }
 
 table th, table td {
     padding: 4px;

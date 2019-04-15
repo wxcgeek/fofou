@@ -33,9 +33,9 @@
             var m = msg.match(/-----BEGIN PGP SIGNED MESSAGE-----([\s\S]+)-----BEGIN PGP SIGNATURE-----([\s\S]+)-----END PGP SIGNATURE-----/);
             if (!m) return;
             $(el).prop('raw-msg', msg).html("<code class='pgp-header'>-----BEGIN PGP SIGNED MESSAGE-----</code><code>" 
-                + m[1] + 
+                + m[1].replace(/^\s+|\s+$/g, '') + 
                 "</code><code class='pgp-header'>-----BEGIN PGP SIGNATURE-----</code><code class='pgp-sign'>" 
-                + m[2] +
+                + m[2].replace(/^\s+|\s+$/g, '') +
                 "</code><code class='pgp-header'>-----END PGP SIGNATURE-----</code>");
         });
     })()
