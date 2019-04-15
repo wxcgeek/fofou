@@ -87,11 +87,15 @@ function _sign(el) {
     var reader = new FileReader();
     reader.readAsText(file, "UTF-8");
     reader.onload = function (evt) {
-        _openpgpSign(evt.target.result, $("#openpgp-pass").val(), $("#message").val(), function(signed) {
-            var d = signed.data;
-            d ? $("#message").val(d) : 0;
+        try {
+            _openpgpSign(evt.target.result, $("#openpgp-pass").val(), $("#message").val(), function(signed) {
+                var d = signed.data;
+                d ? $("#message").val(d) : 0;
+                $(el).removeAttr("disabled");
+            });
+        } catch(ex) {
             $(el).removeAttr("disabled");
-        });
+        }
     }
 }
 

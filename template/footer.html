@@ -28,19 +28,15 @@
             if (!menu.get(0)) return;
             if (!menu.is(e.target) && menu.has(e.target).length === 0) menu.click();
         });
-
-        // display mod panels for average users of their own threads/posts
-        var m = document.cookie.match(/'ID':\[(\S+)\]/);
-        var id = null;
-        if (m && m[1]) {
-            var a = new Uint8Array(m[1].split("^"));
-            id = (btoa(String.fromCharCode.apply(null, a)).substring(0, 8).replace("+", "-").replace("/", "_"));
-        }
-        if (!id) return;
-
-        $(".post .info").each(function(i, el) {
-            if ($(el).find(".author").text() != id) return;
-            $(el).parent().find('.dropdown').first().find('.item-normally-hidden').css('display', 'block');
+        $(".message").each(function(i, el) {
+            var msg = $(el).html() || "";
+            var m = msg.match(/-----BEGIN PGP SIGNED MESSAGE-----([\s\S]+)-----BEGIN PGP SIGNATURE-----([\s\S]+)-----END PGP SIGNATURE-----/);
+            if (!m) return;
+            $(el).prop('raw-msg', msg).html("<code class='pgp-header'>-----BEGIN PGP SIGNED MESSAGE-----</code><code>" 
+                + m[1] + 
+                "</code><code class='pgp-header'>-----BEGIN PGP SIGNATURE-----</code><code class='pgp-sign'>" 
+                + m[2] +
+                "</code><code class='pgp-header'>-----END PGP SIGNATURE-----</code>");
         });
     })()
 </script>

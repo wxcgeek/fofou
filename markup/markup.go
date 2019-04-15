@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
+
+var rxPGP = regexp.MustCompile(`^[\s\r\n\t]*-----BEGIN PGP SIGNED MESSAGE-----`)
 
 var test, debug bool
 
@@ -26,6 +29,10 @@ func Do(in string, allowHTML bool, maxLength int) string {
 	if test && strings.HasPrefix(in, "DBG") {
 		debug = true
 		in = in[3:]
+	}
+
+	if rxPGP.MatchString(in) {
+		return "<code>" + strings.Replace(in, "<", "&lt;", -1) + "</code>"
 	}
 
 	out := bytes.Buffer{}
