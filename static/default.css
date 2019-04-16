@@ -55,7 +55,7 @@ code {
     display: block;
 }
 
-code.pgp-header { font-size: 90%; margin: 4px 0; color: #666 }
+code.pgp-header { font-size: 90%; margin: 4px 0; color: #aaa }
 
 code.pgp-sign { font-size: 6px; color: #ff5722 }
 
@@ -236,7 +236,7 @@ div.post hr {
 #expand-newpost { font-size: 125%; }
 
 @media only screen and (max-width: 500px) {
-  body {
-      font-size: 18px;
-  }
+    body {
+        font-size: 18px;
+    }
 }

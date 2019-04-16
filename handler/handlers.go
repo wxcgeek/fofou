@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -48,6 +49,7 @@ func Image(w http.ResponseWriter, r *http.Request) {
 		Name  string
 		Path  string
 		IsDir bool
+		Time  uint32
 		Size  uint64
 	}
 
@@ -73,8 +75,21 @@ func Image(w http.ResponseWriter, r *http.Request) {
 			Path:  filepath.Join(path, file.Name()),
 			IsDir: file.IsDir(),
 			Size:  uint64(file.Size()),
+			Time:  uint32(file.ModTime().Unix()),
 		})
 	}
+
+	sort.Slice(p.Files, func(i, j int) bool {
+		// directories come first, then sorted by mod time
+		ii, jj := uint64(p.Files[i].Time), uint64(p.Files[j].Time)
+		if p.Files[i].IsDir {
+			ii <<= 32
+		}
+		if p.Files[j].IsDir {
+			jj <<= 32
+		}
+		return ii > jj
+	})
 
 	server.Render(w, server.TmplBrowser, p)
 	w.(*server.ResponseWriterWrapper).ForceFooter = true

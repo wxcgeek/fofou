@@ -154,3 +154,19 @@ function _openpgpSign(privkey, passphrase, text, callback) {
         sign();
     }
 }
+
+function _copyRaw(longid) {
+    $.get("/p/" + longid + "?raw=raw", function(data) {
+        var el = $("#post-" + longid + " .message").first();
+        el.html('').append(
+            $("<textarea>").val(data)
+            .css('width', '100%')
+            .css('height', '100%')
+            .css('border', 'none')
+            .css('min-height', '100px')
+            .css('background', 'transparent')
+        );
+        el.find("textarea").get(0).select();
+        document.execCommand('copy');
+    });
+}

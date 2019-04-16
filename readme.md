@@ -1,53 +1,44 @@
 ## Get the code
-
-git clone --recursive https://github.com/kjk/fofou.git
+```
+go get github.com/coyove/fofou
+```
 
 ## Overview
 
-For more info: http://blog.kowalczyk.info/software/fofou/
+Fofou (Forums For You) is a simple forum software inspired by Joel On Software forum software (http://discuss.joelonsoftware.com/?joel).
 
-Fofou (Forums For You) is a simple forum software inspired by
-Joel On Software forum software (http://discuss.joelonsoftware.com/?joel).
+Fofou2 is a refactored version of fofou with more functions. It is now powering https://sserr.net
 
-It's mostly a port of FruitShow PHP forum (http://sourceforge.net/projects/fruitshow).
+## Run
 
-This is a version written in Go. There's also a version in Python for
-App Engine: https://github.com/kjk/fofou_appengine
+Simply run:
+```
+go run main.go -s SECRET_PASSWORD
+```
+Fofou2 will run in test mode if not provided with a `SECRET_PASSWORD` using `-s`.
 
-## Where can I see it in action?
+## Admin Cookie
 
-Forums for my Sumatra PDF reader are powered by Fofou:
-http://forums.fofou.org/sumatrapdf/
+After launching fofou2 you can navigate to `http://.../cookie`, enter `SECRET_PASSWORD` in the first textbox and `ADMIN_NAME,255` in the second textbox.
 
-## Installation
+You will receive the admin cookie `ADMIN_NAME` after submitting the form. (`255` means full privilege)
 
-You probably want to run it on a server (I use Ubuntu) but when testing you can run it on Mac.
+## Snapshot
 
-You need to create `config.json` (see `sample_config.json` for example).
+Fofou2's main database is named as `data/main.txt`. Since it's an append-only log file, it will become very large eventually. You can run:
+```
+go run main.go -ss main.txt.ss
+```
+to snapshot the data to `main.txt.ss`, and use which to replace `data/main.txt` for faster replaying.
 
-Since login system uses Twitter OAuth, you need to get token and secret from https://dev.twitter.com/ and set AdminTwitterUser to your Twitter handle (this is the user who is the admin of the forum).
+## Recaptcha
 
-To ensure encryption of cookies, you need to set random CookieAuthKeyHexStr and CookieEncrKeyHexStr. The easies way is to leave them blank and new random values will be printed to stdout.
+To use Google Recaptcha service, setup these environment variables before launching fofou2:
+```
+export f2_token=SITE_KEY
+export f2_secret=SECRET_KEY
+```
 
-Look at `scripts/run.sh` to see how to compile and run the forum.
+## Backup
 
-## Deployment
-
-When you want to run the code in production, you probably want to deploy it to a server.
-
-You can take a look at `fabfile.py` (Fabric deployment script) for an example
-on how to do automate deployments.
-
-## Design philosophy
-
-You'll quickly see that Fofou differs in many ways from most common forum
-software. There are good reasons for the differences and Joel Spolsky describes
-those reason in great detail:
-http://www.joelonsoftware.com/articles/BuildingCommunitieswithSo.html
-
-## License
-
-The Go code is written completely by me and is in Public Domain.
-
-Html/css/js files are mostly lifted from FuitShow, so they fall under
-FruitShow's BSD license.
+All data are stored in `data` directory.
