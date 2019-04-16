@@ -27,6 +27,7 @@ func Static(w http.ResponseWriter, r *http.Request) {
 
 func Image(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path[len("/i/"):]
+	path = strings.Replace(path, "..", "", -1)
 	file := filepath.Join(common.DATA_IMAGES, path)
 
 	if rxImageExts.MatchString(file) {
@@ -47,14 +48,17 @@ func Image(w http.ResponseWriter, r *http.Request) {
 		Name  string
 		Path  string
 		IsDir bool
+		Size  uint64
 	}
 
 	p := struct {
 		server.Forum
 		Files []_file
 		Up    string
+		Path  string
 	}{
 		Forum: *common.Kforum,
+		Path:  path,
 		Up:    filepath.Dir(path),
 	}
 
@@ -68,6 +72,7 @@ func Image(w http.ResponseWriter, r *http.Request) {
 			Name:  file.Name(),
 			Path:  filepath.Join(path, file.Name()),
 			IsDir: file.IsDir(),
+			Size:  uint64(file.Size()),
 		})
 	}
 

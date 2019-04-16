@@ -1,5 +1,7 @@
 {{template "header.html" .}}
 
+<title>{{.Path}}</title>
+
 <style>
 .imagesbrowser div.dir {
     padding: 4px;
@@ -41,7 +43,7 @@
 {{else}}
 <div class="img">
     <a href="/i/{{.Path}}"><img src="/i/{{.Path}}?thumb=1"></a>
-    <div class="title">{{.Name}}</div>
+    <div class="title"><b>{{formatBytes .Size}}</b> {{.Name}}</div>
 </div>
 {{end}}
 {{end}}

@@ -141,7 +141,7 @@ div.topic-status, div.ref { font-size: 90%; }
 .dropdown div a.group-header {
     font-weight: bold;
     background: #ddd;
-    font-size: 12px;
+    font-size: 90%;
 }
 
 .dropdown.active div { display: block; }
@@ -233,4 +233,10 @@ div.post hr {
     color: #667;
 }
 
-#expand-newpost { font-size:18px; }
+#expand-newpost { font-size: 125%; }
+
+@media only screen and (max-width: 500px) {
+  body {
+      font-size: 18px;
+  }
+}

@@ -181,7 +181,7 @@ NEXT:
 	topic.Reparent([8]byte{}, user.ID)
 
 	if raw == "raw" {
-		w.Header().Add("Content-Type", "text/plain")
+		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 		w.Write([]byte(topic.Posts[0].Message))
 		return
 	}
