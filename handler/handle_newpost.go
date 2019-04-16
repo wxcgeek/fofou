@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,8 @@ import (
 	"github.com/coyove/fofou/common"
 	"github.com/coyove/fofou/server"
 )
+
+var rxImageExts = regexp.MustCompile(`(?i)(\.png|\.jpg|\.jpeg|\.gif)$`)
 
 func PostAPI(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, int64(common.Kforum.MaxImageSize)*1024*1024)
@@ -196,12 +199,12 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 		aImage = &server.Image{}
 
 		ext, hash := strings.ToLower(filepath.Ext(imageInfo.Filename)), sha1.Sum([]byte(imageInfo.Filename))
-		if ext != ".png" && ext != ".gif" && ext != ".jpg" && ext != ".jpeg" {
+		if !rxImageExts.MatchString(ext) {
 			writeSimpleJSON(w, "success", false, "error", "image-invalid-format")
 			return
 		}
 
-		t := time.Now().Format("2006-01-02/15")
+		t := time.Now().Format("2006-Jan/02-15h")
 		aImage.Name = sanitizeFilename(imageInfo.Filename)
 		aImage.Path = fmt.Sprintf("%s/%s_%x%s", t, aImage.Name, hash[:4], ext)
 		os.MkdirAll(common.DATA_IMAGES+t, 0755)

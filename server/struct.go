@@ -300,7 +300,8 @@ func (s *SafeJSON) Read(p []byte) (int, error) {
 
 type ResponseWriterWrapper struct {
 	http.ResponseWriter
-	Code int
+	Code        int
+	ForceFooter bool
 }
 
 func (r *ResponseWriterWrapper) WriteHeader(code int) {

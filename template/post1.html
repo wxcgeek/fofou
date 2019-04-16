@@ -45,6 +45,7 @@
             <a class="item" href="javascript:_submit(null,'!!delete={{.LongID}}')">{{if .IsDeleted}}恢复{{else}}删除{{end}}该回复</a>
             <a class="item" href="javascript:confirm()?_submit(null,'!!delete-image={{.LongID}}'):0">删除附图</a>
             <a class="item" href="javascript:_submit(null,'!!nsfw={{.LongID}}')">标记NSFW</a>
+            <a class="item" href="/p/{{.LongID}}?raw=raw">RAW</a>
         {{else}}
             {{if and .T_IsYou .T_IsFirst}}
             <a class="group-header">主题</a>
@@ -57,7 +58,7 @@
             <a class="item" href="javascript:_reply({{.LongID}},'n')">标记NSFW</a>
             {{else}}
             <a class="item" href="javascript:_reply({{.LongID}},'r')">举报</a>
-            <a class="item" href="javascript:_reply('{{.User}}','ru')">举报ID</a>
+            <a class="item" href="/p/{{.LongID}}?raw=raw">RAW</a>
             {{end}}
         {{end}}
         </div>

@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -25,26 +26,53 @@ func Static(w http.ResponseWriter, r *http.Request) {
 }
 
 func Image(w http.ResponseWriter, r *http.Request) {
-	file := r.URL.Path[len("/i/"):]
-	file = common.DATA_IMAGES + file
+	path := r.URL.Path[len("/i/"):]
+	file := filepath.Join(common.DATA_IMAGES, path)
 
-	if r.FormValue("thumb") == "1" {
-		path := file + ".thumb.jpg"
-		if _, err := os.Stat(path); err == nil {
-			http.ServeFile(w, r, path)
-			return
+	if rxImageExts.MatchString(file) {
+		if r.FormValue("thumb") == "1" {
+			path := file + ".thumb.jpg"
+			if _, err := os.Stat(path); err == nil {
+				http.ServeFile(w, r, path)
+				return
+			}
+			common.Kiq.Push(file)
 		}
-		common.Kiq.Push(file)
-	}
-	http.ServeFile(w, r, file)
-}
-
-func ImageBrowser(w http.ResponseWriter, r *http.Request) {
-	if !common.Kforum.GetUser(r).Can(server.PERM_ADMIN) {
-		w.WriteHeader(http.StatusBadRequest)
+		http.ServeFile(w, r, file)
 		return
 	}
-	common.KdirServer.ServeHTTP(w, r)
+
+	files, _ := ioutil.ReadDir(file)
+	type _file struct {
+		Name  string
+		Path  string
+		IsDir bool
+	}
+
+	p := struct {
+		server.Forum
+		Files []_file
+		Up    string
+	}{
+		Forum: *common.Kforum,
+		Up:    filepath.Dir(path),
+	}
+
+	p.Files = make([]_file, 0, len(files))
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), ".thumb.jpg") {
+			continue
+		}
+
+		p.Files = append(p.Files, _file{
+			Name:  file.Name(),
+			Path:  filepath.Join(path, file.Name()),
+			IsDir: file.IsDir(),
+		})
+	}
+
+	server.Render(w, server.TmplBrowser, p)
+	w.(*server.ResponseWriterWrapper).ForceFooter = true
 }
 
 func Help(w http.ResponseWriter, r *http.Request) {

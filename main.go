@@ -75,18 +75,17 @@ func preHandle(fn func(http.ResponseWriter, *http.Request), footer bool) http.Ha
 			w.Write([]byte(fmt.Sprintf("%v Booting... %.1f%%", time.Now().Format(time.RFC1123), common.Kforum.LoadingProgress()*100)))
 			return
 		}
-		if footer {
-			w = &server.ResponseWriterWrapper{w, http.StatusOK}
-		}
+
+		ww := &server.ResponseWriterWrapper{w, http.StatusOK, false}
 		if !common.Kprod {
 			common.Kforum.Invalidate = time.Now().Unix()
 		}
 
 		startTime := time.Now()
-		fn(w, r)
+		fn(ww, r)
 		duration := time.Since(startTime)
 
-		if footer && w.(*server.ResponseWriterWrapper).Code == http.StatusOK {
+		if (footer || ww.ForceFooter) && ww.Code == http.StatusOK {
 			server.Render(w, server.TmplFooter, struct {
 				RenderTime  int64
 				RunningTime int64
@@ -137,7 +136,6 @@ func main() {
 	server.LoadTemplates(common.Kprod)
 
 	smux := &http.ServeMux{}
-	common.KdirServer = http.StripPrefix("/browse/", http.FileServer(http.Dir(common.DATA_IMAGES)))
 	smux.HandleFunc("/favicon.ico", http.NotFound)
 	smux.HandleFunc("/robots.txt", handler.RobotsTxt)
 	smux.HandleFunc("/mod", preHandle(handler.Mod, true))
@@ -145,7 +143,6 @@ func main() {
 	smux.HandleFunc("/s/", preHandle(handler.Static, false))
 	smux.HandleFunc("/status", preHandle(handler.Help, true))
 	smux.HandleFunc("/i/", preHandle(handler.Image, false))
-	smux.HandleFunc("/browse/", preHandle(handler.ImageBrowser, false))
 	smux.HandleFunc("/api", preHandle(handler.PostAPI, false))
 	smux.HandleFunc("/list", preHandle(handler.List, true))
 	smux.HandleFunc("/rss.xml", preHandle(handler.RSS, false))

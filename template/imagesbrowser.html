@@ -1,0 +1,50 @@
+{{template "header.html" .}}
+
+<style>
+.imagesbrowser div.dir {
+    padding: 4px;
+}
+
+.imagesbrowser div.img {
+    float: left;
+    max-width: 210px;
+    max-height: 250px;
+    overflow: hidden;
+    border: solid 1px #bbb;
+    margin: 4px;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.05);
+    box-shadow: 0 0 1px #aaa;
+    text-align: center;
+}
+
+
+.imagesbrowser div.img img {
+    display: block;
+    margin: 0 auto;
+}
+
+.imagesbrowser div.img div.title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    padding: 2px 2px 2px 0;
+}
+</style>
+
+<div class="imagesbrowser">
+    <div class="dir img"><a href="/i/{{.Up}}"><img src="/s/go-previous.png"></a><div class="title"><a href="/i/{{.Up}}">Back</a></div></div>
+
+{{range .Files}}
+{{if .IsDir}}
+<div class="dir img"><a href="/i/{{.Path}}"><img src="/s/folder.png"></a><div class="title"><a href="/i/{{.Path}}">{{.Name}}</a></div></div>
+{{else}}
+<div class="img">
+    <a href="/i/{{.Path}}"><img src="/i/{{.Path}}?thumb=1"></a>
+    <div class="title">{{.Name}}</div>
+</div>
+{{end}}
+{{end}}
+
+</div>
+<br style="clear:both">

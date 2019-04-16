@@ -1,7 +1,6 @@
 package common
 
 import (
-	"net/http"
 	"strings"
 	"time"
 
@@ -21,7 +20,6 @@ var (
 	KbadUsers  *lru.Cache
 	Kuuids     *lru.Cache
 	Karchive   *lru.Cache
-	KdirServer http.Handler
 	Kprod      bool
 	Kpassword  string
 	Kstart     time.Time

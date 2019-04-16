@@ -149,7 +149,9 @@ func Post(w http.ResponseWriter, r *http.Request) {
 	topicID, postID := server.SplitID(uint64(longID))
 	user := common.Kforum.GetUser(r)
 
-	if r.FormValue("raw") != "1" {
+	raw := r.FormValue("raw")
+
+	if raw == "" {
 		p := intdivceil(int(postID), common.Kforum.PostsPerPage)
 		http.Redirect(w, r, fmt.Sprintf("/t/%d?p=%d#post-%d", topicID, p, longID), 302)
 		return
@@ -177,6 +179,12 @@ NEXT:
 	topic.Posts = []server.Post{topic.Posts[postID-1]}
 	topic.Posts[0].T_SetStatus(server.POST_T_ISREF)
 	topic.Reparent([8]byte{}, user.ID)
+
+	if raw == "raw" {
+		w.Header().Add("Content-Type", "text/plain")
+		w.Write([]byte(topic.Posts[0].Message))
+		return
+	}
 
 	model := struct {
 		server.Forum
