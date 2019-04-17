@@ -71,7 +71,7 @@ NEXT:
 		topic.Posts = tmp
 	}
 	topic.Posts[0].T_SetStatus(server.POST_T_ISFIRST)
-	topic.Reparent(topic.Posts[0].UserXor(), user.ID)
+	topic.Reparent(user.ID)
 
 	model := struct {
 		server.Forum
@@ -122,7 +122,7 @@ func Topics(w http.ResponseWriter, r *http.Request) {
 				t.Posts = tmp
 			}
 			t.Posts[0].T_SetStatus(server.POST_T_ISFIRST)
-			t.Reparent(t.Posts[0].UserXor(), user.ID)
+			t.Reparent(user.ID)
 			return t
 		})
 
@@ -178,7 +178,7 @@ NEXT:
 	topic.T_IsExpand = true
 	topic.Posts = []server.Post{topic.Posts[postID-1]}
 	topic.Posts[0].T_SetStatus(server.POST_T_ISREF)
-	topic.Reparent([8]byte{}, user.ID)
+	topic.Reparent(user.ID)
 
 	if raw == "raw" {
 		w.Header().Add("Content-Type", "text/plain; charset=utf-8")

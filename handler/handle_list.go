@@ -34,8 +34,17 @@ func List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := server.Parse8Bytes(q)
-	isAdmin := common.Kforum.GetUser(r).CanModerate()
+	user := common.Kforum.GetUser(r)
+	isAdmin := user.CanModerate()
 	maxTopics := 50
+
+	if !isAdmin && q != "" {
+		if query != user.ID {
+			// non admin can only query himself
+			server.Render(w, server.TmplPosts, model)
+			return
+		}
+	}
 
 	if count := r.FormValue("count"); isAdmin && count != "" {
 		maxTopics, _ = strconv.Atoi(count)

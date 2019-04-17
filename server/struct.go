@@ -74,12 +74,14 @@ func (p *Post) MessageHTML() string { return markup.Do(p.Message, true, 0) }
 
 func (p *Post) aes128(a [8]byte) [8]byte {
 	iv := [16]byte{}
-	binary.BigEndian.PutUint32(iv[:], p.CreatedAt)
+	binary.BigEndian.PutUint32(iv[:], p.Topic.CreatedAt)
 	binary.BigEndian.PutUint32(iv[4:], p.Topic.ID)
-	binary.BigEndian.PutUint16(iv[8:], p.ID)
+	copy(iv[8:], p.Topic.Subject)
+
 	p.Topic.store.block.Encrypt(iv[:], iv[:])
+	// the first 2 bytes of 'a' will never be encrypted
 	for i := 2; i < 8; i++ {
-		a[i] ^= iv[i-2]
+		a[i] ^= iv[i]
 	}
 	return a
 }
@@ -91,8 +93,6 @@ func (p *Post) UserXor() [8]byte { return p.aes128(p.user) }
 func (p *Post) IP() string { i, _ := Format8Bytes(p.IPXor()); return i }
 
 func (p *Post) User() string { _, i := Format8Bytes(p.UserXor()); return i }
-
-func (p *Post) IsOP() bool { return p.Topic.Posts[0].UserXor() == p.UserXor() }
 
 func (p *Post) UserHTML() string {
 	if p.user[0] == 0 {
@@ -163,11 +163,14 @@ func (p *Topic) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(s
 
 func (p *Topic) LastDate() string { return time.Unix(int64(p.ModifiedAt), 0).Format(stdTimeFormat) }
 
-func (t *Topic) Reparent(u, you [8]byte) {
+func (t *Topic) Reparent(you [8]byte) {
+	op := t.Posts[0].user
+	you = t.Posts[0].aes128(you)
+
 	for i := 0; i < len(t.Posts); i++ {
 		t.Posts[i].Topic = t
-		x := t.Posts[i].UserXor()
-		if x == u {
+		x := t.Posts[i].user
+		if x == op {
 			t.Posts[i].T_SetStatus(POST_T_ISOP)
 		}
 		if x == you {

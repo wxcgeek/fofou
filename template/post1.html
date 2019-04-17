@@ -14,13 +14,15 @@
     {{.Date}}
 
     {{if .T_IsOP}}{{if not .T_IsFirst}}<b>OP</b>{{end}}{{end}}
-    {{if .T_IsYou}}You{{end}}
 
     {{if .Topic.T_IsAdmin}}
-    <a href="/list?q={{.User}}" target="_blank" class="author">{{.User}}</a>
-    (<a href="/list?q={{.IP}}" target="_blank">{{.IP}}</a>)
+    <a href="/list?q={{.User}}" target="_blank" class="author">{{.User}}</a> (<a href="/list?q={{.IP}}" target="_blank">{{.IP}}</a>)
     {{else}}
-    {{.UserHTML}}
+        {{if .T_IsYou}}
+        <span class="icon-user"><a href="/list?q={{.User}}" target="_blank" class="author">{{.User}}</a></span> 
+        {{else}}
+        {{.UserHTML}}
+        {{end}}
     {{end}}
 
     {{if .T_IsFirst}}

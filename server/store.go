@@ -281,6 +281,10 @@ func (store *Store) addNewPost(msg string, image *Image, user, ipAddr [8]byte, t
 		Image:     image,
 	}
 
+	if newTopic {
+		p.Topic.CreatedAt = p.CreatedAt
+	}
+
 	p.ip = p.IPXor()
 	p.user = p.UserXor()
 
@@ -499,6 +503,7 @@ func (store *Store) GetPostsBy(q [8]byte, qtext string, max int, timeout int64) 
 			}
 		}
 
+		q2 := topic.Posts[0].aes128(q)
 		for _, post := range topic.Posts {
 			if len(m) > 0 {
 				if r, _ := stringCompare(post.Message, "", m); r {
@@ -506,7 +511,7 @@ func (store *Store) GetPostsBy(q [8]byte, qtext string, max int, timeout int64) 
 						res = append(res, post)
 					}
 				}
-			} else if post.IPXor() == q || post.UserXor() == q {
+			} else if post.ip == q2 || post.user == q2 {
 				if total++; total <= max {
 					res = append(res, post)
 				}
