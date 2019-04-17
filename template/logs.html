@@ -56,7 +56,7 @@
     <tr><th colspan=2><hr></th></tr>
     <tr><th>Production:</th><td>{{if not .Forum.Logger.UseStdout}}<b style="color:green">Online</b>{{else}}<span style="color:red">Testing</span>{{end}} <a href="javascript:_submit(null,'!!moat=production')">Toggle</a></td></tr>
     <tr><th>Title:</th><td><input class=long value="{{.Forum.Title}}"> <a href="#" onclick="_submit(null,'!!title='+$(this).prev().val())">Update</a></td></tr>
-    <tr><th>Main URL:</th><td><input class=long value="{{.Forum.URL}}"> <a href="#" onclick="_submit(null,'!!url='+$(this).prev().val())">Update</a></td></tr>
+    <tr><th>Main URL:</th><td><input class=long value="{{.Forum.URL}}"> <a href="#" onclick="confirm()?_submit(null,'!!url='+$(this).prev().val()):0">Update</a></td></tr>
     <tr><th>Thumb Queue:</th><td>{{.IQLen}}</td></tr>
     <tr><th>Max Image Size:</th><td><input value="{{.Forum.MaxImageSize}}"> MB <a href="#" onclick="_intval('max-image-size', this)">Update</a></td></tr>
     <tr><th>Search Timeout:</th><td><input value="{{.Forum.SearchTimeout}}"> ms <a href="#" onclick="_intval('search-timeout', this)">Update</a></td></tr>

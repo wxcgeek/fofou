@@ -63,6 +63,11 @@ func PostAPI(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if !strings.HasPrefix(r.Referer(), common.Kforum.URL) && common.Kprod {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	if !user.IsValid() {
 		if common.Kforum.NoMoreNewUsers && !topic.FreeReply {
 			writeSimpleJSON(w, "success", false, "error", "no-more-new-users")
