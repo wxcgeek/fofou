@@ -110,10 +110,12 @@ func preHandle(fn func(http.ResponseWriter, *http.Request), footer bool) http.Ha
 
 func main() {
 	os.MkdirAll(common.DATA_IMAGES, 0755)
+	os.MkdirAll(common.DATA_LOGS, 0755)
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	flag.Parse()
-	logger := server.NewLogger(1024, 1024, true)
+	logger := server.NewLogger(1024, 1024, true, common.DATA_LOGS+"f2")
 	common.Kpassword = *salt
 
 	if *salt == testPassword {

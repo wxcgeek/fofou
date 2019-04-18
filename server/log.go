@@ -3,6 +3,7 @@ package server
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -65,31 +66,44 @@ type Logger struct {
 	Errors    *CircularMessagesBuf
 	Notices   *CircularMessagesBuf
 	UseStdout bool
+	logFile   *os.File
 }
 
-func NewLogger(errorsMax, noticesMax int, useStdout bool) *Logger {
+func NewLogger(errorsMax, noticesMax int, useStdout bool, logFile string) *Logger {
 	l := &Logger{
 		Errors:    NewCircularMessagesBuf(errorsMax),
 		Notices:   NewCircularMessagesBuf(noticesMax),
 		UseStdout: useStdout,
 	}
+	l.logFile, _ = os.Create(logFile + "_" + time.Now().Format("2006_01_02_15_04_05") + ".log")
 	return l
+}
+
+func printer(lv, msg string) string {
+	return fmt.Sprintf("[%s %s] %s", lv, time.Now().Format(time.StampMilli), msg)
 }
 
 func (l *Logger) Error(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
+	x := printer("E", s)
 	l.Errors.Add(s)
-
 	if l.UseStdout {
-		fmt.Printf("Error: %s\n", s)
+		fmt.Println(x)
+	}
+	if l.logFile != nil {
+		l.logFile.WriteString(x + "\n")
 	}
 }
 
 func (l *Logger) Notice(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
+	x := printer("I", s)
 	l.Notices.Add(s)
 	if l.UseStdout {
-		fmt.Printf("%s\n", s)
+		fmt.Println(x)
+	}
+	if l.logFile != nil {
+		l.logFile.WriteString(x + "\n")
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 
 const (
 	DATA_IMAGES = "data/images/"
+	DATA_LOGS   = "data/logs/"
 	DATA_MAIN   = "data/main.txt"
 )
 
