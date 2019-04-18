@@ -130,6 +130,7 @@ function _submit(btn, msg, callback) {
 function _dropdownHeight(el) {
     el = $(el).find("div");
     var diff = el.height() + el.offset().top - $(window).scrollTop() - $(window).height();
+    if (el.offset().left < 0) el.css('left', '0');
     if (diff > 0) el.css('height', el.height() - diff - 5).css('overflow-y', 'scroll');
 }
 

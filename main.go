@@ -23,6 +23,7 @@ var (
 	listen   = flag.String("addr", ":5010", "HTTP server address")
 	makeID   = flag.String("make", "", "Make ID, format: ID,MASK")
 	snapshot = flag.String("ss", "", "Make snapshot of main.txt")
+	csrf     = flag.String("csrf", "", "Change the URL for CSRF protection")
 	salt     = flag.String("s", testPassword, "A secret string used as both salt and admin password")
 )
 
@@ -59,6 +60,12 @@ func newForum(logger *server.Logger) *server.Forum {
 
 				if *snapshot != "" {
 					server.SnapshotStore(*snapshot, forum.Store)
+					os.Exit(0)
+				}
+
+				if *csrf != "" {
+					forum.ForumConfig.URL = *csrf
+					forum.Store.UpdateConfig(forum.ForumConfig)
 					os.Exit(0)
 				}
 
