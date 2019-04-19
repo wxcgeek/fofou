@@ -26,6 +26,12 @@
         {{if $.IsAdmin}}
             (<a href="javascript:_submit(null, '!!block={{.Query}}')">{{if .IsBlocked}}Unblock{{else}}Block{{end}}</a>)
         {{end}}
+
+    <script>
+        if ("{{.Query}}".indexOf(".x") > -1) {
+            document.write("<a target='_blank' href='https://ipinfo.io/" + "{{.Query}}".replace("x", "0") + "'>(ipinfo.io)</a>");
+        }
+    </script>
     {{end}}
 </div>
 
