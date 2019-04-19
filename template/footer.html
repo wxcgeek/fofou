@@ -38,6 +38,13 @@
                 + m[2].replace(/^\s+|\s+$/g, '') +
                 "</code><code class='pgp-header'>-----END PGP SIGNATURE-----</code>");
         });
+        if (new Date().getTimezoneOffset() !== -480) {
+            $(".date").each(function(i, el) {
+                var d = new Date(parseInt($(el).attr("stamp")) * 1000);
+                var t = d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate() + " " + d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds();
+                $(el).text(t.replace(/([^\d])(\d)(?=([^\d]|$))/g, "$10$2"));
+            });
+        }
     })()
 </script>
 

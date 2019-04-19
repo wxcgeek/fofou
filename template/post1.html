@@ -11,7 +11,7 @@
         {{if .Topic.Subject}}{{.Topic.Subject}}{{else}}无标题{{end}}
     {{end}}
 
-    {{.Date}}
+    <span class="date" stamp="{{.CreatedAt}}">{{.Date}}</span>
 
     {{if .T_IsOP}}{{if not .T_IsFirst}}<b>OP</b>{{end}}{{end}}
 

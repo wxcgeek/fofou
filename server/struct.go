@@ -68,7 +68,9 @@ func (p *Post) IsDeleted() bool { return p.Status&POST_ISDELETE > 0 }
 
 func (p *Post) IsSaged() bool { return p.Status&POST_ISSAGE > 0 }
 
-func (p *Post) Date() string { return time.Unix(int64(p.CreatedAt), 0).Format(stdTimeFormat) }
+func (p *Post) Date() string {
+	return time.Unix(int64(p.CreatedAt), 0).UTC().Add(8 * time.Hour).Format(stdTimeFormat)
+}
 
 func (p *Post) MessageHTML() string { return markup.Do(p.Message, true, 0) }
 
