@@ -144,19 +144,13 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 	defer fh.Close()
 
 	topicIDToTopic := make(map[uint32]*Topic)
-	print := func(f string, args ...interface{}) {
-		if !slient {
-			fmt.Printf(f, args...)
-		}
-	}
+	start := time.Now()
 
 	defer func() {
-		if r := recover(); r != nil {
-			if slient {
+		if slient {
+			// in slient mode, we return errors
+			if r := recover(); r != nil {
 				err = fmt.Errorf("panic error: %v", r)
-			} else {
-				print("\npanic: %v\n", r)
-				panic(0)
 			}
 		}
 	}()
@@ -174,11 +168,24 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 	r.SetReader(bufio.NewReaderSize(fh, 1024*1024*10))
 	r.pos = store.ptr
 
+	print := func(f string, args ...interface{}) {
+		if !slient {
+			fmt.Printf("#store-0x%08x-%07.3f ", r.pos, time.Since(start).Seconds())
+			fmt.Printf(f, args...)
+		}
+	}
+
+	var ceil uintptr
 	for {
 		panicif(r.pos > fsize, "invalid DB size")
 
-		print("\rloading %.1f%% %d/%d", float64(r.pos*100)/float64(fsize), r.pos, fsize)
+		//print("\rloading %.1f%% %d/%d", float64(r.pos*100)/float64(fsize), r.pos, fsize)
 		atomic.StoreUintptr(&store.ready, uintptr(r.pos*1000/fsize))
+
+		if store.ready%100 == 0 && store.ready > ceil {
+			ceil = store.ready
+			print("checkpoint: %d\n", store.ready)
+		}
 
 		store.ptr = r.pos
 		if r.pos == fsize {
@@ -203,7 +210,7 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 		case OP_TOPICNUM:
 			num, err := r.ReadUInt32()
 			panicif(err != nil, "invalid new topics counter")
-			print("\ntopic counter updated, old: %d, new: %d\n", store.topicsCount, num)
+			print("topic counter updated, old: %d, new: %d\n", store.topicsCount, num)
 			store.topicsCount = num
 		case OP_POST:
 			post := parsePost(r, topicIDToTopic)
@@ -266,7 +273,7 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 		case OP_MAXTOPICS:
 			m, err := r.ReadUInt32()
 			panicif(err != nil, err)
-			print("\nmax live topics updated, old: %d, new: %d\n", store.maxLiveTopics, m)
+			print("max live topics updated, old: %d, new: %d\n", store.maxLiveTopics, m)
 			store.maxLiveTopics = int(m)
 		// if the new maxLiveTopics is smaller,
 		// then multiple OP_ARCHIVEs shall be presented afterwards
@@ -287,7 +294,6 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 	}
 
 	atomic.StoreUintptr(&store.ready, 1000)
-	print("\n")
 	return nil
 }
 

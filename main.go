@@ -4,6 +4,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"runtime"
@@ -39,9 +40,14 @@ func newForum(logger *server.Logger) *server.Forum {
 			forum.ForumConfig.CorrectValues()
 			forum.ForumConfig.Invalidate = time.Now().Unix()
 			forum.SetSalt(*salt)
-			forum.RecaptchaSecret = os.Getenv("f2_secret")
-			forum.RecaptchaToken = os.Getenv("f2_token")
-			forum.Notice("recaptcha: token: %s, secret: %s", forum.RecaptchaToken, forum.RecaptchaSecret)
+
+			rbuf, _ := ioutil.ReadFile(common.DATA_RECAPTCHA)
+			rparts := strings.Split(string(rbuf), "|")
+			if len(rparts) == 2 {
+				forum.RecaptchaToken = rparts[0]
+				forum.RecaptchaSecret = rparts[1]
+				forum.Notice("recaptcha token: %s, secret: %s", forum.RecaptchaToken, forum.RecaptchaSecret)
+			}
 		})
 
 	common.KbadUsers = lru.NewCache(1024)
@@ -118,9 +124,9 @@ func main() {
 	common.Kpassword = *salt
 
 	if *salt == testPassword {
-		logger.Notice("you are using the test password/salt, fofou will run in test mode\n")
+		logger.Notice("you are using the test password/salt, fofou will run in test mode")
 	} else {
-		logger.Notice("production mode on\n")
+		logger.Notice("production mode on")
 		logger.UseStdout = true
 		common.Kprod = true
 	}
