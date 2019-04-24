@@ -20,7 +20,7 @@
 
         {{if .T_IsFirst}}
             <div class="topic-status">
-                    {{if $.T_TotalPosts}}<span class="icon-chat-empty"><b>共{{$.T_TotalPosts}}回复{{if $.T_IsExpand}}，展开以查看更多{{end}}</b></span>{{end}}
+                    {{if $.T_TotalPosts}}<span class="icon-chat-empty"><b>共{{$.T_TotalPosts}}回复{{if $.T_IsExpand}}，点击[回复]以展开更多{{end}}</b></span>{{end}}
                     {{if $.Archived}}<span class="icon-floppy"><b>该主题已被存档</b></span>{{end}}
                     {{if $.Locked}}<span class="icon-lock"><b>该主题已被锁定</b></span>{{end}}
                     {{if $.Sticky}}<span class="icon-pin"><b>置顶主题</b></span>{{end}}
