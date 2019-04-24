@@ -4,6 +4,8 @@ package server
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -80,7 +82,13 @@ func NewLogger(errorsMax, noticesMax int, useStdout bool, logFile string) *Logge
 }
 
 func printer(lv, msg string) string {
-	return fmt.Sprintf("[%s %s] %s", lv, time.Now().Format(time.StampMilli), msg)
+	src := ""
+	if lv == "E" {
+		_, fn, line, _ := runtime.Caller(2)
+		fn = filepath.Base(fn)
+		src = fmt.Sprintf(" %s:%d", fn, line)
+	}
+	return fmt.Sprintf("[%s %s%s] %s", lv, time.Now().Format(time.StampMilli), src, msg)
 }
 
 func (l *Logger) Error(format string, v ...interface{}) {

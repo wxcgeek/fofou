@@ -33,7 +33,6 @@ func newForum(logger *server.Logger) *server.Forum {
 	start := time.Now()
 	forum.Store = server.NewStore(common.DATA_MAIN,
 		(&server.ForumConfig{}).SetSalt(*salt),
-		logger,
 		func(store *server.Store) {
 			forum.ForumConfig = &server.ForumConfig{}
 			store.GetConfig(forum.ForumConfig)

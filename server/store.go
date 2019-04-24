@@ -19,6 +19,8 @@ import (
 	"github.com/coyove/common/rand"
 )
 
+var ErrInvalidTopic = fmt.Errorf("can't find the topic")
+
 const (
 	OP_NOP       = 'x'
 	OP_TOPIC     = 'T'
@@ -42,7 +44,6 @@ const (
 // Store describes store
 type Store struct {
 	sync.RWMutex
-	*Logger
 
 	LiveTopicsNum int
 	Rand          *rand.Rand
@@ -75,12 +76,12 @@ func (store *Store) markBlockedOrUnblocked(term [8]byte) {
 	}
 }
 
-func (store *Store) OperateTopic(topicID uint32, action byte) {
+func (store *Store) OperateTopic(topicID uint32, action byte) error {
 	store.Lock()
 	defer store.Unlock()
 	t := store.topicByIDUnlocked(topicID)
 	if t == nil {
-		return
+		return ErrInvalidTopic
 	}
 
 	var p buffer
@@ -110,9 +111,7 @@ func (store *Store) OperateTopic(topicID uint32, action byte) {
 			store.LiveTopicsNum--
 		}
 	}
-	if err != nil {
-		store.Error("OperateTopic(): %v", err)
-	}
+	return err
 }
 
 func (store *Store) SageTopic(topicID uint32, u User) error {
@@ -120,7 +119,7 @@ func (store *Store) SageTopic(topicID uint32, u User) error {
 	defer store.Unlock()
 	t := store.topicByIDUnlocked(topicID)
 	if t == nil {
-		return fmt.Errorf("invalid topic ID: %d", topicID)
+		return ErrInvalidTopic
 	}
 	if !u.Can(PERM_LOCK_SAGE_DELETE_FLAG) && u.ID != t.Posts[0].UserXor() {
 		return fmt.Errorf("can't sage the topic")

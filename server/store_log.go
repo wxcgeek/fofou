@@ -291,7 +291,7 @@ func (store *Store) loadDB(path string, slient bool, onload func(*Store)) (err e
 	return nil
 }
 
-func NewStore(path string, password [16]byte, logger *Logger, onload func(*Store)) *Store {
+func NewStore(path string, password [16]byte, onload func(*Store)) *Store {
 	store := &Store{
 		dataFilePath:  path,
 		rootTopic:     &Topic{},
@@ -299,7 +299,6 @@ func NewStore(path string, password [16]byte, logger *Logger, onload func(*Store
 		blocked:       make(map[[8]byte]bool),
 		Rand:          rand.New(),
 		maxLiveTopics: 1024,
-		Logger:        logger,
 	}
 
 	store.rootTopic.Next = store.endTopic

@@ -117,26 +117,42 @@ func modCode(forum *server.Forum, u server.User, subject, msg string) bool {
 			if !u.Can(server.PERM_STICKY_PURGE) {
 				return true
 			}
-			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_STICKY)
+			res := common.Kforum.Store.OperateTopic(uint32(vint), server.OP_STICKY)
 			opcode = true
+			if res != nil {
+				common.Kforum.Error("%v", res)
+				break
+			}
 		case "lock":
 			if !u.Can(server.PERM_LOCK_SAGE_DELETE_FLAG) {
 				return true
 			}
-			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_LOCK)
+			res := common.Kforum.Store.OperateTopic(uint32(vint), server.OP_LOCK)
 			opcode = true
+			if res != nil {
+				common.Kforum.Error("%v", res)
+				break
+			}
 		case "purge":
 			if !u.Can(server.PERM_STICKY_PURGE) {
 				return true
 			}
-			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_PURGE)
+			res := common.Kforum.Store.OperateTopic(uint32(vint), server.OP_PURGE)
 			opcode = true
+			if res != nil {
+				common.Kforum.Error("%v", res)
+				break
+			}
 		case "free-reply":
 			if !u.Can(server.PERM_ADMIN) {
 				return true
 			}
-			common.Kforum.Store.OperateTopic(uint32(vint), server.OP_FREEREPLY)
+			res := common.Kforum.Store.OperateTopic(uint32(vint), server.OP_FREEREPLY)
 			opcode = true
+			if res != nil {
+				common.Kforum.Error("%v", res)
+				break
+			}
 		case "sage":
 			opcode = true
 			res := common.Kforum.Store.SageTopic(uint32(vint), u)
