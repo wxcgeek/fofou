@@ -2,9 +2,9 @@
     <span class="info2">
     {{if not .T_IsRef}}
     <span class="toggle icon-minus-squared" onclick="_togglePost({{.LongID}})"></span>
-    <a href="javascript:_reply({{.LongID}})">#{{.LongID}}</a>
+    <a href="{{if .Topic.T_IsExpand}}{{else}}javascript:_reply({{.LongID}}){{end}}">#{{.LongID}}</a>
     {{else}}
-    <a href="/p/{{.LongID}}" target=_blank>跳转：#{{.LongID}}</a>
+    <a href="/p/{{.LongID}}" target=_blank>跳转#{{.LongID}}</a>
     {{end}}
 
     {{if .T_IsFirst}}

@@ -81,6 +81,8 @@ func newForum(logger *server.Logger) *server.Forum {
 	return forum
 }
 
+var version string = "_devel_"
+
 func preHandle(fn func(http.ResponseWriter, *http.Request), footer bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !common.Kforum.IsReady() {
@@ -100,8 +102,8 @@ func preHandle(fn func(http.ResponseWriter, *http.Request), footer bool) http.Ha
 		if (footer || ww.ForceFooter) && ww.Code == http.StatusOK {
 			server.Render(w, server.TmplFooter, struct {
 				RenderTime  int64
-				RunningTime int64
-			}{duration.Nanoseconds() / 1e6, int64(time.Since(common.Kstart).Seconds() / 3600)})
+				RunningTime string
+			}{duration.Nanoseconds() / 1e6, version})
 		}
 		if duration.Seconds() > 0.1 {
 			url := r.URL.Path
