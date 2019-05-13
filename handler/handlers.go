@@ -32,14 +32,18 @@ func Image(w http.ResponseWriter, r *http.Request) {
 	file := filepath.Join(common.DATA_IMAGES, path)
 
 	if rxImageExts.MatchString(file) {
-		if r.FormValue("thumb") == "1" {
+		if r.FormValue("thumb") == "1" && !strings.HasSuffix(file, ".svg") {
 			path := file + ".thumb.jpg"
-			if _, err := os.Stat(path); err == nil {
+			if fi, err := os.Stat(path); err == nil {
+				common.Ktraffic.Recv(fi.Size())
 				http.ServeFile(w, r, path)
 				return
 			}
 			common.Kiq.Push(file)
 		}
+
+		fi, _ := os.Stat(file)
+		common.Ktraffic.Recv(fi.Size())
 		http.ServeFile(w, r, file)
 		return
 	}

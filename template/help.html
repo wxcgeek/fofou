@@ -1,4 +1,5 @@
 {{template "header.html" .}}
+<title>控制面板</title>
 
 <style>
 #ranking {
@@ -175,3 +176,6 @@ if (p && n) {
     {{if .Forum.NoRecaptcha}} <li>当前发帖不需要机器人验证</li> {{end}}
     <li><a href="/data.bin">公开数据下载</a> ({{formatBytes .DataBinSize}} / {{.DataBinTime}})</li>
 </ul>
+
+<h3>服务器流量</h3>
+<img src="/i/traffic.svg" onload="this.src+='?'+new Date().getTime();this.onload=null" style="max-width:500px">

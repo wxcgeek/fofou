@@ -20,7 +20,7 @@ import (
 	"github.com/coyove/fofou/server"
 )
 
-var rxImageExts = regexp.MustCompile(`(?i)(\.png|\.jpg|\.jpeg|\.gif)$`)
+var rxImageExts = regexp.MustCompile(`(?i)(\.png|\.jpg|\.jpeg|\.gif|\.svg)$`)
 
 func PostAPI(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, int64(common.Kforum.MaxImageSize)*1024*1024)
