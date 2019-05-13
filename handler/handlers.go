@@ -43,7 +43,9 @@ func Image(w http.ResponseWriter, r *http.Request) {
 		}
 
 		fi, _ := os.Stat(file)
-		common.Ktraffic.Recv(fi.Size())
+		if fi != nil {
+			common.Ktraffic.Recv(fi.Size())
+		}
 		http.ServeFile(w, r, file)
 		return
 	}
