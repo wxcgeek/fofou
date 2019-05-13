@@ -179,6 +179,7 @@ NEXT:
 	topic.Posts = []server.Post{topic.Posts[postID-1]}
 	topic.Posts[0].T_SetStatus(server.POST_T_ISREF)
 	topic.Reparent(user.ID)
+	topic.Posts[0].T_UnsetStatus(server.POST_T_ISOP)
 
 	if raw == "raw" {
 		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
