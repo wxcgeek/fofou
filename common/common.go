@@ -6,7 +6,7 @@ import (
 
 	"github.com/coyove/common/lru"
 	"github.com/coyove/fofou/server"
-	"github.com/coyove/goflyway/tree/v1.0/pkg/trafficmon"
+	"github.com/coyove/goflyway/v1.0/pkg/trafficmon"
 )
 
 const (
