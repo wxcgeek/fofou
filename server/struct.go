@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/coyove/fofou/markup"
-	"github.com/coyove/goflyway/v1.0/pkg/trafficmon"
+	"github.com/wxcgeek/goflyway/pkg/trafficmon"
 )
 
 const (
